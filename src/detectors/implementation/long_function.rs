@@ -1,0 +1,66 @@
+use crate::analysis::detector::Detector;
+use crate::domain::config::Thresholds;
+use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
+use crate::domain::source::SourceFile;
+
+/// Detects functions that are too long (by lines of code).
+pub struct LongFunctionDetector;
+
+impl Detector for LongFunctionDetector {
+    fn name(&self) -> &str {
+        "Long Function"
+    }
+
+    fn detect(&self, file: &SourceFile) -> Vec<Smell> {
+        let thresholds = Thresholds::default();
+        let mut smells = Vec::new();
+
+        for item in &file.ast.items {
+            if let syn::Item::Fn(fn_item) = item {
+                check_function(
+                    &file.path,
+                    fn_item,
+                    &thresholds,
+                    &mut smells,
+                );
+            }
+        }
+
+        smells
+    }
+}
+
+fn check_function(
+    file_path: &std::path::Path,
+    fn_item: &syn::ItemFn,
+    thresholds: &Thresholds,
+    smells: &mut Vec<Smell>,
+) {
+    let start_line = fn_item.block.brace_token.span.open().start().line;
+    let end_line = fn_item.block.brace_token.span.close().start().line;
+
+    let loc = end_line.saturating_sub(start_line).saturating_sub(1);
+
+    if loc > thresholds.long_function_loc {
+        smells.push(Smell::new(
+            SmellCategory::Implementation,
+            "Long Function",
+            if loc > thresholds.long_function_loc * 2 {
+                Severity::Critical
+            } else {
+                Severity::Warning
+            },
+            SourceLocation {
+                file: file_path.to_path_buf(),
+                line_start: start_line,
+                line_end: end_line,
+                column: None,
+            },
+            format!(
+                "Function `{}` is ~{} lines long (threshold: {})",
+                fn_item.sig.ident, loc, thresholds.long_function_loc
+            ),
+            "Extract helper functions. Each function should do one thing.",
+        ));
+    }
+}

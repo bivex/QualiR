@@ -1,0 +1,74 @@
+use syn::Item;
+
+use crate::analysis::detector::Detector;
+use crate::domain::config::Thresholds;
+use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
+use crate::domain::source::SourceFile;
+
+/// Detects files where too high a ratio of items are `pub`.
+pub struct PublicApiExplosionDetector;
+
+impl Detector for PublicApiExplosionDetector {
+    fn name(&self) -> &str {
+        "Public API Explosion"
+    }
+
+    fn detect(&self, file: &SourceFile) -> Vec<Smell> {
+        let thresholds = Thresholds::default();
+        let mut smells = Vec::new();
+
+        let total = file.ast.items.len();
+        if total == 0 {
+            return smells;
+        }
+
+        let pub_count = count_pub_items(&file.ast.items);
+        let ratio = pub_count as f64 / total as f64;
+
+        if ratio > thresholds.public_api_ratio && total > 5 {
+            smells.push(Smell::new(
+                SmellCategory::Architecture,
+                "Public API Explosion",
+                Severity::Info,
+                SourceLocation {
+                    file: file.path.clone(),
+                    line_start: 1,
+                    line_end: file.line_count,
+                    column: None,
+                },
+                format!(
+                    "{:.0}% of items are pub ({}/{}), threshold: {:.0}%",
+                    ratio * 100.0, pub_count, total, thresholds.public_api_ratio * 100.0
+                ),
+                "Reduce public surface. Make items private unless they are part of the intended API.",
+            ));
+        }
+
+        smells
+    }
+}
+
+fn count_pub_items(items: &[Item]) -> usize {
+    items.iter().filter(|item| is_pub(item)).count()
+}
+
+fn is_pub(item: &Item) -> bool {
+    let vis = match item {
+        Item::Const(i) => &i.vis,
+        Item::Enum(i) => &i.vis,
+        Item::ExternCrate(i) => &i.vis,
+        Item::Fn(i) => &i.vis,
+        Item::Mod(i) => &i.vis,
+        Item::Static(i) => &i.vis,
+        Item::Struct(i) => &i.vis,
+        Item::Trait(i) => &i.vis,
+        Item::TraitAlias(i) => &i.vis,
+        Item::Type(i) => &i.vis,
+        Item::Union(i) => &i.vis,
+        Item::Use(i) => &i.vis,
+        // Items without visibility or with implicit pub
+        Item::ForeignMod(_) | Item::Impl(_) | Item::Macro(_) | _ => return false,
+    };
+
+    matches!(vis, syn::Visibility::Public(_))
+}
