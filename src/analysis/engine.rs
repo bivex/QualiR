@@ -35,11 +35,22 @@ impl Engine {
         // Architecture
         self.register(Box::new(detectors::architecture::god_module::GodModuleDetector));
         self.register(Box::new(detectors::architecture::public_api_explosion::PublicApiExplosionDetector));
+        self.register(Box::new(detectors::architecture::feature_concentration::FeatureConcentrationDetector));
+        self.register(Box::new(detectors::architecture::cyclic_crate_dependency::CyclicDependencyDetector));
+        self.register(Box::new(detectors::architecture::layer_violation::LayerViolationDetector));
+        self.register(Box::new(detectors::architecture::unstable_dependency::UnstableDependencyDetector));
 
         // Design
         self.register(Box::new(detectors::design::large_trait::LargeTraitDetector));
         self.register(Box::new(detectors::design::excessive_generics::ExcessiveGenericsDetector));
         self.register(Box::new(detectors::design::anemic_struct::AnemicStructDetector));
+        self.register(Box::new(detectors::design::wide_hierarchy::WideHierarchyDetector));
+        self.register(Box::new(detectors::design::trait_impl_leakage::TraitImplLeakageDetector));
+        self.register(Box::new(detectors::design::feature_envy::FeatureEnvyDetector));
+        self.register(Box::new(detectors::design::broken_constructor::BrokenConstructorDetector));
+        self.register(Box::new(detectors::design::rebellious_impl::RebelliousImplDetector));
+        self.register(Box::new(detectors::design::deref_abuse::DerefAbuseDetector));
+        self.register(Box::new(detectors::design::manual_drop::ManualDropDetector));
 
         // Implementation
         self.register(Box::new(detectors::implementation::long_function::LongFunctionDetector));
@@ -58,8 +69,20 @@ impl Engine {
         self.register(Box::new(detectors::implementation::lifetime_explosion::LifetimeExplosionDetector));
         self.register(Box::new(detectors::implementation::copy_drop_conflict::CopyDropConflictDetector));
 
+        // Concurrency
+        self.register(Box::new(detectors::concurrency::blocking_in_async::BlockingInAsyncDetector));
+        self.register(Box::new(detectors::concurrency::large_future::LargeFutureDetector));
+        self.register(Box::new(detectors::concurrency::arc_mutex_overuse::ArcMutexOveruseDetector));
+        self.register(Box::new(detectors::concurrency::deadlock_risk::DeadlockRiskDetector));
+        self.register(Box::new(detectors::concurrency::spawn_without_join::SpawnWithoutJoinDetector));
+        self.register(Box::new(detectors::concurrency::missing_send_bound::MissingSendBoundDetector));
+
         // Unsafe
         self.register(Box::new(detectors::r#unsafe::unsafe_without_comment::UnsafeWithoutCommentDetector));
+        self.register(Box::new(detectors::r#unsafe::transmute_usage::TransmuteUsageDetector));
+        self.register(Box::new(detectors::r#unsafe::raw_pointer_arithmetic::RawPointerArithmeticDetector));
+        self.register(Box::new(detectors::r#unsafe::multi_mut_ref_unsafe::MultiMutRefUnsafeDetector));
+        self.register(Box::new(detectors::r#unsafe::ffi_without_wrapper::FfiWithoutWrapperDetector));
     }
 
     /// Analyze all Rust files under `path` and return detected smells.

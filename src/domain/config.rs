@@ -5,11 +5,13 @@ pub struct Thresholds {
     pub god_module_loc: usize,
     pub god_module_items: usize,
     pub public_api_ratio: f64,
+    pub feature_concentration: usize,
 
     // Design
     pub large_trait_methods: usize,
     pub excessive_generics: usize,
     pub deep_trait_bounds: usize,
+    pub wide_hierarchy: usize,
 
     // Implementation
     pub long_function_loc: usize,
@@ -25,6 +27,7 @@ pub struct Thresholds {
 
     // Concurrency
     pub large_future_loc: usize,
+    pub arc_mutex_overuse: usize,
 
     // Unsafe
     pub unsafe_without_comment: bool,
@@ -36,10 +39,12 @@ impl Default for Thresholds {
             god_module_loc: 1000,
             god_module_items: 20,
             public_api_ratio: 0.7,
+            feature_concentration: 15,
 
             large_trait_methods: 15,
             excessive_generics: 5,
             deep_trait_bounds: 4,
+            wide_hierarchy: 10,
 
             long_function_loc: 50,
             cyclomatic_complexity: 15,
@@ -53,6 +58,7 @@ impl Default for Thresholds {
             unsafe_block_overuse: 5,
 
             large_future_loc: 100,
+            arc_mutex_overuse: 3,
 
             unsafe_without_comment: true,
         }
