@@ -21,29 +21,33 @@ impl Detector for LongMethodChainDetector {
         for item in &file.ast.items {
             if let syn::Item::Fn(fn_item) = item {
                 let mut visitor = ChainVisitor {
-                    max_chain: 0,
                     threshold: thresholds.long_method_chain,
-                    chains: Vec::new(),
+                    candidates: Vec::new(),
                 };
                 visitor.visit_block(&fn_item.block);
 
-                for (depth, line) in &visitor.chains {
-                    smells.push(Smell::new(
-                        SmellCategory::Implementation,
-                        "Long Method Chain",
-                        Severity::Info,
-                        SourceLocation {
-                            file: file.path.clone(),
-                            line_start: *line,
-                            line_end: *line,
-                            column: None,
-                        },
-                        format!(
-                            "Function `{}` has a method chain of length {} (threshold: {})",
-                            fn_item.sig.ident, depth, thresholds.long_method_chain
-                        ),
-                        "Break long chains into intermediate variables with descriptive names.",
-                    ));
+                // Deduplicate: keep only the longest chain per line
+                visitor.candidates.sort_by(|a, b| b.0.cmp(&a.0));
+                let mut seen_lines = std::collections::HashSet::new();
+                for (depth, line) in visitor.candidates {
+                    if seen_lines.insert(line) {
+                        smells.push(Smell::new(
+                            SmellCategory::Implementation,
+                            "Long Method Chain",
+                            Severity::Info,
+                            SourceLocation {
+                                file: file.path.clone(),
+                                line_start: line,
+                                line_end: line,
+                                column: None,
+                            },
+                            format!(
+                                "Function `{}` has a method chain of length {} (threshold: {})",
+                                fn_item.sig.ident, depth, thresholds.long_method_chain
+                            ),
+                            "Break long chains into intermediate variables with descriptive names.",
+                        ));
+                    }
                 }
             }
         }
@@ -53,26 +57,17 @@ impl Detector for LongMethodChainDetector {
 }
 
 struct ChainVisitor {
-    max_chain: usize,
     threshold: usize,
-    chains: Vec<(usize, usize)>,
+    candidates: Vec<(usize, usize)>, // (depth, line)
 }
 
 impl ChainVisitor {
-    fn count_chain_depth(expr: &syn::Expr) -> usize {
+    fn chain_depth(expr: &syn::Expr) -> usize {
         match expr {
-            syn::Expr::MethodCall(call) => {
-                1 + Self::count_chain_depth(&call.receiver)
-            }
-            syn::Expr::Field(field) => {
-                1 + Self::count_chain_depth(&field.base)
-            }
-            syn::Expr::Await(await_expr) => {
-                1 + Self::count_chain_depth(&await_expr.base)
-            }
-            syn::Expr::Try(try_expr) => {
-                1 + Self::count_chain_depth(&try_expr.expr)
-            }
+            syn::Expr::MethodCall(call) => 1 + Self::chain_depth(&call.receiver),
+            syn::Expr::Field(field) => 1 + Self::chain_depth(&field.base),
+            syn::Expr::Await(a) => 1 + Self::chain_depth(&a.base),
+            syn::Expr::Try(t) => 1 + Self::chain_depth(&t.expr),
             _ => 0,
         }
     }
@@ -80,24 +75,21 @@ impl ChainVisitor {
 
 impl<'ast> Visit<'ast> for ChainVisitor {
     fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
-        let depth = Self::count_chain_depth(&syn::Expr::MethodCall(node.clone()));
-        if depth > self.max_chain {
-            self.max_chain = depth;
+        let depth = 1 + Self::chain_depth(&node.receiver);
+        if depth > self.threshold {
+            let line = node.span().start().line;
+            self.candidates.push((depth, line));
         }
-        if depth > self.threshold && Self::is_chain_root(node) {
-            let line = node.receiver.span().start().line;
-            // Avoid duplicate reports: only report if this is the outermost chain
-            self.chains.push((depth, line));
+        // Don't recurse into the receiver — it would produce shorter chains
+        // that we don't care about. Only visit the method arguments.
+        for arg in &node.args {
+            syn::visit::visit_expr(self, arg);
         }
-        syn::visit::visit_expr_method_call(self, node);
-    }
-}
-
-impl ChainVisitor {
-    fn is_chain_root(call: &syn::ExprMethodCall) -> bool {
-        // We are at the root of the chain if the parent wouldn't be a method call
-        // We detect this by checking if receiver is also a method call with same chain
-        // Simple heuristic: report only when receiver is NOT a method call itself
-        !matches!(&*call.receiver, syn::Expr::MethodCall(_))
+        // Also visit the turbofish if present
+        if let Some(turbofish) = &node.turbofish {
+            for arg in &turbofish.args {
+                syn::visit::visit_generic_argument(self, arg);
+            }
+        }
     }
 }

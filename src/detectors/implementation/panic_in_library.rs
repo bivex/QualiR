@@ -73,28 +73,28 @@ struct PanicVisitor {
 
 impl<'ast> Visit<'ast> for PanicVisitor {
     fn visit_expr_macro(&mut self, node: &'ast syn::ExprMacro) {
-        let name = extract_macro_name(&node.mac.path);
-        if matches!(name, "panic" | "todo" | "unimplemented") {
+        if let Some(name) = check_macro_name(&node.mac.path) {
             let line = node.mac.path.segments[0].ident.span().start().line;
-            self.panics.push((line, match name {
-                "panic" => "panic!",
-                "todo" => "todo!",
-                "unimplemented" => "unimplemented!",
-                _ => unreachable!(),
-            }));
+            self.panics.push((line, name));
         }
         syn::visit::visit_expr_macro(self, node);
     }
+
+    fn visit_stmt_macro(&mut self, node: &'ast syn::StmtMacro) {
+        if let Some(name) = check_macro_name(&node.mac.path) {
+            let line = node.mac.path.segments[0].ident.span().start().line;
+            self.panics.push((line, name));
+        }
+        syn::visit::visit_stmt_macro(self, node);
+    }
 }
 
-fn extract_macro_name(path: &syn::Path) -> &'static str {
-    path.segments
-        .last()
-        .map(|s| match s.ident.to_string().as_str() {
-            "panic" => "panic",
-            "todo" => "todo",
-            "unimplemented" => "unimplemented",
-            _ => "",
-        })
-        .unwrap_or("")
+fn check_macro_name(path: &syn::Path) -> Option<&'static str> {
+    let ident = path.segments.last()?.ident.to_string();
+    match ident.as_str() {
+        "panic" => Some("panic!"),
+        "todo" => Some("todo!"),
+        "unimplemented" => Some("unimplemented!"),
+        _ => None,
+    }
 }

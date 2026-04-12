@@ -17,15 +17,12 @@ impl Detector for CopyDropConflictDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let mut smells = Vec::new();
 
-        // Collect types that have Drop impls
         let drop_types = collect_drop_types(&file.ast);
-
-        // Collect types that derive or impl Copy
         let copy_types = collect_copy_types(&file.ast);
 
         // Find intersection
         for copy_type in &copy_types {
-            if drop_types.iter().any(|d| d == copy_type) {
+            if drop_types.iter().any(|d| d.name == copy_type.name) {
                 let line = copy_type.line;
                 smells.push(Smell::new(
                     SmellCategory::Implementation,
@@ -111,14 +108,18 @@ fn collect_copy_types(ast: &syn::File) -> Vec<TypeInfo> {
 
 fn has_derive_copy(attrs: &[syn::Attribute]) -> bool {
     attrs.iter().any(|attr| {
-        if attr.path().is_ident("derive") {
-            if let Ok(syn::MetaList { tokens, .. }) =
-                attr.meta.require_list()
-            {
-                return tokens.to_string().contains("Copy");
-            }
+        if !attr.path().is_ident("derive") {
+            return false;
         }
-        false
+        let list = match attr.meta.require_list() {
+            Ok(l) => l,
+            Err(_) => return false,
+        };
+        // Simple string check — Copy will appear as an ident in the derive list
+        let tokens_str = list.tokens.to_string();
+        // Parse each token: "Copy , Clone" or "Copy, Clone" etc.
+        tokens_str.split(|c: char| !c.is_alphanumeric() && c != '_')
+            .any(|token| token == "Copy")
     })
 }
 

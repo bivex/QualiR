@@ -5,6 +5,14 @@ edition = "2024"
 description = "Structural and architectural code smell detector for Rust"
 license = "MIT"
 
+[lib]
+name = "qualirs"
+path = "src/lib.rs"
+
+[[bin]]
+name = "qualirs"
+path = "src/main.rs"
+
 [dependencies]
 # AST parsing
 syn = { version = "2", features = ["full", "extra-traits", "visit", "parsing", "printing"] }
