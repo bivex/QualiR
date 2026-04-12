@@ -291,27 +291,84 @@ self.register(Box::new(MyCustomDetector));
 
 ## Roadmap
 
-These detectors are planned but not yet implemented:
+**14 of 41 detectors implemented.** 27 remaining across 5 categories.
 
-**Concurrency Smells:**
-- Blocking in Async (`std::thread::sleep` in `async fn`)
-- Large Future (async fn > 100 LOC)
-- `Arc<Mutex<T>>` Overuse
-- Deadlock Risk (lock inside lock)
-- Spawn Without Join (`tokio::spawn` without `.await`)
-- Missing Send Bound
+### Architecture — 2/6 done
 
-**Design Smells:**
-- Feature Envy (impl using fields of another struct more than its own)
-- Broken Constructor Pattern (all fields `pub`, no smart constructor)
+| # | Detector | Status | Notes |
+|---|---|---|---|
+| 1 | God Module | Done | >1000 LOC or >20 items |
+| 2 | Public API Explosion | Done | >70% pub ratio |
+| 3 | Feature Concentration | Todo | >15 external crate deps per module; parse `Cargo.toml` + `use` statements |
+| 4 | Cyclic Crate Dependency | Todo | Detect cycles between workspace crates; needs `Cargo.toml` workspace parsing |
+| 5 | Unstable Dependency | Todo | Module depends on unstable layers; needs layer mapping config |
+| 6 | Layer Violation | Todo | `domain` depending on `infra`; needs module path → layer heuristics |
 
-**Implementation Smells:**
-- High Cyclomatic Complexity (CC > 15)
-- Panic Usage in Library (`panic!` in lib crate)
+### Design — 3/10 done
 
-**Architecture Smells:**
-- Cyclic Crate Dependency (workspace crate cycles)
-- Unstable Dependency (depending on unstable layers)
+| # | Detector | Status | Notes |
+|---|---|---|---|
+| 1 | Large Trait | Done | >15 methods |
+| 2 | Excessive Generics | Done | >5 type params, also checks deep trait bounds |
+| 3 | Anemic Struct | Done | Struct with fields but no impl block |
+| 4 | Trait Impl Leakage | Todo | Trait reveals internal implementation details via method signatures |
+| 5 | Feature Envy | Todo | impl block accesses fields of another struct more than its own |
+| 6 | Wide Hierarchy | Todo | 10+ impl of the same trait across a crate |
+| 7 | Broken Constructor | Todo | Struct with all `pub` fields and no `new()` / builder |
+| 8 | Rebellious Impl | Todo | impl that overrides everything but adds no state of its own |
+| 9 | Deref Abuse | Todo | `impl Deref for T` used as fake inheritance |
+| 10 | Manual Drop | Todo | Manual `Drop` impl without clear necessity |
+
+### Implementation — 7/15 done
+
+| # | Detector | Status | Notes |
+|---|---|---|---|
+| 1 | Long Function | Done | >50 LOC, Critical if >100 |
+| 2 | Too Many Arguments | Done | >6 parameters |
+| 3 | Excessive Unwrap | Done | >3 unwrap/expect calls per fn |
+| 4 | Deep Match Nesting | Done | >3 levels of nested match |
+| 5 | Excessive Clone | Done | >10 .clone() calls per fn |
+| 6 | Magic Numbers | Done | Literals outside whitelist |
+| 7 | Large Enum | Done | >20 variants |
+| 8 | Cyclomatic Complexity | Todo | CC >15; count branches in if/match/loop/&&/\|\|/? |
+| 9 | Deep If/Else | Todo | >4 levels of if/else nesting |
+| 10 | Long Method Chain | Todo | a.b().c().d().e() >= 4 chained calls |
+| 11 | Unused Result Ignored | Todo | `let _ = fallible_fn()` without handling |
+| 12 | Panic in Library | Todo | panic!/todo!/unimplemented! in non-test lib code |
+| 13 | Unsafe Block Overuse | Todo | >N unsafe blocks per file |
+| 14 | Lifetime Explosion | Todo | >4 lifetime parameters on a single fn/struct |
+| 15 | Copy + Drop Conflict | Todo | Type that impls both Copy and Drop |
+
+### Concurrency — 0/6 done
+
+| # | Detector | Status | Notes |
+|---|---|---|---|
+| 1 | Blocking in Async | Todo | `std::thread::sleep`, `std::io::Read`, `std::fs::*` inside `async fn` |
+| 2 | Large Future | Todo | async fn >100 LOC |
+| 3 | Arc Mutex Overuse | Todo | >N `Arc<Mutex<T>>` fields in a single struct |
+| 4 | Deadlock Risk | Todo | `lock()` call inside another `lock()` scope |
+| 5 | Spawn Without Join | Todo | `tokio::spawn` / `spawn_blocking` without storing/joining handle |
+| 6 | Missing Send Bound | Todo | Async fn / future used in spawn without `Send` bound |
+
+### Unsafe / Memory — 1/5 done
+
+| # | Detector | Status | Notes |
+|---|---|---|---|
+| 1 | Unsafe Without Comment | Done | No `// SAFETY:` comment on unsafe block/impl/fn |
+| 2 | Transmute Usage | Todo | `std::mem::transmute` call detected; flag with severity |
+| 3 | Raw Pointer Arithmetic | Todo | `*mut T` / `*const T` with `.add()`, `.offset()`, pointer casting |
+| 4 | Multi Mutable Ref via Unsafe | Todo | Multiple `&mut` from same raw pointer in unsafe scope |
+| 5 | FFI Without Wrapper | Todo | `extern "C"` fn declared but no safe Rust wrapper function |
+
+### Infrastructure / Cross-Cutting — 0/5 done
+
+| # | Feature | Status | Notes |
+|---|---|---|---|
+| 1 | Structural Metrics Export | Todo | Compute LOC, CC, param count, trait count, impl count, pub API size per module; export as structured data |
+| 2 | JSON Output | Todo | `--format json` flag for machine-readable output |
+| 3 | SARIF Output | Todo | `--format sarif` for GitHub Advanced Security integration |
+| 4 | Diff Mode | Todo | `--diff main..HEAD` to only report smells in changed files |
+| 5 | Configurable Layer Map | Todo | `layers.toml` mapping module paths to architectural layers for Layer Violation detector |
 
 ## QualiRS vs Clippy
 
