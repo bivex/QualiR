@@ -16,8 +16,12 @@ pub struct Thresholds {
     pub cyclomatic_complexity: usize,
     pub too_many_arguments: usize,
     pub deep_match_nesting: usize,
+    pub deep_if_else: usize,
     pub excessive_unwrap: usize,
     pub large_enum_variants: usize,
+    pub long_method_chain: usize,
+    pub lifetime_explosion: usize,
+    pub unsafe_block_overuse: usize,
 
     // Concurrency
     pub large_future_loc: usize,
@@ -41,8 +45,12 @@ impl Default for Thresholds {
             cyclomatic_complexity: 15,
             too_many_arguments: 6,
             deep_match_nesting: 3,
+            deep_if_else: 4,
             excessive_unwrap: 3,
             large_enum_variants: 20,
+            long_method_chain: 4,
+            lifetime_explosion: 4,
+            unsafe_block_overuse: 5,
 
             large_future_loc: 100,
 

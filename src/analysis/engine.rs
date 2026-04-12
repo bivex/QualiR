@@ -49,6 +49,14 @@ impl Engine {
         self.register(Box::new(detectors::implementation::excessive_clone::ExcessiveCloneDetector));
         self.register(Box::new(detectors::implementation::magic_numbers::MagicNumbersDetector));
         self.register(Box::new(detectors::implementation::large_enum::LargeEnumDetector));
+        self.register(Box::new(detectors::implementation::cyclomatic_complexity::CyclomaticComplexityDetector));
+        self.register(Box::new(detectors::implementation::deep_if_else::DeepIfElseDetector));
+        self.register(Box::new(detectors::implementation::long_method_chain::LongMethodChainDetector));
+        self.register(Box::new(detectors::implementation::unused_result::UnusedResultDetector));
+        self.register(Box::new(detectors::implementation::panic_in_library::PanicInLibraryDetector));
+        self.register(Box::new(detectors::implementation::unsafe_overuse::UnsafeOveruseDetector));
+        self.register(Box::new(detectors::implementation::lifetime_explosion::LifetimeExplosionDetector));
+        self.register(Box::new(detectors::implementation::copy_drop_conflict::CopyDropConflictDetector));
 
         // Unsafe
         self.register(Box::new(detectors::r#unsafe::unsafe_without_comment::UnsafeWithoutCommentDetector));

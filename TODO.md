@@ -1,6 +1,6 @@
 # QualiRS Implementation TODO
 
-Progress: **14 / 41 detectors** + **0 / 5 infrastructure features**
+Progress: **22 / 41 detectors** + **0 / 5 infrastructure features**
 
 ---
 
@@ -26,7 +26,7 @@ Progress: **14 / 41 detectors** + **0 / 5 infrastructure features**
 - [ ] Deref Abuse — `impl Deref<Target = X>` used for fake inheritance, not smart pointer
 - [ ] Manual Drop — custom `Drop` impl without clear necessity (e.g., no raw pointers or FFI)
 
-## Implementation Smells (7/15)
+## Implementation Smells (15/15)
 
 - [x] Long Function — `src/detectors/implementation/long_function.rs`
 - [x] Too Many Arguments — `src/detectors/implementation/too_many_arguments.rs`
@@ -35,14 +35,14 @@ Progress: **14 / 41 detectors** + **0 / 5 infrastructure features**
 - [x] Excessive Clone — `src/detectors/implementation/excessive_clone.rs`
 - [x] Magic Numbers — `src/detectors/implementation/magic_numbers.rs`
 - [x] Large Enum — `src/detectors/implementation/large_enum.rs`
-- [ ] Cyclomatic Complexity — walk `if`, `match` arms, `loop`, `while`, `&&`, `||`, `?`; CC >15
-- [ ] Deep If/Else — recursive `if` nesting counter; >4 levels
-- [ ] Long Method Chain — count chained `.method()` calls on same expression; >=4
-- [ ] Unused Result Ignored — detect `let _ = expr()` where expr returns `Result` or `Option`
-- [ ] Panic in Library — `panic!`, `todo!`, `unimplemented!` in non-`#[cfg(test)]` lib code
-- [ ] Unsafe Block Overuse — count `unsafe {}` blocks per file; threshold >5
-- [ ] Lifetime Explosion — count lifetime params on fn/struct; >4
-- [ ] Copy + Drop Conflict — detect types that impl both `Copy` and `Drop`
+- [x] Cyclomatic Complexity — `src/detectors/implementation/cyclomatic_complexity.rs`
+- [x] Deep If/Else — `src/detectors/implementation/deep_if_else.rs`
+- [x] Long Method Chain — `src/detectors/implementation/long_method_chain.rs`
+- [x] Unused Result Ignored — `src/detectors/implementation/unused_result.rs`
+- [x] Panic in Library — `src/detectors/implementation/panic_in_library.rs`
+- [x] Unsafe Block Overuse — `src/detectors/implementation/unsafe_overuse.rs`
+- [x] Lifetime Explosion — `src/detectors/implementation/lifetime_explosion.rs`
+- [x] Copy + Drop Conflict — `src/detectors/implementation/copy_drop_conflict.rs`
 
 ## Concurrency Smells (0/6)
 
@@ -74,43 +74,35 @@ Progress: **14 / 41 detectors** + **0 / 5 infrastructure features**
 ## Priority Order
 
 ### P0 — High impact, straightforward to implement
-1. Cyclomatic Complexity (most requested metric)
-2. Deep If/Else (similar to Deep Match, easy visitor)
-3. Long Method Chain (simple chain counter)
-4. Unused Result Ignored (pattern match on `PatType` + `Type::Path`)
-5. Panic in Library (detect macro calls in lib crate)
-6. Broken Constructor Pattern (scan struct fields for all-pub)
-7. JSON Output (serialize `AnalysisReport`)
+1. Broken Constructor Pattern (scan struct fields for all-pub)
+2. JSON Output (serialize `AnalysisReport`)
 
 ### P1 — High impact, moderate effort
-8. Blocking in Async (detect sync calls in async fn)
-9. Large Future (like Long Function but for async fn)
-10. Transmute Usage (simple method call detection)
-11. Lifetime Explosion (count lifetime params)
-12. Unsafe Block Overuse (count unsafe blocks per file)
-13. Feature Concentration (parse Cargo.toml + use stmts)
-14. Diff Mode (git integration)
+3. Blocking in Async (detect sync calls in async fn)
+4. Large Future (like Long Function but for async fn)
+5. Transmute Usage (simple method call detection)
+6. Feature Concentration (parse Cargo.toml + use stmts)
+7. Diff Mode (git integration)
 
 ### P2 — Moderate impact, significant effort
-15. Feature Envy (needs cross-struct field access tracking)
-16. Wide Hierarchy (cross-file impl counting)
-17. Deref Abuse (semantic analysis of Deref impl intent)
-18. Deadlock Risk (control flow analysis for nested locks)
-19. Arc Mutex Overuse (type resolution for Arc<Mutex<T>>)
-20. Spawn Without Join (cross-function data flow)
-21. Missing Send Bound (type/trait bound analysis)
+8. Feature Envy (needs cross-struct field access tracking)
+9. Wide Hierarchy (cross-file impl counting)
+10. Deref Abuse (semantic analysis of Deref impl intent)
+11. Deadlock Risk (control flow analysis for nested locks)
+12. Arc Mutex Overuse (type resolution for Arc<Mutex<T>>)
+13. Spawn Without Join (cross-function data flow)
+14. Missing Send Bound (type/trait bound analysis)
 
 ### P3 — Requires external tooling or deep analysis
-22. Cyclic Crate Dependency (workspace Cargo.toml graph)
-23. Layer Violation (needs layer config)
-24. Unstable Dependency (needs stability model)
-25. Trait Impl Leakage (semantic trait API analysis)
-26. Rebellious Impl (impl pattern recognition)
-27. Manual Drop (intent analysis)
-28. Multi Mutable Ref via Unsafe (data flow in unsafe)
-29. Raw Pointer Arithmetic (pointer operation tracking)
-30. FFI Without Wrapper (cross-reference extern + safe fn)
-31. Copy + Drop Conflict (trait resolution)
-32. SARIF Output
-33. Layer Map Config
-34. Structural Metrics Export
+15. Cyclic Crate Dependency (workspace Cargo.toml graph)
+16. Layer Violation (needs layer config)
+17. Unstable Dependency (needs stability model)
+18. Trait Impl Leakage (semantic trait API analysis)
+19. Rebellious Impl (impl pattern recognition)
+20. Manual Drop (intent analysis)
+21. Multi Mutable Ref via Unsafe (data flow in unsafe)
+22. Raw Pointer Arithmetic (pointer operation tracking)
+23. FFI Without Wrapper (cross-reference extern + safe fn)
+24. SARIF Output
+25. Layer Map Config
+26. Structural Metrics Export

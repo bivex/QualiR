@@ -72,7 +72,7 @@ Options:
 | **Excessive Generics** | Functions/structs/enums with too many generic parameters | >5 type params | Warning |
 | **Anemic Struct** | Structs with fields but no `impl` block in the same file | Any | Info |
 
-### Implementation (7)
+### Implementation (15)
 
 | Detector | What it detects | Default threshold | Severity |
 |---|---|---|---|
@@ -83,6 +83,14 @@ Options:
 | **Excessive Clone** | Functions with too many `.clone()` calls | >10 calls | Info |
 | **Magic Numbers** | Numeric literals that aren't well-known constants | Any non-whitelisted literal | Info |
 | **Large Enum** | Enums with too many variants | >20 variants | Warning |
+| **High Cyclomatic Complexity** | Functions with too many branching paths (if/match/loop/&&/\|\|/?/while/for) | >15 | Warning / Critical |
+| **Deep If/Else Nesting** | Deeply nested if/else chains | >4 levels deep | Warning |
+| **Long Method Chain** | Excessive chained method calls `a.b().c().d().e()` | >=4 chained calls | Info |
+| **Unused Result Ignored** | `let _ = expr()` discarding Result/Option values | Any | Warning |
+| **Panic in Library** | `panic!`, `todo!`, `unimplemented!` in non-test library code | Any | Warning |
+| **Unsafe Block Overuse** | Files with too many unsafe blocks | >5 per file | Warning |
+| **Lifetime Explosion** | Functions/structs/enums with too many lifetime parameters | >4 lifetimes | Warning |
+| **Copy + Drop Conflict** | Types implementing both Copy and Drop (double-free risk) | Any | Critical |
 
 ### Unsafe (1)
 
@@ -115,8 +123,12 @@ long_function_loc = 50
 cyclomatic_complexity = 15
 too_many_arguments = 6
 deep_match_nesting = 3
+deep_if_else = 4
 excessive_unwrap = 3
 large_enum_variants = 20
+long_method_chain = 4
+lifetime_explosion = 4
+unsafe_block_overuse = 5
 
 # Concurrency
 large_future_loc = 100
@@ -291,7 +303,7 @@ self.register(Box::new(MyCustomDetector));
 
 ## Roadmap
 
-**14 of 41 detectors implemented.** 27 remaining across 5 categories.
+**22 of 41 detectors implemented.** 19 remaining across 5 categories.
 
 ### Architecture — 2/6 done
 
@@ -319,7 +331,7 @@ self.register(Box::new(MyCustomDetector));
 | 9 | Deref Abuse | Todo | `impl Deref for T` used as fake inheritance |
 | 10 | Manual Drop | Todo | Manual `Drop` impl without clear necessity |
 
-### Implementation — 7/15 done
+### Implementation — 15/15 done
 
 | # | Detector | Status | Notes |
 |---|---|---|---|
@@ -330,14 +342,14 @@ self.register(Box::new(MyCustomDetector));
 | 5 | Excessive Clone | Done | >10 .clone() calls per fn |
 | 6 | Magic Numbers | Done | Literals outside whitelist |
 | 7 | Large Enum | Done | >20 variants |
-| 8 | Cyclomatic Complexity | Todo | CC >15; count branches in if/match/loop/&&/\|\|/? |
-| 9 | Deep If/Else | Todo | >4 levels of if/else nesting |
-| 10 | Long Method Chain | Todo | a.b().c().d().e() >= 4 chained calls |
-| 11 | Unused Result Ignored | Todo | `let _ = fallible_fn()` without handling |
-| 12 | Panic in Library | Todo | panic!/todo!/unimplemented! in non-test lib code |
-| 13 | Unsafe Block Overuse | Todo | >N unsafe blocks per file |
-| 14 | Lifetime Explosion | Todo | >4 lifetime parameters on a single fn/struct |
-| 15 | Copy + Drop Conflict | Todo | Type that impls both Copy and Drop |
+| 8 | Cyclomatic Complexity | Done | CC >15; counts if/match/loop/&&/\|\|/? |
+| 9 | Deep If/Else | Done | >4 levels of if/else nesting |
+| 10 | Long Method Chain | Done | >=4 chained method calls |
+| 11 | Unused Result Ignored | Done | `let _ = ...` discarding values |
+| 12 | Panic in Library | Done | panic!/todo!/unimplemented! in lib code |
+| 13 | Unsafe Block Overuse | Done | >5 unsafe blocks per file |
+| 14 | Lifetime Explosion | Done | >4 lifetime params on fn/struct/enum |
+| 15 | Copy + Drop Conflict | Done | Types with both Copy and Drop |
 
 ### Concurrency — 0/6 done
 
@@ -378,7 +390,7 @@ self.register(Box::new(MyCustomDetector));
 | Granularity | Expression/statement level | Function/module/crate level |
 | Configurability | Lint levels (allow/warn/deny) | Numeric thresholds per smell |
 | Unsafe analysis | Basic (`unsafe_removed_from_code`) | SAFETY comment enforcement |
-| Structural metrics | None | LOC, item count, pub ratio, nesting depth |
+| Structural metrics | None | LOC, CC, item count, pub ratio, nesting depth, method chains, lifetimes |
 | Overlap | Minimal | Complementary |
 
 ## Tech Stack
