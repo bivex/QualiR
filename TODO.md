@@ -1,30 +1,30 @@
 # QualiRS Implementation TODO
 
-Progress: **22 / 41 detectors** + **0 / 5 infrastructure features**
+Progress: **38 / 41 detectors** + **0 / 5 infrastructure features**
 
 ---
 
-## Architecture Smells (2/6)
+## Architecture Smells (6/6)
 
 - [x] God Module — `src/detectors/architecture/god_module.rs`
 - [x] Public API Explosion — `src/detectors/architecture/public_api_explosion.rs`
-- [ ] Feature Concentration — parse `Cargo.toml` for crate deps + count `use` statements per module; threshold >15
-- [ ] Cyclic Crate Dependency — parse workspace `Cargo.toml`, build dep graph, detect cycles
-- [ ] Unstable Dependency — needs layer stability model (stable/unstable/transitional); ratio >0.4
-- [ ] Layer Violation — needs configurable layer map (`layers.toml`), check module paths for inward deps
+- [x] Feature Concentration — `src/detectors/architecture/feature_concentration.rs`
+- [x] Cyclic Crate Dependency — `src/detectors/architecture/cyclic_crate_dependency.rs`
+- [x] Unstable Dependency — `src/detectors/architecture/unstable_dependency.rs`
+- [x] Layer Violation — `src/detectors/architecture/layer_violation.rs`
 
-## Design Smells (3/10)
+## Design Smells (10/10)
 
 - [x] Large Trait — `src/detectors/design/large_trait.rs`
 - [x] Excessive Generics — `src/detectors/design/excessive_generics.rs` (also covers Deep Trait Bounds)
 - [x] Anemic Struct — `src/detectors/design/anemic_struct.rs`
-- [ ] Trait Impl Leakage — detect trait methods that expose internal types in signatures
-- [ ] Feature Envy — count field accesses on `self` vs other types in impl blocks; flag if foreign > own
-- [ ] Wide Hierarchy — count `impl Trait for` across crate; flag if >10
-- [ ] Broken Constructor Pattern — struct with all `pub` fields and no `fn new()` or builder
-- [ ] Rebellious Impl — impl that delegates all methods without adding state
-- [ ] Deref Abuse — `impl Deref<Target = X>` used for fake inheritance, not smart pointer
-- [ ] Manual Drop — custom `Drop` impl without clear necessity (e.g., no raw pointers or FFI)
+- [x] Trait Impl Leakage — `src/detectors/design/trait_impl_leakage.rs`
+- [x] Feature Envy — `src/detectors/design/feature_envy.rs`
+- [x] Wide Hierarchy — `src/detectors/design/wide_hierarchy.rs`
+- [x] Broken Constructor Pattern — `src/detectors/design/broken_constructor.rs`
+- [x] Rebellious Impl — `src/detectors/design/rebellious_impl.rs`
+- [x] Deref Abuse — `src/detectors/design/deref_abuse.rs`
+- [x] Manual Drop — `src/detectors/design/manual_drop.rs`
 
 ## Implementation Smells (15/15)
 
@@ -44,22 +44,24 @@ Progress: **22 / 41 detectors** + **0 / 5 infrastructure features**
 - [x] Lifetime Explosion — `src/detectors/implementation/lifetime_explosion.rs`
 - [x] Copy + Drop Conflict — `src/detectors/implementation/copy_drop_conflict.rs`
 
-## Concurrency Smells (0/6)
+## Concurrency Smells (6/6)
 
-- [ ] Blocking in Async — detect `std::thread::sleep`, `std::fs::*`, `std::io::Read::read` in `async fn`
-- [ ] Large Future — `async fn` body >100 LOC
-- [ ] Arc Mutex Overuse — count `Arc<Mutex<T>>`, `Arc<RwLock<T>>` fields per struct; >3
-- [ ] Deadlock Risk — detect nested `.lock()` calls on different Mutex/RwLock in same scope
-- [ ] Spawn Without Join — `tokio::spawn` / `std::thread::spawn` without storing or awaiting JoinHandle
-- [ ] Missing Send Bound — async fn or future passed to `spawn` without `+ Send` in signature
+- [x] Blocking in Async — `src/detectors/concurrency/blocking_in_async.rs`
+- [x] Large Future — `src/detectors/concurrency/large_future.rs`
+- [x] Arc Mutex Overuse — `src/detectors/concurrency/arc_mutex_overuse.rs`
+- [x] Deadlock Risk — `src/detectors/concurrency/deadlock_risk.rs`
+- [x] Spawn Without Join — `src/detectors/concurrency/spawn_without_join.rs`
+- [x] Missing Send Bound — `src/detectors/concurrency/missing_send_bound.rs`
 
-## Unsafe / Memory Smells (1/5)
+## Unsafe / Memory Smells (5/5)
 
 - [x] Unsafe Without Comment — `src/detectors/unsafe/unsafe_without_comment.rs`
-- [ ] Transmute Usage — detect `std::mem::transmute` calls
-- [ ] Raw Pointer Arithmetic — detect `*mut T` / `*const T` with `.add()`, `.offset()`, `.sub()`, `ptr::copy`
-- [ ] Multi Mutable Ref via Unsafe — multiple `&mut` reborrowed from same raw pointer
-- [ ] FFI Without Wrapper — `extern "C"` / `extern "system"` declarations without a safe Rust wrapper fn
+- [x] Transmute Usage — `src/detectors/unsafe/transmute_usage.rs`
+- [x] Raw Pointer Arithmetic — `src/detectors/unsafe/raw_pointer_arithmetic.rs`
+- [x] Multi Mutable Ref via Unsafe — `src/detectors/unsafe/multi_mut_ref_unsafe.rs`
+- [x] FFI Without Wrapper — `src/detectors/unsafe/ffi_without_wrapper.rs`
+
+---
 
 ## Infrastructure Features (0/5)
 
@@ -71,38 +73,12 @@ Progress: **22 / 41 detectors** + **0 / 5 infrastructure features**
 
 ---
 
-## Priority Order
+## Future Improvements
 
-### P0 — High impact, straightforward to implement
-1. Broken Constructor Pattern (scan struct fields for all-pub)
-2. JSON Output (serialize `AnalysisReport`)
-
-### P1 — High impact, moderate effort
-3. Blocking in Async (detect sync calls in async fn)
-4. Large Future (like Long Function but for async fn)
-5. Transmute Usage (simple method call detection)
-6. Feature Concentration (parse Cargo.toml + use stmts)
-7. Diff Mode (git integration)
-
-### P2 — Moderate impact, significant effort
-8. Feature Envy (needs cross-struct field access tracking)
-9. Wide Hierarchy (cross-file impl counting)
-10. Deref Abuse (semantic analysis of Deref impl intent)
-11. Deadlock Risk (control flow analysis for nested locks)
-12. Arc Mutex Overuse (type resolution for Arc<Mutex<T>>)
-13. Spawn Without Join (cross-function data flow)
-14. Missing Send Bound (type/trait bound analysis)
-
-### P3 — Requires external tooling or deep analysis
-15. Cyclic Crate Dependency (workspace Cargo.toml graph)
-16. Layer Violation (needs layer config)
-17. Unstable Dependency (needs stability model)
-18. Trait Impl Leakage (semantic trait API analysis)
-19. Rebellious Impl (impl pattern recognition)
-20. Manual Drop (intent analysis)
-21. Multi Mutable Ref via Unsafe (data flow in unsafe)
-22. Raw Pointer Arithmetic (pointer operation tracking)
-23. FFI Without Wrapper (cross-reference extern + safe fn)
-24. SARIF Output
-25. Layer Map Config
-26. Structural Metrics Export
+- Cross-file analysis (current detectors work per-file only)
+- Incremental analysis / caching
+- IDE integration (LSP diagnostics)
+- CI GitHub Action
+- Configurable per-detector thresholds in `qualirs.toml`
+- Test coverage for new detectors (currently 52 tests for original 22)
+- Update README.md to reflect 38 total detectors across 5 categories
