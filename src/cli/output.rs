@@ -140,8 +140,8 @@ pub fn print_detector_list() {
     println!("{}", "━".repeat(40).dimmed());
 
     let detectors = [
-        ("Architecture", vec!["God Module", "Public API Explosion"]),
-        ("Design", vec!["Large Trait", "Excessive Generics", "Anemic Struct"]),
+        ("Architecture", vec!["God Module", "Public API Explosion", "Feature Concentration", "Cyclic Crate Dependency", "Layer Violation", "Unstable Dependency"]),
+        ("Design", vec!["Large Trait", "Excessive Generics", "Anemic Struct", "Wide Hierarchy", "Trait Impl Leakage", "Feature Envy", "Broken Constructor", "Rebellious Impl", "Deref Abuse", "Manual Drop"]),
         (
             "Implementation",
             vec![
@@ -162,7 +162,8 @@ pub fn print_detector_list() {
                 "Copy + Drop Conflict",
             ],
         ),
-        ("Unsafe", vec!["Unsafe Without Comment"]),
+        ("Concurrency", vec!["Blocking in Async", "Large Future", "Arc Mutex Overuse", "Deadlock Risk", "Spawn Without Join", "Missing Send Bound"]),
+        ("Unsafe", vec!["Unsafe Without Comment", "Transmute Usage", "Raw Pointer Arithmetic", "Multi Mut Ref Unsafe", "FFI Without Wrapper"]),
     ];
 
     for (category, names) in &detectors {

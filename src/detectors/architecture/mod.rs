@@ -1,2 +1,6 @@
 pub mod god_module;
 pub mod public_api_explosion;
+pub mod feature_concentration;
+pub mod cyclic_crate_dependency;
+pub mod layer_violation;
+pub mod unstable_dependency;

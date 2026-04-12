@@ -1,3 +1,10 @@
 pub mod large_trait;
 pub mod excessive_generics;
 pub mod anemic_struct;
+pub mod wide_hierarchy;
+pub mod trait_impl_leakage;
+pub mod feature_envy;
+pub mod broken_constructor;
+pub mod rebellious_impl;
+pub mod deref_abuse;
+pub mod manual_drop;
