@@ -138,21 +138,40 @@ pub struct AnalysisReport {
     pub parse_errors: Vec<crate::domain::source::ParseError>,
 }
 
-impl AnalysisReport {
-    pub fn new(smells: Vec<Smell>, total_files: usize, parse_errors: Vec<crate::domain::source::ParseError>) -> Self {
-        Self { smells, total_files, parse_errors }
+#[derive(Default)]
+pub struct SmellList<'a>(pub Vec<&'a Smell>);
+
+impl<'a> SmellList<'a> {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+}
+
+pub struct CategorySmells<'a>(pub std::collections::HashMap<crate::domain::smell::SmellCategory, SmellList<'a>>);
+
+impl<'a> CategorySmells<'a> {
+    pub fn new(map: std::collections::HashMap<crate::domain::smell::SmellCategory, SmellList<'a>>) -> Self {
+        Self(map)
+    }
+
+    pub fn get_map(&self) -> &std::collections::HashMap<crate::domain::smell::SmellCategory, SmellList<'a>> {
+        &self.0
     }
 }
 
 impl AnalysisReport {
+    pub fn new(smells: Vec<Smell>, total_files: usize, parse_errors: Vec<crate::domain::source::ParseError>) -> Self {
+        Self { smells, total_files, parse_errors }
+    }
+
     /// Smells grouped by category.
     #[allow(dead_code)]
-    pub fn by_category(&self) -> std::collections::HashMap<crate::domain::smell::SmellCategory, Vec<&Smell>> {
-        let mut map: std::collections::HashMap<crate::domain::smell::SmellCategory, Vec<&Smell>> = std::collections::HashMap::new();
+    pub fn by_category(&self) -> CategorySmells {
+        let mut map = std::collections::HashMap::new();
         for smell in &self.smells {
-            map.entry(smell.category).or_default().push(smell);
+            map.entry(smell.category).or_insert_with(SmellList::default).0.push(smell);
         }
-        map
+        CategorySmells::new(map)
     }
 
     pub fn total_smells(&self) -> usize {
