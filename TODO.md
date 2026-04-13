@@ -81,4 +81,4 @@ Progress: **42 / 42 detectors** + **0 / 5 infrastructure features**
 - CI GitHub Action
 - Configurable per-detector thresholds in `qualirs.toml`
 - [x] Test coverage for new detectors (71 integration tests for all 42 detectors)
-- [ ] Update README.md to reflect 42 total detectors across 5 categories
+    - [x] Update README.md to reflect 42 total detectors across 5 categories
