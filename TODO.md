@@ -1,6 +1,6 @@
 # QualiRS Implementation TODO
 
-Progress: **38 / 41 detectors** + **0 / 5 infrastructure features**
+Progress: **42 / 42 detectors** + **0 / 5 infrastructure features**
 
 ---
 
@@ -80,5 +80,5 @@ Progress: **38 / 41 detectors** + **0 / 5 infrastructure features**
 - IDE integration (LSP diagnostics)
 - CI GitHub Action
 - Configurable per-detector thresholds in `qualirs.toml`
-- Test coverage for new detectors (currently 52 tests for original 22)
-- Update README.md to reflect 38 total detectors across 5 categories
+- [x] Test coverage for new detectors (71 integration tests for all 42 detectors)
+- [ ] Update README.md to reflect 42 total detectors across 5 categories
