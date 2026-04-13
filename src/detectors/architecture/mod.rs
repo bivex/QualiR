@@ -4,3 +4,5 @@ pub mod feature_concentration;
 pub mod cyclic_crate_dependency;
 pub mod layer_violation;
 pub mod unstable_dependency;
+pub mod leaky_error;
+pub mod hidden_global_state;
