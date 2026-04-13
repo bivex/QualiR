@@ -22,7 +22,7 @@ impl Detector for DeepMatchDetector {
                 let mut visitor = MatchDepthVisitor::new();
                 visitor.visit_block(&fn_item.block);
 
-                if visitor.max_depth > thresholds.deep_match_nesting {
+                if visitor.max_depth > thresholds.r#impl.deep_match_nesting {
                     let line = fn_item.sig.fn_token.span.start().line;
 
                     smells.push(Smell::new(
@@ -37,7 +37,7 @@ impl Detector for DeepMatchDetector {
                         },
                         format!(
                             "Function `{}` has match nesting depth of {} (threshold: {})",
-                            fn_item.sig.ident, visitor.max_depth, thresholds.deep_match_nesting
+                            fn_item.sig.ident, visitor.max_depth, thresholds.r#impl.deep_match_nesting
                         ),
                         "Flatten nested matches using early returns, combinators, or extract helper functions.",
                     ));

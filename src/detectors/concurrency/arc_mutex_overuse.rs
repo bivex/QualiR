@@ -27,7 +27,7 @@ impl Detector for ArcMutexOveruseDetector {
         };
         syn::visit::visit_file(&mut visitor, &file.ast);
 
-        if visitor.arc_mutex_count > thresholds.arc_mutex_overuse {
+        if visitor.arc_mutex_count > thresholds.concurrency.arc_mutex_overuse {
             let line = visitor.first_line.unwrap_or(1);
             smells.push(Smell::new(
                 SmellCategory::Concurrency,
@@ -41,7 +41,7 @@ impl Detector for ArcMutexOveruseDetector {
                 },
                 format!(
                     "File uses Arc<Mutex<...>> {} times (threshold: {})",
-                    visitor.arc_mutex_count, thresholds.arc_mutex_overuse
+                    visitor.arc_mutex_count, thresholds.concurrency.arc_mutex_overuse
                 ),
                 "Consider message passing (channels) or finer-grained locking (RwLock, atomics).",
             ));

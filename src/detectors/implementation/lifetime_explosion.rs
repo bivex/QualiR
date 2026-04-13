@@ -22,40 +22,40 @@ impl Detector for LifetimeExplosionDetector {
             match item {
                 syn::Item::Fn(fn_item) => {
                     let count = count_lifetimes(&fn_item.sig.generics);
-                    if count > thresholds.lifetime_explosion {
+                    if count > thresholds.r#impl.lifetime_explosion {
                         let line = fn_item.sig.fn_token.span.start().line;
                         smells.push(make_smell(
                             &file.path,
                             line,
                             &format!("Function `{}`", fn_item.sig.ident),
                             count,
-                            thresholds.lifetime_explosion,
+                            thresholds.r#impl.lifetime_explosion,
                         ));
                     }
                 }
                 syn::Item::Struct(s) => {
                     let count = count_lifetimes(&s.generics);
-                    if count > thresholds.lifetime_explosion {
+                    if count > thresholds.r#impl.lifetime_explosion {
                         let line = s.struct_token.span.start().line;
                         smells.push(make_smell(
                             &file.path,
                             line,
                             &format!("Struct `{}`", s.ident),
                             count,
-                            thresholds.lifetime_explosion,
+                            thresholds.r#impl.lifetime_explosion,
                         ));
                     }
                 }
                 syn::Item::Enum(e) => {
                     let count = count_lifetimes(&e.generics);
-                    if count > thresholds.lifetime_explosion {
+                    if count > thresholds.r#impl.lifetime_explosion {
                         let line = e.enum_token.span.start().line;
                         smells.push(make_smell(
                             &file.path,
                             line,
                             &format!("Enum `{}`", e.ident),
                             count,
-                            thresholds.lifetime_explosion,
+                            thresholds.r#impl.lifetime_explosion,
                         ));
                     }
                 }

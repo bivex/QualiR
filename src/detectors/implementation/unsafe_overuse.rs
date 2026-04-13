@@ -23,7 +23,7 @@ impl Detector for UnsafeOveruseDetector {
         let mut visitor = UnsafeCounter { count: 0 };
         visitor.visit_file(&file.ast);
 
-        if visitor.count > thresholds.unsafe_block_overuse {
+        if visitor.count > thresholds.r#impl.unsafe_block_overuse {
             smells.push(Smell::new(
                 SmellCategory::Implementation,
                 "Unsafe Block Overuse",
@@ -36,7 +36,7 @@ impl Detector for UnsafeOveruseDetector {
                 },
                 format!(
                     "File has {} unsafe blocks (threshold: {})",
-                    visitor.count, thresholds.unsafe_block_overuse
+                    visitor.count, thresholds.r#impl.unsafe_block_overuse
                 ),
                 "Minimize unsafe usage. Wrap each unsafe block in a safe abstraction.",
             ));

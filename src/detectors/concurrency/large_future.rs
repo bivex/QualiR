@@ -24,11 +24,11 @@ impl Detector for LargeFutureDetector {
                     let end = fn_item.block.brace_token.span.close().start().line;
                     let loc = end.saturating_sub(start).saturating_sub(1);
 
-                    if loc > thresholds.large_future_loc {
+                    if loc > thresholds.concurrency.large_future_loc {
                         smells.push(Smell::new(
                             SmellCategory::Concurrency,
                             "Large Future",
-                            if loc > thresholds.large_future_loc * 2 {
+                            if loc > thresholds.concurrency.large_future_loc * 2 {
                                 Severity::Critical
                             } else {
                                 Severity::Warning
@@ -41,7 +41,7 @@ impl Detector for LargeFutureDetector {
                             },
                             format!(
                                 "Async function `{}` is ~{} lines (threshold: {})",
-                                fn_item.sig.ident, loc, thresholds.large_future_loc
+                                fn_item.sig.ident, loc, thresholds.concurrency.large_future_loc
                             ),
                             "Break large async functions into smaller composable futures.",
                         ));

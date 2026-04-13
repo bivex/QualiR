@@ -18,7 +18,7 @@ impl Detector for LargeEnumDetector {
         for item in &file.ast.items {
             if let syn::Item::Enum(enum_item) = item {
                 let variant_count = enum_item.variants.len();
-                if variant_count > thresholds.large_enum_variants {
+                if variant_count > thresholds.r#impl.large_enum_variants {
                     let line = enum_item.brace_token.span.open().start().line;
 
                     smells.push(Smell::new(
@@ -33,7 +33,7 @@ impl Detector for LargeEnumDetector {
                         },
                         format!(
                             "Enum `{}` has {} variants (threshold: {})",
-                            enum_item.ident, variant_count, thresholds.large_enum_variants
+                            enum_item.ident, variant_count, thresholds.r#impl.large_enum_variants
                         ),
                         "Consider splitting into multiple enums or using a trait-based dispatch.",
                     ));

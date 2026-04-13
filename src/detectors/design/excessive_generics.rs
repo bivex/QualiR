@@ -60,7 +60,7 @@ fn check_generics(
     smells: &mut Vec<Smell>,
 ) {
     let count = generics.params.len();
-    if count > thresholds.excessive_generics {
+    if count > thresholds.design.excessive_generics {
         let line = generics
             .lt_token
             .map(|lt| lt.span.start().line)
@@ -76,7 +76,7 @@ fn check_generics(
                 line_end: line,
                 column: None,
             },
-            format!("{context} has {count} generic parameters (threshold: {})", thresholds.excessive_generics),
+            format!("{context} has {count} generic parameters (threshold: {})", thresholds.design.excessive_generics),
             "Reduce generic parameters. Consider concrete types or trait objects for complex cases.",
         ));
     }
@@ -87,7 +87,7 @@ fn check_generics(
             for bound in &tp.bounds {
                 if let syn::TypeParamBound::Trait(_) = bound {
                     let bound_count = tp.bounds.len();
-                    if bound_count > thresholds.deep_trait_bounds {
+                    if bound_count > thresholds.design.deep_trait_bounds {
                         let line = tp
                             .colon_token
                             .map(|c| c.span.start().line)
@@ -103,7 +103,7 @@ fn check_generics(
                                 line_end: line,
                                 column: None,
                             },
-                            format!("{context}: type parameter `{}` has {bound_count} trait bounds (threshold: {})", tp.ident, thresholds.deep_trait_bounds),
+                            format!("{context}: type parameter `{}` has {bound_count} trait bounds (threshold: {})", tp.ident, thresholds.design.deep_trait_bounds),
                             "Consider creating a supertrait that combines common bounds.",
                         ));
                         break;

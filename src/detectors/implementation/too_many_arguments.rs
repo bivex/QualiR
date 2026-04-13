@@ -18,7 +18,7 @@ impl Detector for TooManyArgumentsDetector {
         for item in &file.ast.items {
             if let syn::Item::Fn(fn_item) = item {
                 let arg_count = fn_item.sig.inputs.len();
-                if arg_count > thresholds.too_many_arguments {
+                if arg_count > thresholds.r#impl.too_many_arguments {
                     let line = fn_item.sig.fn_token.span.start().line;
 
                     smells.push(Smell::new(
@@ -33,7 +33,7 @@ impl Detector for TooManyArgumentsDetector {
                         },
                         format!(
                             "Function `{}` has {} arguments (threshold: {})",
-                            fn_item.sig.ident, arg_count, thresholds.too_many_arguments
+                            fn_item.sig.ident, arg_count, thresholds.r#impl.too_many_arguments
                         ),
                         "Group related parameters into a struct or use the Builder pattern.",
                     ));

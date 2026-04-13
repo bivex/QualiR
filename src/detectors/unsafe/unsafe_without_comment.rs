@@ -105,8 +105,10 @@ impl<'ast, 'a> Visit<'ast> for UnsafeVisitor<'a> {
     }
 }
 
+const SAFETY_COMMENT_LOOKBACK: usize = 3;
+
 fn has_safety_comment(lines: &[&str], line_number: usize) -> bool {
-    let start = line_number.saturating_sub(3);
+    let start = line_number.saturating_sub(SAFETY_COMMENT_LOOKBACK);
     let end = line_number;
 
     for i in start..end {

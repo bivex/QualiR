@@ -25,7 +25,7 @@ impl Detector for PublicApiExplosionDetector {
         let pub_count = count_pub_items(&file.ast.items);
         let ratio = pub_count as f64 / total as f64;
 
-        if ratio > thresholds.public_api_ratio && total > 5 {
+        if ratio > thresholds.arch.public_api_ratio && total > 5 {
             smells.push(Smell::new(
                 SmellCategory::Architecture,
                 "Public API Explosion",
@@ -38,7 +38,7 @@ impl Detector for PublicApiExplosionDetector {
                 },
                 format!(
                     "{:.0}% of items are pub ({}/{}), threshold: {:.0}%",
-                    ratio * 100.0, pub_count, total, thresholds.public_api_ratio * 100.0
+                    ratio * 100.0, pub_count, total, thresholds.arch.public_api_ratio * 100.0
                 ),
                 "Reduce public surface. Make items private unless they are part of the intended API.",
             ));

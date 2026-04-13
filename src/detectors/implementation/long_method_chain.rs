@@ -21,7 +21,7 @@ impl Detector for LongMethodChainDetector {
         for item in &file.ast.items {
             if let syn::Item::Fn(fn_item) = item {
                 let mut visitor = ChainVisitor {
-                    threshold: thresholds.long_method_chain,
+                    threshold: thresholds.r#impl.long_method_chain,
                     candidates: Vec::new(),
                 };
                 visitor.visit_block(&fn_item.block);
@@ -43,7 +43,7 @@ impl Detector for LongMethodChainDetector {
                             },
                             format!(
                                 "Function `{}` has a method chain of length {} (threshold: {})",
-                                fn_item.sig.ident, depth, thresholds.long_method_chain
+                                fn_item.sig.ident, depth, thresholds.r#impl.long_method_chain
                             ),
                             "Break long chains into intermediate variables with descriptive names.",
                         ));

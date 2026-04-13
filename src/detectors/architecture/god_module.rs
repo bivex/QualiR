@@ -17,7 +17,7 @@ impl Detector for GodModuleDetector {
 
         let item_count = file.ast.items.len();
 
-        if file.line_count > thresholds.god_module_loc {
+        if file.line_count > thresholds.arch.god_module_loc {
             smells.push(Smell::new(
                 SmellCategory::Architecture,
                 "God Module",
@@ -30,13 +30,13 @@ impl Detector for GodModuleDetector {
                 },
                 format!(
                     "Module has {} lines (threshold: {})",
-                    file.line_count, thresholds.god_module_loc
+                    file.line_count, thresholds.arch.god_module_loc
                 ),
                 "Split this module into smaller, focused modules with clear responsibilities.",
             ));
         }
 
-        if item_count > thresholds.god_module_items {
+        if item_count > thresholds.arch.god_module_items {
             smells.push(Smell::new(
                 SmellCategory::Architecture,
                 "God Module (items)",
@@ -49,7 +49,7 @@ impl Detector for GodModuleDetector {
                 },
                 format!(
                     "Module has {} top-level items (threshold: {})",
-                    item_count, thresholds.god_module_items
+                    item_count, thresholds.arch.god_module_items
                 ),
                 "Decompose into multiple modules, each with a single responsibility.",
             ));

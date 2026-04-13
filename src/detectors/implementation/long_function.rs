@@ -39,13 +39,14 @@ fn check_function(
     let start_line = fn_item.block.brace_token.span.open().start().line;
     let end_line = fn_item.block.brace_token.span.close().start().line;
 
-    let loc = end_line.saturating_sub(start_line).saturating_sub(1);
+    let loc_raw = end_line.saturating_sub(start_line);
+    let loc = loc_raw.saturating_sub(1);
 
-    if loc > thresholds.long_function_loc {
+    if loc > thresholds.r#impl.long_function_loc {
         smells.push(Smell::new(
             SmellCategory::Implementation,
             "Long Function",
-            if loc > thresholds.long_function_loc * 2 {
+            if loc > thresholds.r#impl.long_function_loc * 2 {
                 Severity::Critical
             } else {
                 Severity::Warning
@@ -58,7 +59,7 @@ fn check_function(
             },
             format!(
                 "Function `{}` is ~{} lines long (threshold: {})",
-                fn_item.sig.ident, loc, thresholds.long_function_loc
+                fn_item.sig.ident, loc, thresholds.r#impl.long_function_loc
             ),
             "Extract helper functions. Each function should do one thing.",
         ));

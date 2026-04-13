@@ -21,7 +21,7 @@ impl Detector for FeatureConcentrationDetector {
         let mut visitor = UseCrateVisitor { crates: &mut crates };
         visitor.visit_file(&file.ast);
 
-        if crates.len() > thresholds.feature_concentration {
+        if crates.len() > thresholds.arch.feature_concentration {
             smells.push(Smell::new(
                 SmellCategory::Architecture,
                 "Feature Concentration",
@@ -34,7 +34,7 @@ impl Detector for FeatureConcentrationDetector {
                 },
                 format!(
                     "File imports from {} different crates (threshold: {})",
-                    crates.len(), thresholds.feature_concentration
+                    crates.len(), thresholds.arch.feature_concentration
                 ),
                 "Split responsibilities across multiple modules to reduce coupling.",
             ));

@@ -25,7 +25,7 @@ impl Detector for DeepIfElseDetector {
                 };
                 visitor.visit_block(&fn_item.block);
 
-                if visitor.max_depth > thresholds.deep_if_else {
+                if visitor.max_depth > thresholds.r#impl.deep_if_else {
                     let line = fn_item.sig.fn_token.span.start().line;
 
                     smells.push(Smell::new(
@@ -40,7 +40,7 @@ impl Detector for DeepIfElseDetector {
                         },
                         format!(
                             "Function `{}` has if/else nesting depth of {} (threshold: {})",
-                            fn_item.sig.ident, visitor.max_depth, thresholds.deep_if_else
+                            fn_item.sig.ident, visitor.max_depth, thresholds.r#impl.deep_if_else
                         ),
                         "Use early returns, guard clauses, or extract nested conditions into helper functions.",
                     ));

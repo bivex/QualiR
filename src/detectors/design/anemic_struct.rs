@@ -15,13 +15,17 @@ impl Detector for AnemicStructDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let mut smells = Vec::new();
 
-        // Collect struct names that have at least one field
+        // Collect struct names that have at least one field and no derive macros
         let structs_with_fields: Vec<&syn::ItemStruct> = file
             .ast
             .items
             .iter()
             .filter_map(|item| match item {
-                syn::Item::Struct(s) => has_fields(s).then_some(s),
+                syn::Item::Struct(s) => {
+                    let has_fields = has_fields(s);
+                    let has_derive = s.attrs.iter().any(|attr| attr.path().is_ident("derive"));
+                    (has_fields && !has_derive).then_some(s)
+                }
                 _ => None,
             })
             .collect();
@@ -30,13 +34,13 @@ impl Detector for AnemicStructDetector {
             return smells;
         }
 
-        // Collect struct names that have impl blocks in this file
+        // Collect struct names that have impl blocks (inherent or trait) in this file
         let impl_targets: Vec<String> = file
             .ast
             .items
             .iter()
             .filter_map(|item| match item {
-                syn::Item::Impl(imp) if imp.trait_.is_none() => {
+                syn::Item::Impl(imp) => {
                     extract_type_ident(&imp.self_ty)
                 }
                 _ => None,

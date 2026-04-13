@@ -19,7 +19,7 @@ impl Detector for WideHierarchyDetector {
             match item {
                 syn::Item::Enum(e) => {
                     let count = e.variants.len();
-                    if count > thresholds.wide_hierarchy {
+                    if count > thresholds.design.wide_hierarchy {
                         let line = e.brace_token.span.open().start().line;
                         smells.push(Smell::new(
                             SmellCategory::Design,
@@ -33,7 +33,7 @@ impl Detector for WideHierarchyDetector {
                             },
                             format!(
                                 "Enum `{}` has {} variants (threshold: {})",
-                                e.ident, count, thresholds.wide_hierarchy
+                                e.ident, count, thresholds.design.wide_hierarchy
                             ),
                             "Consider grouping variants into sub-enums or using the type-state pattern.",
                         ));
@@ -42,7 +42,7 @@ impl Detector for WideHierarchyDetector {
                 syn::Item::Struct(s) => {
                     if let syn::Fields::Named(named) = &s.fields {
                         let count = named.named.len();
-                        if count > thresholds.wide_hierarchy {
+                        if count > thresholds.design.wide_hierarchy {
                             let line = named.brace_token.span.open().start().line;
                             smells.push(Smell::new(
                                 SmellCategory::Design,
@@ -56,7 +56,7 @@ impl Detector for WideHierarchyDetector {
                                 },
                                 format!(
                                     "Struct `{}` has {} fields (threshold: {})",
-                                    s.ident, count, thresholds.wide_hierarchy
+                                    s.ident, count, thresholds.design.wide_hierarchy
                                 ),
                                 "Consider grouping related fields into sub-structs.",
                             ));

@@ -25,13 +25,13 @@ impl Detector for CyclomaticComplexityDetector {
                 let mut visitor = CcVisitor { cc: 1 };
                 visitor.visit_block(&fn_item.block);
 
-                if visitor.cc > thresholds.cyclomatic_complexity {
+                if visitor.cc > thresholds.r#impl.cyclomatic_complexity {
                     let line = fn_item.sig.fn_token.span.start().line;
 
                     smells.push(Smell::new(
                         SmellCategory::Implementation,
                         "High Cyclomatic Complexity",
-                        if visitor.cc > thresholds.cyclomatic_complexity * 2 {
+                        if visitor.cc > thresholds.r#impl.cyclomatic_complexity * 2 {
                             Severity::Critical
                         } else {
                             Severity::Warning
@@ -44,7 +44,7 @@ impl Detector for CyclomaticComplexityDetector {
                         },
                         format!(
                             "Function `{}` has cyclomatic complexity of {} (threshold: {})",
-                            fn_item.sig.ident, visitor.cc, thresholds.cyclomatic_complexity
+                            fn_item.sig.ident, visitor.cc, thresholds.r#impl.cyclomatic_complexity
                         ),
                         "Reduce branching. Extract helper functions, use early returns, or leverage combinators.",
                     ));

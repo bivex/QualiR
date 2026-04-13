@@ -20,7 +20,7 @@ impl Detector for LargeTraitDetector {
         for item in &file.ast.items {
             if let syn::Item::Trait(item_trait) = item {
                 let method_count = count_trait_methods(item_trait);
-                if method_count > thresholds.large_trait_methods {
+                if method_count > thresholds.design.large_trait_methods {
                     let line = item_trait.brace_token.span.open().start().line;
 
                     smells.push(Smell::new(
@@ -35,7 +35,7 @@ impl Detector for LargeTraitDetector {
                         },
                         format!(
                             "Trait `{}` has {} methods (threshold: {})",
-                            item_trait.ident, method_count, thresholds.large_trait_methods
+                            item_trait.ident, method_count, thresholds.design.large_trait_methods
                         ),
                         "Split the trait into smaller, focused traits (Interface Segregation Principle).",
                     ));

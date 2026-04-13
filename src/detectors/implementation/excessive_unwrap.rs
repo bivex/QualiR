@@ -22,7 +22,7 @@ impl Detector for ExcessiveUnwrapDetector {
                 let mut visitor = UnwrapCounter::new();
                 visitor.visit_block(&fn_item.block);
 
-                if visitor.unwrap_count > thresholds.excessive_unwrap {
+                if visitor.unwrap_count > thresholds.r#impl.excessive_unwrap {
                     let line = fn_item.sig.fn_token.span.start().line;
 
                     smells.push(Smell::new(
@@ -37,7 +37,7 @@ impl Detector for ExcessiveUnwrapDetector {
                         },
                         format!(
                             "Function `{}` has {} unwrap/expect calls (threshold: {})",
-                            fn_item.sig.ident, visitor.unwrap_count, thresholds.excessive_unwrap
+                            fn_item.sig.ident, visitor.unwrap_count, thresholds.r#impl.excessive_unwrap
                         ),
                         "Use proper error handling with ?, map_err, or match instead of unwrap().",
                     ));

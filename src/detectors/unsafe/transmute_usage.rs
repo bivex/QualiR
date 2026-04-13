@@ -61,9 +61,10 @@ impl<'ast> Visit<'ast> for TransmuteVisitor {
 }
 
 fn path_to_string(path: &syn::Path) -> String {
-    path.segments
+    let segments: Vec<String> = path.segments
         .iter()
         .map(|s| s.ident.to_string())
-        .collect::<Vec<_>>()
-        .join("::")
+        .collect();
+    
+    segments.join("::")
 }
