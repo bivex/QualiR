@@ -18,6 +18,12 @@ impl Detector for LongMethodChainDetector {
         let thresholds = Thresholds::default();
         let mut smells = Vec::new();
 
+        // Skip test files as they often use long builder patterns or setup chains
+        let path_str = file.path.to_string_lossy().to_lowercase();
+        if path_str.contains("test") || path_str.contains("spec") {
+            return smells;
+        }
+
         for item in &file.ast.items {
             if let syn::Item::Fn(fn_item) = item {
                 let mut visitor = ChainVisitor {
@@ -62,9 +68,21 @@ struct ChainVisitor {
 }
 
 impl ChainVisitor {
+    fn is_builder_method(ident: &syn::Ident) -> bool {
+        let s = ident.to_string();
+        matches!(s.as_str(), "arg" | "args" | "env" | "envs" | "on" | "with" | "id" | "name" | "value" | "label")
+    }
+
     fn chain_depth(expr: &syn::Expr) -> usize {
         match expr {
-            syn::Expr::MethodCall(call) => 1 + Self::chain_depth(&call.receiver),
+            syn::Expr::MethodCall(call) => {
+                let depth = Self::chain_depth(&call.receiver);
+                if Self::is_builder_method(&call.method) {
+                    depth
+                } else {
+                    1 + depth
+                }
+            }
             syn::Expr::Field(field) => 1 + Self::chain_depth(&field.base),
             syn::Expr::Await(a) => 1 + Self::chain_depth(&a.base),
             syn::Expr::Try(t) => 1 + Self::chain_depth(&t.expr),
