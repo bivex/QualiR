@@ -83,6 +83,7 @@ impl Engine {
         self.register(Box::new(detectors::r#unsafe::raw_pointer_arithmetic::RawPointerArithmeticDetector));
         self.register(Box::new(detectors::r#unsafe::multi_mut_ref_unsafe::MultiMutRefUnsafeDetector));
         self.register(Box::new(detectors::r#unsafe::ffi_without_wrapper::FfiWithoutWrapperDetector));
+        self.register(Box::new(detectors::r#unsafe::inline_assembly::InlineAssemblyDetector));
     }
 
     /// Analyze all Rust files under `path` and return detected smells.

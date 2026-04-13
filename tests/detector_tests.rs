@@ -869,7 +869,7 @@ mod raw_pointer_arithmetic {
 
     #[test]
     fn detects_pointer_arith() {
-        let code = "fn foo(p: *const i32) { unsafe { let _ = p.offset(1); } }";
+        let code = "fn foo(raw_ptr: *const i32) { unsafe { let _ = raw_ptr.offset(1); } }";
         assert_smell_count(&DETECTOR, code, "Raw Pointer Arithmetic", 1);
     }
 }
@@ -891,6 +891,30 @@ mod ffi_without_wrapper {
 extern \"C\" { fn some_api(); }
 pub fn some_api_wrapper() { unsafe { some_api(); } }
 ";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod inline_assembly {
+    use super::*;
+    use qualirs::detectors::r#unsafe::inline_assembly::InlineAssemblyDetector;
+    static DETECTOR: InlineAssemblyDetector = InlineAssemblyDetector;
+
+    #[test]
+    fn detects_asm_macro() {
+        let code = "fn foo() { unsafe { std::arch::asm!(\"nop\"); } }";
+        assert_smell_count(&DETECTOR, code, "Inline Assembly Usage", 1);
+    }
+
+    #[test]
+    fn detects_global_asm_macro() {
+        let code = "core::arch::global_asm!(\".global _start\");";
+        assert_smell_count(&DETECTOR, code, "Inline Assembly Usage", 1);
+    }
+
+    #[test]
+    fn clean_other_macros() {
+        let code = "fn foo() { println!(\"hello\"); vec![1, 2, 3]; }";
         assert_clean(&DETECTOR, code);
     }
 }
