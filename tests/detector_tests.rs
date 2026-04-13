@@ -548,3 +548,167 @@ fn ok() {
         assert_clean(&DETECTOR, code);
     }
 }
+
+// ─── Concurrency ───────────────────────────────────────────
+
+mod blocking_in_async {
+    use super::*;
+    use qualirs::detectors::concurrency::blocking_in_async::BlockingInAsyncDetector;
+
+    static DETECTOR: BlockingInAsyncDetector = BlockingInAsyncDetector;
+
+    #[test]
+    fn detects_std_sleep_in_async() {
+        let code = "async fn foo() { std::thread::sleep(std::time::Duration::from_secs(1)); }";
+        assert_smell_count(&DETECTOR, code, "Blocking in Async", 1);
+    }
+
+    #[test]
+    fn detects_fs_read_in_async() {
+        let code = "async fn foo() { let _ = std::fs::read_to_string(\"foo.txt\"); }";
+        assert_smell_count(&DETECTOR, code, "Blocking in Async", 1);
+    }
+
+    #[test]
+    fn clean_no_blocking_in_async() {
+        let code = "async fn foo() { tokio::time::sleep(std::time::Duration::from_secs(1)).await; }";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod deadlock_risk {
+    use super::*;
+    use qualirs::detectors::concurrency::deadlock_risk::DeadlockRiskDetector;
+
+    static DETECTOR: DeadlockRiskDetector = DeadlockRiskDetector;
+
+    #[test]
+    fn detects_multiple_locks() {
+        let code = "\
+fn foo(m1: &Mutex<i32>, m2: &Mutex<i32>) {
+    let _g1 = m1.lock().unwrap();
+    let _g2 = m2.lock().unwrap();
+}
+";
+        assert_smell_count(&DETECTOR, code, "Deadlock Risk", 1);
+    }
+
+    #[test]
+    fn clean_single_lock() {
+        let code = "\
+fn foo(m1: &Mutex<i32>) {
+    let _g1 = m1.lock().unwrap();
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod arc_mutex_overuse {
+    use super::*;
+    use qualirs::detectors::concurrency::arc_mutex_overuse::ArcMutexOveruseDetector;
+
+    static DETECTOR: ArcMutexOveruseDetector = ArcMutexOveruseDetector;
+
+    #[test]
+    fn detects_many_arc_mutex() {
+        // Threshold is 3 by default. 
+        // Our heuristic counts Arc, Mutex, and RwLock segments.
+        // Arc<Mutex<i32>> counts twice (once as Arc, once as Mutex via recursive visit).
+        let code = "\
+struct State {
+    a: Arc<Mutex<i32>>,
+    b: Arc<Mutex<i32>>,
+}
+";
+        assert_smell_count(&DETECTOR, code, "Arc Mutex Overuse", 1);
+    }
+}
+
+mod large_future {
+    use super::*;
+    use qualirs::detectors::concurrency::large_future::LargeFutureDetector;
+
+    static DETECTOR: LargeFutureDetector = LargeFutureDetector;
+
+    #[test]
+    fn detects_long_async_fn() {
+        // Threshold is 100 lines by default
+        let body: String = (0..120).map(|i| format!("let _ = {i};")).collect::<Vec<_>>().join("\n");
+        let code = format!("async fn big() {{\n{body}\n}}");
+        assert_smell_count(&DETECTOR, &code, "Large Future", 1);
+    }
+}
+
+// ─── Missing Design ──────────────────────────────────────────
+
+mod manual_drop {
+    use super::*;
+    use qualirs::detectors::design::manual_drop::ManualDropDetector;
+
+    static DETECTOR: ManualDropDetector = ManualDropDetector;
+
+    #[test]
+    fn detects_manual_drop() {
+        let code = "\
+struct Resource;
+impl Drop for Resource {
+    fn drop(&mut self) {}
+}
+";
+        assert_smell_count(&DETECTOR, code, "Manual Drop", 1);
+    }
+}
+
+mod deref_abuse {
+    use super::*;
+    use qualirs::detectors::design::deref_abuse::DerefAbuseDetector;
+
+    static DETECTOR: DerefAbuseDetector = DerefAbuseDetector;
+
+    #[test]
+    fn detects_deref_on_non_pointer() {
+        let code = "\
+struct MyStruct { inner: String }
+impl std::ops::Deref for MyStruct {
+    type Target = String;
+    fn deref(&self) -> &Self::Target { &self.inner }
+}
+";
+        assert_smell_count(&DETECTOR, code, "Deref Abuse", 1);
+    }
+
+    #[test]
+    fn clean_deref_on_pointer_named_type() {
+        let code = "\
+struct MyPtr<T> { inner: Box<T> }
+impl<T> std::ops::Deref for MyPtr<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target { &self.inner }
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+// ─── Missing Unsafe ──────────────────────────────────────────
+
+mod transmute_usage {
+    use super::*;
+    use qualirs::detectors::r#unsafe::transmute_usage::TransmuteUsageDetector;
+
+    static DETECTOR: TransmuteUsageDetector = TransmuteUsageDetector;
+
+    #[test]
+    fn detects_transmute() {
+        let code = "fn risky() { let x: i32 = unsafe { std::mem::transmute(1.0f32) }; }";
+        assert_smell_count(&DETECTOR, code, "Transmute Usage", 1);
+    }
+
+    #[test]
+    fn clean_no_transmute() {
+        let code = "fn safe() { let x = 1 as f32; }";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
