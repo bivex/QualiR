@@ -20,8 +20,13 @@ impl Detector for DataClumpsDetector {
         let thresholds = Thresholds::default();
         let mut smells = Vec::new();
         
+        struct ClumpOccurrence {
+            fn_name: String,
+            line: usize,
+        }
+
         // Map from a signature string to a list of function names
-        let mut param_groups: HashMap<String, Vec<(String, usize)>> = HashMap::new();
+        let mut param_groups: HashMap<String, Vec<ClumpOccurrence>> = HashMap::new();
 
         for item in &file.ast.items {
             if let syn::Item::Fn(fn_item) = item {
@@ -32,7 +37,10 @@ impl Detector for DataClumpsDetector {
                     param_groups
                         .entry(sig_string)
                         .or_default()
-                        .push((fn_item.sig.ident.to_string(), line));
+                        .push(ClumpOccurrence {
+                            fn_name: fn_item.sig.ident.to_string(),
+                            line,
+                        });
                 }
             } else if let syn::Item::Impl(imp) = item {
                 for impl_item in &imp.items {
@@ -44,7 +52,10 @@ impl Detector for DataClumpsDetector {
                             param_groups
                                 .entry(sig_string)
                                 .or_default()
-                                .push((method.sig.ident.to_string(), line));
+                                .push(ClumpOccurrence {
+                                    fn_name: method.sig.ident.to_string(),
+                                    line,
+                                });
                         }
                     }
                 }
@@ -54,8 +65,8 @@ impl Detector for DataClumpsDetector {
         for (sig_string, usages) in param_groups {
             if usages.len() >= thresholds.design.data_clumps_occurrences {
                 // We'll report it on the first found occurrence for simplicity
-                let first_line = usages[0].1;
-                let fn_names: Vec<String> = usages.into_iter().map(|(n, _)| n).collect();
+                let first_line = usages[0].line;
+                let fn_names: Vec<String> = usages.into_iter().map(|u| u.fn_name).collect();
 
                 smells.push(Smell::new(
                     SmellCategory::Design,

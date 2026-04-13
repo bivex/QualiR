@@ -21,7 +21,7 @@ impl Detector for DeeplyNestedTypeDetector {
         let mut smells = Vec::new();
 
         let mut visitor = TypeVisitor {
-            max_depth_threshold: thresholds.r#impl.deeply_nested_type,
+            max_depth_threshold: thresholds.r#impl.type_safety.deeply_nested_type,
             violations: Vec::new(),
         };
 
@@ -33,7 +33,7 @@ impl Detector for DeeplyNestedTypeDetector {
                 "Type Alias Explosion (Deep Nesting)",
                 Severity::Info,
                 SourceLocation::new(file.path.clone(), line, line, None),
-                format!("Type parameter nesting is {} levels deep (threshold: {}). Approx type: `{}`", depth, thresholds.r#impl.deeply_nested_type, type_str),
+                format!("Type parameter nesting is {} levels deep (threshold: {}). Approx type: `{}`", depth, thresholds.r#impl.type_safety.deeply_nested_type, type_str),
                 "Wrap complex nested types in a Newtype struct to encapsulate their behavior and clean up signatures.",
             ));
         }
@@ -81,12 +81,13 @@ fn get_type_depth(ty: &syn::Type) -> usize {
             if let Some(seg) = tp.path.segments.last() {
                 match &seg.arguments {
                     syn::PathArguments::AngleBracketed(args) => {
-                        let inner_max = args.args.iter().map(|arg| {
+                        let depths = args.args.iter().map(|arg| {
                             match arg {
                                 syn::GenericArgument::Type(inner_ty) => get_type_depth(inner_ty),
                                 _ => 0,
                             }
-                        }).max().unwrap_or(0);
+                        });
+                        let inner_max = depths.max().unwrap_or(0);
                         1 + inner_max
                     }
                     _ => 1,
@@ -97,7 +98,8 @@ fn get_type_depth(ty: &syn::Type) -> usize {
         }
         syn::Type::Reference(tr) => 1 + get_type_depth(&tr.elem),
         syn::Type::Tuple(tup) => {
-            let inner_max = tup.elems.iter().map(get_type_depth).max().unwrap_or(0);
+            let depths = tup.elems.iter().map(get_type_depth);
+            let inner_max = depths.max().unwrap_or(0);
             1 + inner_max
         }
         _ => 1,

@@ -35,20 +35,20 @@ impl Detector for PanicInLibraryDetector {
                 let mut visitor = PanicVisitor { panics: Vec::new() };
                 visitor.visit_block(&fn_item.block);
 
-                for (line, macro_name) in visitor.panics {
+                for incident in visitor.panics {
                     smells.push(Smell::new(
                         SmellCategory::Implementation,
                         "Panic in Library",
                         Severity::Warning,
                         SourceLocation {
                             file: file.path.clone(),
-                            line_start: line,
-                            line_end: line,
+                            line_start: incident.line,
+                            line_end: incident.line,
                             column: None,
                         },
                         format!(
                             "Function `{}` uses `{}` — panics should be avoided in library code",
-                            fn_item.sig.ident, macro_name
+                            fn_item.sig.ident, incident.macro_name
                         ),
                         "Return a Result or use a proper error handling strategy instead of panicking.",
                     ));
@@ -67,15 +67,26 @@ fn is_test_fn(fn_item: &syn::ItemFn) -> bool {
     })
 }
 
+struct PanicIncident {
+    line: usize,
+    macro_name: &'static str,
+}
+
+impl PanicIncident {
+    pub fn new(line: usize, macro_name: &'static str) -> Self {
+        Self { line, macro_name }
+    }
+}
+
 struct PanicVisitor {
-    panics: Vec<(usize, &'static str)>,
+    panics: Vec<PanicIncident>,
 }
 
 impl<'ast> Visit<'ast> for PanicVisitor {
     fn visit_expr_macro(&mut self, node: &'ast syn::ExprMacro) {
         if let Some(name) = check_macro_name(&node.mac.path) {
             let line = node.mac.path.segments[0].ident.span().start().line;
-            self.panics.push((line, name));
+            self.panics.push(PanicIncident::new(line, name));
         }
         syn::visit::visit_expr_macro(self, node);
     }
@@ -83,7 +94,7 @@ impl<'ast> Visit<'ast> for PanicVisitor {
     fn visit_stmt_macro(&mut self, node: &'ast syn::StmtMacro) {
         if let Some(name) = check_macro_name(&node.mac.path) {
             let line = node.mac.path.segments[0].ident.span().start().line;
-            self.panics.push((line, name));
+            self.panics.push(PanicIncident::new(line, name));
         }
         syn::visit::visit_stmt_macro(self, node);
     }
