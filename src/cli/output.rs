@@ -79,7 +79,7 @@ fn print_smell_table(report: &AnalysisReport) {
             cat_cell,
             Cell::new(&smell.name),
             Cell::new(smell.location.to_string()),
-            Cell::new(&smell.message),
+            Cell::new(format!("{}\n{}", smell.message.bold(), smell.suggestion.dimmed())),
         ]);
     }
 

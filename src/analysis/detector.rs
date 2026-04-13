@@ -9,6 +9,7 @@ use std::any::type_name;
 /// across every source file and collects results.
 pub trait Detector: Send + Sync {
     /// Human-readable name, e.g. "God Module".
+    #[allow(dead_code)]
     fn name(&self) -> &str;
 
     /// Detect smells in a single parsed source file.
@@ -16,6 +17,7 @@ pub trait Detector: Send + Sync {
 }
 
 /// Helper: get a short type name for a detector (for diagnostics).
+#[allow(dead_code)]
 pub fn detector_type_name<D: Detector>() -> &'static str {
     type_name::<D>()
 }

@@ -133,6 +133,7 @@ pub struct AnalysisReport {
 
 impl AnalysisReport {
     /// Smells grouped by category.
+    #[allow(dead_code)]
     pub fn by_category(&self) -> std::collections::HashMap<crate::domain::smell::SmellCategory, Vec<&Smell>> {
         let mut map: std::collections::HashMap<crate::domain::smell::SmellCategory, Vec<&Smell>> = std::collections::HashMap::new();
         for smell in &self.smells {
