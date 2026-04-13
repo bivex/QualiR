@@ -23,13 +23,13 @@ impl Detector for InteriorMutabilityAbuseDetector {
         let mut visitor = MutVisitor { count: 0, first_line: 0 };
         visitor.visit_file(&file.ast);
 
-        if visitor.count > thresholds.r#impl.interior_mutability_abuse {
+        if visitor.count > thresholds.r#impl.type_safety.interior_mutability_abuse {
             smells.push(Smell::new(
                 SmellCategory::Implementation,
                 "Interior Mutability Abuse",
                 Severity::Warning,
                 SourceLocation::new(file.path.clone(), visitor.first_line, visitor.first_line, None),
-                format!("File contains {} usages of RefCell/Cell (threshold: {})", visitor.count, thresholds.r#impl.interior_mutability_abuse),
+                format!("File contains {} usages of RefCell/Cell (threshold: {})", visitor.count, thresholds.r#impl.type_safety.interior_mutability_abuse),
                 "Refactor to use standard Rust mutability (`&mut T`) where possible, or rethink structural ownership.",
             ));
         }
