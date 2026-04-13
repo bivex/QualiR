@@ -65,6 +65,8 @@ impl<'ast> Visit<'ast> for SpawnVisitor {
                         if is_spawn(&func_str) {
                             let line = local.let_token.span.start().line;
                             self.spawns.push((func_str, line));
+                            // We return early to avoid visit_expr catching this same call
+                            return;
                         }
                     }
                 }
@@ -74,13 +76,16 @@ impl<'ast> Visit<'ast> for SpawnVisitor {
     }
 
     fn visit_expr(&mut self, expr: &'ast syn::Expr) {
-        // Check for bare spawn(...) calls as statements (not assigned to anything)
+        // Check for bare spawn(...) calls
         if let syn::Expr::Call(call) = expr {
             if let syn::Expr::Path(path) = &*call.func {
                 let func_str = path_to_string(&path.path);
                 if is_spawn(&func_str) {
                     let line = call.paren_token.span.open().start().line;
-                    self.spawns.push((func_str, line));
+                    // Check if we already have this line (simple heuristic to avoid double counts)
+                    if !self.spawns.iter().any(|(_, l)| *l == line) {
+                        self.spawns.push((func_str, line));
+                    }
                 }
             }
         }

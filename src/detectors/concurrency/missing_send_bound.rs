@@ -73,12 +73,20 @@ impl Detector for MissingSendBoundDetector {
 }
 
 fn contains_spawn_call(fn_item: &syn::ItemFn) -> bool {
-    let code = quote_fn_body(fn_item);
-    let lower = code.to_lowercase();
-    lower.contains("spawn(") || lower.contains("spawn_local(") || lower.contains("spawn_blocking(")
-}
-
-fn quote_fn_body(fn_item: &syn::ItemFn) -> String {
-    // Simple stringification of the block
-    format!("{:?}", fn_item.block)
+    use syn::visit::Visit;
+    struct SpawnFinder { found: bool }
+    impl<'ast> Visit<'ast> for SpawnFinder {
+        fn visit_expr_call(&mut self, i: &'ast syn::ExprCall) {
+            if let syn::Expr::Path(p) = &*i.func {
+                let s = p.path.segments.last().map(|s| s.ident.to_string()).unwrap_or_default();
+                if s.contains("spawn") {
+                    self.found = true;
+                }
+            }
+            syn::visit::visit_expr_call(self, i);
+        }
+    }
+    let mut finder = SpawnFinder { found: false };
+    finder.visit_item_fn(fn_item);
+    finder.found
 }
