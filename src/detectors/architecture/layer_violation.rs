@@ -39,8 +39,16 @@ impl Detector for LayerViolationDetector {
         for item in &file.ast.items {
             if let syn::Item::Use(use_item) = item {
                 let use_path = use_tree_to_string(&use_item.tree).to_lowercase();
+                
+                // Split path into segments, ignoring punctuation like {, }, and *
+                let segments: Vec<String> = use_path
+                    .split(|c: char| !c.is_alphanumeric() && c != '_')
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.to_string())
+                    .collect();
+
                 for &forbidden_mod in forbidden {
-                    if use_path.contains(forbidden_mod) {
+                    if segments.iter().any(|s| s == forbidden_mod) {
                         let line = use_item.use_token.span.start().line;
                         smells.push(Smell::new(
                             SmellCategory::Architecture,

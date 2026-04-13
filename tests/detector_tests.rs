@@ -750,6 +750,34 @@ mod layer_violation {
         let smells = DETECTOR.detect(&source);
         assert!(smells.is_empty());
     }
+
+    #[test]
+    fn clean_io_substring_domain() {
+        // 'action' contains 'io', but it's not the 'io' module
+        let code = "use crate::domain::action::UserAction;";
+        let source = SourceFile::from_source("src/domain/user.rs".into(), code.to_string()).unwrap();
+        let smells = DETECTOR.detect(&source);
+        assert!(smells.is_empty(), "Should not flag 'action' as 'io' violation. Smells found: {:?}", smells);
+    }
+
+    #[test]
+    fn clean_option_domain() {
+        // 'option' contains 'io', but it's std::option
+        let code = "use std::option::Option;";
+        let source = SourceFile::from_source("src/domain/user.rs".into(), code.to_string()).unwrap();
+        let smells = DETECTOR.detect(&source);
+        assert!(smells.is_empty(), "Should not flag 'option' as 'io' violation. Smells found: {:?}", smells);
+    }
+
+    #[test]
+    fn clean_client_domain() {
+        // 'client' contains 'cli', but it's not the 'cli' module
+        // 'HttpClient' contains 'http', but it's not the 'http' module
+        let code = "use crate::app::client::HttpClient;";
+        let source = SourceFile::from_source("src/domain/user.rs".into(), code.to_string()).unwrap();
+        let smells = DETECTOR.detect(&source);
+        assert!(smells.is_empty(), "Should not flag 'client' as 'cli' or 'HttpClient' as 'http'. Smells found: {:?}", smells);
+    }
 }
 
 // ─── Extended Design ────────────────────────────────────
