@@ -8,3 +8,7 @@ pub mod broken_constructor;
 pub mod rebellious_impl;
 pub mod deref_abuse;
 pub mod manual_drop;
+pub mod fat_impl;
+pub mod primitive_obsession;
+pub mod data_clumps;
+pub mod multiple_impl_blocks;
