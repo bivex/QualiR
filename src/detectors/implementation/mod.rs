@@ -13,3 +13,5 @@ pub mod panic_in_library;
 pub mod unsafe_overuse;
 pub mod lifetime_explosion;
 pub mod copy_drop_conflict;
+pub mod deeply_nested_type;
+pub mod interior_mutability_abuse;
