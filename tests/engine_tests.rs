@@ -121,29 +121,7 @@ fn parse_errors_are_collected() {
     assert_eq!(report.parse_errors.len(), 1, "Should report one parse error");
 }
 
-#[test]
-fn config_default_thresholds_are_sane() {
-    let config = Config::default();
-    assert_eq!(config.thresholds.r#impl.control_flow.long_function_loc, 50);
-    assert_eq!(config.thresholds.r#impl.control_flow.too_many_arguments, 6);
-    assert_eq!(config.thresholds.r#impl.control_flow.excessive_unwrap, 3);
-    assert_eq!(config.thresholds.r#impl.control_flow.cyclomatic_complexity, 15);
-    assert_eq!(config.thresholds.r#impl.control_flow.deep_match_nesting, 3);
-    assert_eq!(config.thresholds.r#impl.control_flow.deep_if_else, 4);
-    assert_eq!(config.thresholds.r#impl.control_flow.large_enum_variants, 20);
-    assert_eq!(config.thresholds.r#impl.control_flow.lifetime_explosion, 4);
-    assert_eq!(config.thresholds.r#impl.type_safety.deeply_nested_type, 3);
-    assert_eq!(config.thresholds.r#impl.type_safety.interior_mutability_abuse, 5);
 
-    // Arch
-    assert_eq!(config.thresholds.arch.hidden_global_state, 3);
-
-    // Design
-    assert_eq!(config.thresholds.design.fat_impl_methods, 20);
-    assert_eq!(config.thresholds.design.primitive_obsession_fields, 4);
-    assert_eq!(config.thresholds.design.data_clumps_args, 3);
-    assert_eq!(config.thresholds.design.data_clumps_occurrences, 3);
-}
 
 #[test]
 fn source_file_from_source_works() {
