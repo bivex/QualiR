@@ -132,8 +132,17 @@ fn config_default_thresholds_are_sane() {
     assert_eq!(config.thresholds.r#impl.deep_if_else, 4);
     assert_eq!(config.thresholds.r#impl.large_enum_variants, 20);
     assert_eq!(config.thresholds.r#impl.lifetime_explosion, 4);
-    assert_eq!(config.thresholds.r#impl.unsafe_block_overuse, 5);
-    assert_eq!(config.thresholds.r#impl.long_method_chain, 4);
+    assert_eq!(config.thresholds.r#impl.deeply_nested_type, 3);
+    assert_eq!(config.thresholds.r#impl.interior_mutability_abuse, 5);
+
+    // Arch
+    assert_eq!(config.thresholds.arch.hidden_global_state, 3);
+
+    // Design
+    assert_eq!(config.thresholds.design.fat_impl_methods, 20);
+    assert_eq!(config.thresholds.design.primitive_obsession_fields, 4);
+    assert_eq!(config.thresholds.design.data_clumps_args, 3);
+    assert_eq!(config.thresholds.design.data_clumps_occurrences, 3);
 }
 
 #[test]

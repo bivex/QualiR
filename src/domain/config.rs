@@ -4,6 +4,7 @@ pub struct ArchThresholds {
     pub god_module_items: usize,
     pub public_api_ratio: f64,
     pub feature_concentration: usize,
+    pub hidden_global_state: usize,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
@@ -12,6 +13,10 @@ pub struct DesignThresholds {
     pub excessive_generics: usize,
     pub deep_trait_bounds: usize,
     pub wide_hierarchy: usize,
+    pub fat_impl_methods: usize,
+    pub primitive_obsession_fields: usize,
+    pub data_clumps_args: usize,
+    pub data_clumps_occurrences: usize,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
@@ -26,6 +31,8 @@ pub struct ImplThresholds {
     pub long_method_chain: usize,
     pub lifetime_explosion: usize,
     pub unsafe_block_overuse: usize,
+    pub deeply_nested_type: usize,
+    pub interior_mutability_abuse: usize,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
@@ -57,12 +64,17 @@ impl Default for Thresholds {
                 god_module_items: 20,
                 public_api_ratio: 0.7,
                 feature_concentration: 15,
+                hidden_global_state: 3,
             },
             design: DesignThresholds {
                 large_trait_methods: 15,
                 excessive_generics: 5,
                 deep_trait_bounds: 4,
                 wide_hierarchy: 10,
+                fat_impl_methods: 20,
+                primitive_obsession_fields: 4,
+                data_clumps_args: 3,
+                data_clumps_occurrences: 3,
             },
             r#impl: ImplThresholds {
                 long_function_loc: 50,
@@ -75,6 +87,8 @@ impl Default for Thresholds {
                 long_method_chain: 4,
                 lifetime_explosion: 4,
                 unsafe_block_overuse: 5,
+                deeply_nested_type: 3,
+                interior_mutability_abuse: 5,
             },
             concurrency: ConcurrencyThresholds {
                 large_future_loc: 100,

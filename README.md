@@ -6,7 +6,7 @@ QualiRS parses your Rust source code via AST analysis and detects 14 types of co
 
 ## Features
 
-- 42 built-in smell detectors across 5 categories: Architecture, Design, Implementation, Concurrency, and Unsafe.
+- 53 built-in smell detectors across 5 categories: Architecture, Design, Implementation, Concurrency, and Unsafe.
 - Parallel analysis via rayon (all CPU cores)
 - Configurable thresholds via `qualirs.toml`
 - Colored terminal table output with severity levels
@@ -57,26 +57,34 @@ Options:
 
 ## Detectors
 
-### Architecture (6)
+### Architecture (8)
 
 | Detector | What it detects | Default threshold | Severity |
 |---|---|---|---|
 | **God Module** | Files with too many lines or too many top-level items | >1000 LOC or >20 items | Warning |
 | **Public API Explosion** | Files where >70% of items are `pub` | >70% pub ratio, min 5 items | Info |
+| **Hidden Global State** | Files with too many static/lazy_static usages | >3 objects | Warning |
+| **Leaky Error Abstraction** | Public enum variants wrapping external library paths | Any | Warning |
 
-### Design (10)
+### Design (14)
 
 | Detector | What it detects | Default threshold | Severity |
 |---|---|---|---|
 | **Large Trait** | Traits with too many methods | >15 methods | Warning |
 | **Excessive Generics** | Functions/structs/enums with too many generic parameters | >5 type params | Warning |
 | **Anemic Struct** | Structs with fields but no `impl` block in the same file | Any | Info |
+| **Fat Impl (God Object)** | `impl` block with too many methods | >20 methods | Warning |
+| **Primitive Obsession** | Struct with only primitive fields | >4 fields | Info |
+| **Data Clumps** | Same parameter groups passed to multiple functions | >3 params, >3 funcs | Warning |
+| **Scattered Implementation** | Single struct has multiple `impl` blocks in one file | Any | Info |
 
-### Implementation (15)
+### Implementation (17)
 
 | Detector | What it detects | Default threshold | Severity |
 |---|---|---|---|
 | **Long Function** | Functions exceeding a line count | >50 LOC (Critical if >100) | Warning / Critical |
+| **Deeply Nested Type** | Deeply nested generic types (e.g. Arc<Mutex<...>>) | >3 levels | Info |
+| **Interior Mutability Abuse**| Excessive RefCell/Cell/OnceCell usage in a file | >5 cells | Warning |
 | **Too Many Arguments** | Functions with too many parameters | >6 arguments | Warning |
 | **Excessive Unwrap** | Functions with too many `.unwrap()` / `.expect()` calls | >3 calls | Warning |
 | **Deep Match Nesting** | Deeply nested `match` expressions | >3 levels deep | Warning |
@@ -92,19 +100,22 @@ Options:
 | **Lifetime Explosion** | Functions/structs/enums with too many lifetime parameters | >4 lifetimes | Warning |
 | **Copy + Drop Conflict** | Types implementing both Copy and Drop (double-free risk) | Any | Critical |
 
-### Concurrency (6)
+### Concurrency (8)
 
 | Detector | What it detects | Default threshold | Severity |
 |---|---|---|---|
 | **Blocking in Async** | Blocking calls (sleep, io) in async fns | Any | Warning |
+| **Sync Drop Blocking** | Potentially blocking operations inside `impl Drop` | Any | Critical |
+| **Async Trait Overhead** | Usage of `#[async_trait]` macro when native is preferred | Any | Info |
 | **Deadlock Risk** | Nested locking patterns | Any | Critical |
 | **Arc Mutex Overuse** | Excessive shared-state primitives in one type | >3 per type | Warning |
 
-### Unsafe (5)
+### Unsafe (6)
 
 | Detector | What it detects | Default threshold | Severity |
 |---|---|---|---|
 | **Unsafe Without Comment** | `unsafe` without a `// SAFETY:` comment | Any | Warning |
+| **Inline Assembly** | Usage of `asm!` or `global_asm!` | Any | Warning |
 | **Transmute Usage** | Use of `mem::transmute` | Any | Warning |
 | **FFI Without Wrapper** | Naked FFI declarations without safe wrappers | Any | Warning |
 
@@ -139,6 +150,8 @@ large_enum_variants = 20
 long_method_chain = 4
 lifetime_explosion = 4
 unsafe_block_overuse = 5
+deeply_nested_type = 3
+interior_mutability_abuse = 5
 
 # Concurrency
 large_future_loc = 100
@@ -313,9 +326,9 @@ self.register(Box::new(MyCustomDetector));
 
 ## Roadmap
 
-**42 of 42 detectors implemented.** 100% core coverage.
+**53 of 53 detectors implemented.** 100% core coverage.
 
-### Architecture — 6/6 done
+### Architecture — 8/8 done
 
 | # | Detector | Status | Notes |
 |---|---|---|---|

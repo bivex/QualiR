@@ -39,6 +39,8 @@ impl Engine {
         self.register(Box::new(detectors::architecture::cyclic_crate_dependency::CyclicDependencyDetector));
         self.register(Box::new(detectors::architecture::layer_violation::LayerViolationDetector));
         self.register(Box::new(detectors::architecture::unstable_dependency::UnstableDependencyDetector));
+        self.register(Box::new(detectors::architecture::leaky_error::LeakyErrorAbstractionDetector));
+        self.register(Box::new(detectors::architecture::hidden_global_state::HiddenGlobalStateDetector));
 
         // Design
         self.register(Box::new(detectors::design::large_trait::LargeTraitDetector));
@@ -51,6 +53,10 @@ impl Engine {
         self.register(Box::new(detectors::design::rebellious_impl::RebelliousImplDetector));
         self.register(Box::new(detectors::design::deref_abuse::DerefAbuseDetector));
         self.register(Box::new(detectors::design::manual_drop::ManualDropDetector));
+        self.register(Box::new(detectors::design::fat_impl::FatImplDetector));
+        self.register(Box::new(detectors::design::primitive_obsession::PrimitiveObsessionDetector));
+        self.register(Box::new(detectors::design::data_clumps::DataClumpsDetector));
+        self.register(Box::new(detectors::design::multiple_impl_blocks::MultipleImplBlocksDetector));
 
         // Implementation
         self.register(Box::new(detectors::implementation::long_function::LongFunctionDetector));
@@ -68,6 +74,8 @@ impl Engine {
         self.register(Box::new(detectors::implementation::unsafe_overuse::UnsafeOveruseDetector));
         self.register(Box::new(detectors::implementation::lifetime_explosion::LifetimeExplosionDetector));
         self.register(Box::new(detectors::implementation::copy_drop_conflict::CopyDropConflictDetector));
+        self.register(Box::new(detectors::implementation::deeply_nested_type::DeeplyNestedTypeDetector));
+        self.register(Box::new(detectors::implementation::interior_mutability_abuse::InteriorMutabilityAbuseDetector));
 
         // Concurrency
         self.register(Box::new(detectors::concurrency::blocking_in_async::BlockingInAsyncDetector));
@@ -76,6 +84,8 @@ impl Engine {
         self.register(Box::new(detectors::concurrency::deadlock_risk::DeadlockRiskDetector));
         self.register(Box::new(detectors::concurrency::spawn_without_join::SpawnWithoutJoinDetector));
         self.register(Box::new(detectors::concurrency::missing_send_bound::MissingSendBoundDetector));
+        self.register(Box::new(detectors::concurrency::sync_drop_blocking::SyncDropBlockingDetector));
+        self.register(Box::new(detectors::concurrency::async_trait_overhead::AsyncTraitOverheadDetector));
 
         // Unsafe
         self.register(Box::new(detectors::r#unsafe::unsafe_without_comment::UnsafeWithoutCommentDetector));
