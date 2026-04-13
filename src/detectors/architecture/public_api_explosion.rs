@@ -25,12 +25,16 @@ impl Detector for PublicApiExplosionDetector {
             return smells;
         }
 
-        let total = file.ast.items.len();
+        let items: Vec<_> = file.ast.items.iter().filter(|item| {
+            !matches!(item, syn::Item::Use(_) | syn::Item::ExternCrate(_) | syn::Item::Mod(_))
+        }).collect();
+
+        let total = items.len();
         if total == 0 {
             return smells;
         }
 
-        let pub_count = count_pub_items(&file.ast.items);
+        let pub_count = items.iter().filter(|&&item| is_pub(item)).count();
         let ratio = pub_count as f64 / total as f64;
 
         if ratio > thresholds.arch.public_api_ratio && total > 5 {
@@ -56,9 +60,6 @@ impl Detector for PublicApiExplosionDetector {
     }
 }
 
-fn count_pub_items(items: &[Item]) -> usize {
-    items.iter().filter(|item| is_pub(item)).count()
-}
 
 fn is_pub(item: &Item) -> bool {
     let vis = match item {

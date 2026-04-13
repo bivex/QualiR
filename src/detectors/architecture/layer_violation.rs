@@ -48,25 +48,37 @@ impl Detector for LayerViolationDetector {
                     .collect();
 
                 for &forbidden_mod in forbidden {
-                    if segments.iter().any(|s| s == forbidden_mod) {
-                        let line = use_item.use_token.span.start().line;
-                        smells.push(Smell::new(
-                            SmellCategory::Architecture,
-                            "Layer Violation",
-                            Severity::Critical,
-                            SourceLocation {
-                                file: file.path.clone(),
-                                line_start: line,
-                                line_end: line,
-                                column: None,
-                            },
-                            format!(
-                                "{layer} layer imports from `{forbidden_mod}` — violates dependency direction",
-                                layer = format!("{:?}", layer).to_lowercase()
-                            ),
-                            "Domain should not depend on infrastructure. Inject dependencies through trait abstractions.",
-                        ));
-                        break; // One violation per use statement
+                    if let Some(idx) = segments.iter().position(|s| s == forbidden_mod) {
+                        // Check if this is a domestic/safe path like `crate::domain::io`
+                        // We only flag if it's the root of the path OR preceded by std/core/crate/super
+                        let is_violation = if idx == 0 {
+                            true
+                        } else {
+                            let prev = &segments[idx - 1];
+                            // If it follows a domain-related segment, it's likely a domestic abstraction
+                            !matches!(prev.as_str(), "domain" | "model" | "entity" | "logic")
+                        };
+
+                        if is_violation {
+                            let line = use_item.use_token.span.start().line;
+                            smells.push(Smell::new(
+                                SmellCategory::Architecture,
+                                "Layer Violation",
+                                Severity::Critical,
+                                SourceLocation {
+                                    file: file.path.clone(),
+                                    line_start: line,
+                                    line_end: line,
+                                    column: None,
+                                },
+                                format!(
+                                    "{layer} layer imports from `{forbidden_mod}` — violates dependency direction",
+                                    layer = format!("{:?}", layer).to_lowercase()
+                                ),
+                                "Domain should not depend on infrastructure. Inject dependencies through trait abstractions.",
+                            ));
+                            break; // One violation per use statement
+                        }
                     }
                 }
             }
