@@ -141,21 +141,12 @@ pub struct AnalysisReport {
 #[derive(Default)]
 pub struct SmellList<'a>(pub Vec<&'a Smell>);
 
-impl<'a> SmellList<'a> {
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-}
-
+#[allow(dead_code)]
 pub struct CategorySmells<'a>(pub std::collections::HashMap<crate::domain::smell::SmellCategory, SmellList<'a>>);
 
 impl<'a> CategorySmells<'a> {
     pub fn new(map: std::collections::HashMap<crate::domain::smell::SmellCategory, SmellList<'a>>) -> Self {
         Self(map)
-    }
-
-    pub fn get_map(&self) -> &std::collections::HashMap<crate::domain::smell::SmellCategory, SmellList<'a>> {
-        &self.0
     }
 }
 
@@ -166,7 +157,7 @@ impl AnalysisReport {
 
     /// Smells grouped by category.
     #[allow(dead_code)]
-    pub fn by_category(&self) -> CategorySmells {
+    pub fn by_category(&self) -> CategorySmells<'_> {
         let mut map = std::collections::HashMap::new();
         for smell in &self.smells {
             map.entry(smell.category).or_insert_with(SmellList::default).0.push(smell);
