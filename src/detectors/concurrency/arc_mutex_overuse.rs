@@ -75,15 +75,5 @@ impl<'ast> Visit<'ast> for ArcMutexVisitor {
 }
 
 fn is_arc_mutex(segments: &[String]) -> bool {
-    if segments.len() < 2 {
-        return false;
-    }
-    let first = &segments[0];
-    // Check if Arc and look for Mutex/RwLock in subsequent segments
-    if first != "Arc" {
-        return false;
-    }
-    // Also check nested paths - Arc<Mutex<T>> typically shows as one path segment
-    segments.iter().any(|s| s == "Mutex" || s == "RwLock")
-        || segments.len() >= 2
+    segments.iter().any(|s| s == "Arc" || s == "Mutex" || s == "RwLock")
 }
