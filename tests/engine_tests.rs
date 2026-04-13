@@ -124,16 +124,16 @@ fn parse_errors_are_collected() {
 #[test]
 fn config_default_thresholds_are_sane() {
     let config = Config::default();
-    assert_eq!(config.thresholds.r#impl.long_function_loc, 50);
-    assert_eq!(config.thresholds.r#impl.too_many_arguments, 6);
-    assert_eq!(config.thresholds.r#impl.excessive_unwrap, 3);
-    assert_eq!(config.thresholds.r#impl.cyclomatic_complexity, 15);
-    assert_eq!(config.thresholds.r#impl.deep_match_nesting, 3);
-    assert_eq!(config.thresholds.r#impl.deep_if_else, 4);
-    assert_eq!(config.thresholds.r#impl.large_enum_variants, 20);
-    assert_eq!(config.thresholds.r#impl.lifetime_explosion, 4);
-    assert_eq!(config.thresholds.r#impl.deeply_nested_type, 3);
-    assert_eq!(config.thresholds.r#impl.interior_mutability_abuse, 5);
+    assert_eq!(config.thresholds.r#impl.control_flow.long_function_loc, 50);
+    assert_eq!(config.thresholds.r#impl.control_flow.too_many_arguments, 6);
+    assert_eq!(config.thresholds.r#impl.control_flow.excessive_unwrap, 3);
+    assert_eq!(config.thresholds.r#impl.control_flow.cyclomatic_complexity, 15);
+    assert_eq!(config.thresholds.r#impl.control_flow.deep_match_nesting, 3);
+    assert_eq!(config.thresholds.r#impl.control_flow.deep_if_else, 4);
+    assert_eq!(config.thresholds.r#impl.control_flow.large_enum_variants, 20);
+    assert_eq!(config.thresholds.r#impl.control_flow.lifetime_explosion, 4);
+    assert_eq!(config.thresholds.r#impl.type_safety.deeply_nested_type, 3);
+    assert_eq!(config.thresholds.r#impl.type_safety.interior_mutability_abuse, 5);
 
     // Arch
     assert_eq!(config.thresholds.arch.hidden_global_state, 3);

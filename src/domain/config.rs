@@ -19,8 +19,9 @@ pub struct DesignThresholds {
     pub data_clumps_occurrences: usize,
 }
 
+/// Thresholds for control-flow complexity smells.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
-pub struct ImplThresholds {
+pub(crate) struct ControlFlowThresholds {
     pub long_function_loc: usize,
     pub cyclomatic_complexity: usize,
     pub too_many_arguments: usize,
@@ -30,9 +31,21 @@ pub struct ImplThresholds {
     pub large_enum_variants: usize,
     pub long_method_chain: usize,
     pub lifetime_explosion: usize,
+}
+
+/// Thresholds for type-safety and unsafe-usage smells.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+pub(crate) struct TypeSafetyThresholds {
     pub unsafe_block_overuse: usize,
     pub deeply_nested_type: usize,
     pub interior_mutability_abuse: usize,
+}
+
+/// Combined implementation thresholds composed of focused sub-groups.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+pub struct ImplThresholds {
+    #[serde(default, flatten)] pub(crate) control_flow: ControlFlowThresholds,
+    #[serde(default, flatten)] pub(crate) type_safety: TypeSafetyThresholds,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
@@ -77,18 +90,22 @@ impl Default for Thresholds {
                 data_clumps_occurrences: 3,
             },
             r#impl: ImplThresholds {
-                long_function_loc: 50,
-                cyclomatic_complexity: 15,
-                too_many_arguments: 6,
-                deep_match_nesting: 3,
-                deep_if_else: 4,
-                excessive_unwrap: 3,
-                large_enum_variants: 20,
-                long_method_chain: 4,
-                lifetime_explosion: 4,
-                unsafe_block_overuse: 5,
-                deeply_nested_type: 3,
-                interior_mutability_abuse: 5,
+                control_flow: ControlFlowThresholds {
+                    long_function_loc: 50,
+                    cyclomatic_complexity: 15,
+                    too_many_arguments: 6,
+                    deep_match_nesting: 3,
+                    deep_if_else: 4,
+                    excessive_unwrap: 3,
+                    large_enum_variants: 20,
+                    long_method_chain: 4,
+                    lifetime_explosion: 4,
+                },
+                type_safety: TypeSafetyThresholds {
+                    unsafe_block_overuse: 5,
+                    deeply_nested_type: 3,
+                    interior_mutability_abuse: 5,
+                },
             },
             concurrency: ConcurrencyThresholds {
                 large_future_loc: 100,
