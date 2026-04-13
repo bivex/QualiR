@@ -712,3 +712,187 @@ mod transmute_usage {
     }
 }
 
+// ─── Extended Architecture ──────────────────────────────
+
+mod feature_concentration {
+    use super::*;
+    use qualirs::detectors::architecture::feature_concentration::FeatureConcentrationDetector;
+    static DETECTOR: FeatureConcentrationDetector = FeatureConcentrationDetector;
+
+    #[test]
+    fn detects_high_concentration() {
+        let mut code = String::new();
+        for i in 0..16 {
+            code.push_str(&format!("use crate{}::item;\n", i));
+        }
+        assert_smell_count(&DETECTOR, &code, "Feature Concentration", 1);
+    }
+}
+
+mod layer_violation {
+    use super::*;
+    use qualirs::detectors::architecture::layer_violation::LayerViolationDetector;
+    static DETECTOR: LayerViolationDetector = LayerViolationDetector;
+
+    #[test]
+    fn detects_domain_to_infra_violation() {
+        let code = "use crate::infrastructure::db::UserRepo;";
+        let source = SourceFile::from_source("src/domain/user.rs".into(), code.to_string()).unwrap();
+        let smells = DETECTOR.detect(&source);
+        assert!(!smells.is_empty(), "Expected layer violation smell");
+        assert_eq!(smells[0].name, "Layer Violation");
+    }
+
+    #[test]
+    fn clean_layering() {
+        let code = "use crate::domain::model::User;";
+        let source = SourceFile::from_source("src/infrastructure/db.rs".into(), code.to_string()).unwrap();
+        let smells = DETECTOR.detect(&source);
+        assert!(smells.is_empty());
+    }
+}
+
+// ─── Extended Design ────────────────────────────────────
+
+mod trait_impl_leakage {
+    use super::*;
+    use qualirs::detectors::design::trait_impl_leakage::TraitImplLeakageDetector;
+    static DETECTOR: TraitImplLeakageDetector = TraitImplLeakageDetector;
+
+    #[test]
+    fn detects_std_trait_overload() {
+        let code = "\
+struct Data;
+impl Debug for Data {}
+impl Clone for Data {}
+impl Copy for Data {}
+impl Hash for Data {}
+impl Default for Data {}
+";
+        assert_smell_count(&DETECTOR, code, "Trait Impl Leakage", 1);
+    }
+}
+
+mod feature_envy {
+    use super::*;
+    use qualirs::detectors::design::feature_envy::FeatureEnvyDetector;
+    static DETECTOR: FeatureEnvyDetector = FeatureEnvyDetector;
+
+    #[test]
+    fn detects_envy() {
+        let code = "\
+pub fn process(other: &Other) {
+    other.do_a();
+    other.do_b();
+    other.do_c();
+    other.do_d();
+    other.do_e();
+    other.do_f();
+}
+";
+        assert_smell_count(&DETECTOR, code, "Feature Envy", 1);
+    }
+}
+
+mod wide_hierarchy {
+    use super::*;
+    use qualirs::detectors::design::wide_hierarchy::WideHierarchyDetector;
+    static DETECTOR: WideHierarchyDetector = WideHierarchyDetector;
+
+    #[test]
+    fn detects_wide_enum() {
+        let code = "\
+enum Huge {
+    V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11
+}
+";
+        assert_smell_count(&DETECTOR, code, "Wide Hierarchy", 1);
+    }
+}
+
+mod broken_constructor {
+    use super::*;
+    use qualirs::detectors::design::broken_constructor::BrokenConstructorDetector;
+    static DETECTOR: BrokenConstructorDetector = BrokenConstructorDetector;
+
+    #[test]
+    fn detects_missing_new() {
+        let code = "\
+pub struct State {
+    pub a: i32,
+    pub b: i32,
+    pub c: i32,
+}
+";
+        assert_smell_count(&DETECTOR, code, "Broken Constructor", 1);
+    }
+}
+
+// ─── Extended Concurrency ───────────────────────────────
+
+mod spawn_without_join {
+    use super::*;
+    use qualirs::detectors::concurrency::spawn_without_join::SpawnWithoutJoinDetector;
+    static DETECTOR: SpawnWithoutJoinDetector = SpawnWithoutJoinDetector;
+
+    #[test]
+    fn detects_orphaned_spawn() {
+        let code = "fn foo() { std::thread::spawn(|| {}); }";
+        assert_smell_count(&DETECTOR, code, "Spawn Without Join", 1);
+    }
+
+    #[test]
+    fn detects_underscore_spawn() {
+        let code = "fn foo() { let _ = tokio::spawn(async {}); }";
+        assert_smell_count(&DETECTOR, code, "Spawn Without Join", 1);
+    }
+}
+
+mod missing_send_bound {
+    use super::*;
+    use qualirs::detectors::concurrency::missing_send_bound::MissingSendBoundDetector;
+    static DETECTOR: MissingSendBoundDetector = MissingSendBoundDetector;
+
+    #[test]
+    fn detects_missing_send() {
+        let code = "fn run<T>(data: T) { spawn(move || { let _ = data; }); }";
+        assert_smell_count(&DETECTOR, code, "Missing Send Bound", 1);
+    }
+}
+
+// ─── Extended Unsafe ────────────────────────────────────
+
+mod raw_pointer_arithmetic {
+    use super::*;
+    use qualirs::detectors::r#unsafe::raw_pointer_arithmetic::RawPointerArithmeticDetector;
+    static DETECTOR: RawPointerArithmeticDetector = RawPointerArithmeticDetector;
+
+    #[test]
+    fn detects_pointer_arith() {
+        let code = "fn foo(p: *const i32) { unsafe { let _ = p.offset(1); } }";
+        assert_smell_count(&DETECTOR, code, "Raw Pointer Arithmetic", 1);
+    }
+}
+
+mod ffi_without_wrapper {
+    use super::*;
+    use qualirs::detectors::r#unsafe::ffi_without_wrapper::FfiWithoutWrapperDetector;
+    static DETECTOR: FfiWithoutWrapperDetector = FfiWithoutWrapperDetector;
+
+    #[test]
+    fn detects_naked_ffi() {
+        let code = "extern \"C\" { fn unsafe_c_api(); }";
+        assert_smell_count(&DETECTOR, code, "FFI Without Wrapper", 1);
+    }
+
+    #[test]
+    fn clean_with_wrapper() {
+        let code = "\
+extern \"C\" { fn some_api(); }
+pub fn some_api_wrapper() { unsafe { some_api(); } }
+";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+
