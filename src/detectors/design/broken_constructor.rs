@@ -52,10 +52,12 @@ impl Detector for BrokenConstructorDetector {
                     });
 
                     structs.push(StructInfo {
-                        name: s.ident.to_string(),
+                        id: StructIdentity {
+                            name: s.ident.to_string(),
+                            line: line_of_struct(s),
+                        },
                         all_pub,
                         field_count,
-                        line: line_of_struct(s),
                         has_default_derive,
                     });
                 }
@@ -93,20 +95,20 @@ impl Detector for BrokenConstructorDetector {
 
         for s in &structs {
             // Flag structs with all pub fields and no constructor/Default
-            if s.all_pub && s.field_count >= 3 && !has_new.contains(&s.name) && !s.has_default_derive {
+            if s.all_pub && s.field_count >= 3 && !has_new.contains(&s.id.name) && !s.has_default_derive {
                 smells.push(Smell::new(
                     SmellCategory::Design,
                     "Broken Constructor",
                     Severity::Warning,
                     SourceLocation {
                         file: file.path.clone(),
-                        line_start: s.line,
-                        line_end: s.line,
+                        line_start: s.id.line,
+                        line_end: s.id.line,
                         column: None,
                     },
                     format!(
                         "Struct `{}` has {} public fields but no `new()` constructor",
-                        s.name, s.field_count
+                        s.id.name, s.field_count
                     ),
                     "Add a constructor to control initialization and validate invariants.",
                 ));
@@ -118,11 +120,16 @@ impl Detector for BrokenConstructorDetector {
 }
 
 #[derive(Debug)]
-struct StructInfo {
+struct StructIdentity {
     name: String,
+    line: usize,
+}
+
+#[derive(Debug)]
+struct StructInfo {
+    id: StructIdentity,
     all_pub: bool,
     field_count: usize,
-    line: usize,
     has_default_derive: bool,
 }
 
