@@ -82,9 +82,11 @@ impl<'ast> Visit<'ast> for MutRefVisitor {
 
 fn expr_to_short_string(expr: &syn::Expr) -> String {
     match expr {
-        syn::Expr::Path(p) => p.path.segments.last()
-            .map(|s| s.ident.to_string())
-            .unwrap_or_else(|| "_".into()),
+        syn::Expr::Path(p) => {
+            let last_seg = p.path.segments.last();
+            last_seg.map(|s| s.ident.to_string())
+                .unwrap_or_else(|| "_".into())
+        }
         syn::Expr::Field(f) => {
             let base = expr_to_short_string(&f.base);
             match &f.member {

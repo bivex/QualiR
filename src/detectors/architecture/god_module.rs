@@ -15,6 +15,10 @@ impl Detector for GodModuleDetector {
         let thresholds = Thresholds::default();
         let mut smells = Vec::new();
 
+        if file.path.to_string_lossy().contains("tests") {
+            return smells;
+        }
+
         let item_count = file.ast.items.len();
 
         if file.line_count > thresholds.arch.god_module_loc {

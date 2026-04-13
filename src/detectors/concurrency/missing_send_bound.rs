@@ -78,7 +78,8 @@ fn contains_spawn_call(fn_item: &syn::ItemFn) -> bool {
     impl<'ast> Visit<'ast> for SpawnFinder {
         fn visit_expr_call(&mut self, i: &'ast syn::ExprCall) {
             if let syn::Expr::Path(p) = &*i.func {
-                let s = p.path.segments.last().map(|s| s.ident.to_string()).unwrap_or_default();
+                let last_seg = p.path.segments.last();
+                let s = last_seg.map(|s| s.ident.to_string()).unwrap_or_default();
                 if s.contains("spawn") {
                     self.found = true;
                 }

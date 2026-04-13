@@ -17,21 +17,32 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let path = args.path.canonicalize().unwrap_or_else(|_| args.path.clone());
+    let config = get_config(&args)?;
+    let engine = setup_engine(config);
+    let report = engine.analyze(&args.path);
 
-    if !path.exists() {
-        anyhow::bail!("Path does not exist: {}", path.display());
+    if args.quiet {
+        print_summary(&report);
+    } else {
+        cli::output::print_report(&report);
     }
 
-    // Load config
-    let config = if let Some(config_path) = &args.config {
+    if report.count_by_severity(Severity::Critical) > 0 {
+        std::process::exit(1);
+    }
+
+    Ok(())
+}
+
+fn get_config(args: &Args) -> anyhow::Result<Config> {
+    let path = args.path.canonicalize().unwrap_or_else(|_| args.path.clone());
+    let mut config = if let Some(config_path) = &args.config {
         Config::load_from_file(config_path)?
     } else {
         Config::load_or_default(&path)
     };
 
-    // Override min severity from CLI
-    let min_severity = match args.min_severity.to_lowercase().as_str() {
+    config.min_severity = match args.min_severity.to_lowercase().as_str() {
         "critical" => Severity::Critical,
         "warning" | "warn" => Severity::Warning,
         "info" => Severity::Info,
@@ -40,32 +51,22 @@ fn main() -> anyhow::Result<()> {
         }
     };
 
-    let mut config = config;
-    config.min_severity = min_severity;
+    Ok(config)
+}
 
-    // Build and run engine
+fn setup_engine(config: Config) -> Engine {
     let mut engine = Engine::new(config);
     engine.register_defaults();
+    engine
+}
 
-    let report = engine.analyze(&path);
-
-    if args.quiet {
-        println!(
-            "Files: {} | Smells: {} (Critical: {}, Warning: {}, Info: {})",
-            report.total_files,
-            report.total_smells(),
-            report.count_by_severity(Severity::Critical),
-            report.count_by_severity(Severity::Warning),
-            report.count_by_severity(Severity::Info),
-        );
-    } else {
-        cli::output::print_report(&report);
-    }
-
-    // Exit with error code if critical smells found
-    if report.count_by_severity(Severity::Critical) > 0 {
-        std::process::exit(1);
-    }
-
-    Ok(())
+fn print_summary(report: &analysis::engine::AnalysisReport) {
+    println!(
+        "Files: {} | Smells: {} (Critical: {}, Warning: {}, Info: {})",
+        report.total_files,
+        report.total_smells(),
+        report.count_by_severity(Severity::Critical),
+        report.count_by_severity(Severity::Warning),
+        report.count_by_severity(Severity::Info),
+    );
 }

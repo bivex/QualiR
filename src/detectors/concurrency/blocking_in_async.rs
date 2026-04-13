@@ -98,9 +98,8 @@ impl<'ast> Visit<'ast> for BlockingCallVisitor {
 }
 
 fn path_to_string(path: &syn::Path) -> String {
-    path.segments
-        .iter()
+    let idents: Vec<String> = path.segments.iter()
         .map(|s| s.ident.to_string())
-        .collect::<Vec<_>>()
-        .join("::")
+        .collect();
+    idents.join("::")
 }

@@ -90,7 +90,8 @@ impl<'ast> Visit<'ast> for PanicVisitor {
 }
 
 fn check_macro_name(path: &syn::Path) -> Option<&'static str> {
-    let ident = path.segments.last()?.ident.to_string();
+    let last_seg = path.segments.last()?;
+    let ident = last_seg.ident.to_string();
     match ident.as_str() {
         "panic" => Some("panic!"),
         "todo" => Some("todo!"),

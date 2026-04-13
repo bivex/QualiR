@@ -79,9 +79,11 @@ impl<'ast> Visit<'ast> for LockCallVisitor {
 
 fn expr_to_string(expr: &syn::Expr) -> String {
     match expr {
-        syn::Expr::Path(p) => p.path.segments.last()
-            .map(|s| s.ident.to_string())
-            .unwrap_or_else(|| "_".into()),
+        syn::Expr::Path(p) => {
+            let last_seg = p.path.segments.last();
+            last_seg.map(|s| s.ident.to_string())
+                .unwrap_or_else(|| "_".into())
+        }
         syn::Expr::Field(f) => {
             let base = expr_to_string(&f.base);
             let member = match &f.member {

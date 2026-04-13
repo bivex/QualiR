@@ -50,6 +50,18 @@ pub struct SourceLocation {
     pub column: Option<usize>,
 }
 
+impl SourceLocation {
+    #[allow(dead_code)]
+    pub fn new(file: PathBuf, line_start: usize, line_end: usize, column: Option<usize>) -> Self {
+        Self {
+            file,
+            line_start,
+            line_end,
+            column,
+        }
+    }
+}
+
 impl fmt::Display for SourceLocation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}:{}", self.file.display(), self.line_start)

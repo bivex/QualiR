@@ -17,6 +17,14 @@ impl Detector for PublicApiExplosionDetector {
         let thresholds = Thresholds::default();
         let mut smells = Vec::new();
 
+        // Ignore mod.rs/lib.rs boilerplate that only contains module exports or imports
+        let is_boilerplate = file.ast.items.iter().all(|item| {
+            matches!(item, syn::Item::Mod(_) | syn::Item::Use(_) | syn::Item::ExternCrate(_))
+        });
+        if is_boilerplate {
+            return smells;
+        }
+
         let total = file.ast.items.len();
         if total == 0 {
             return smells;

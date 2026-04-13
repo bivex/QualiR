@@ -15,6 +15,10 @@ impl Detector for LongFunctionDetector {
         let thresholds = Thresholds::default();
         let mut smells = Vec::new();
 
+        if file.path.to_string_lossy().contains("tests") {
+            return smells;
+        }
+
         for item in &file.ast.items {
             if let syn::Item::Fn(fn_item) = item {
                 check_function(
@@ -36,8 +40,11 @@ fn check_function(
     thresholds: &Thresholds,
     smells: &mut Vec<Smell>,
 ) {
-    let start_line = fn_item.block.brace_token.span.open().start().line;
-    let end_line = fn_item.block.brace_token.span.close().start().line;
+    let brace_open = fn_item.block.brace_token.span.open();
+    let start_line = brace_open.start().line;
+
+    let brace_close = fn_item.block.brace_token.span.close();
+    let end_line = brace_close.start().line;
 
     let loc_raw = end_line.saturating_sub(start_line);
     let loc = loc_raw.saturating_sub(1);

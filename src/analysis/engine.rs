@@ -116,11 +116,7 @@ impl Engine {
         let errors = parse_errors.into_inner().unwrap();
         let total_files = files.len();
 
-        AnalysisReport {
-            smells: all_smells,
-            total_files,
-            parse_errors: errors,
-        }
+        AnalysisReport::new(all_smells, total_files, errors)
     }
 }
 
@@ -129,6 +125,12 @@ pub struct AnalysisReport {
     pub smells: Vec<Smell>,
     pub total_files: usize,
     pub parse_errors: Vec<crate::domain::source::ParseError>,
+}
+
+impl AnalysisReport {
+    pub fn new(smells: Vec<Smell>, total_files: usize, parse_errors: Vec<crate::domain::source::ParseError>) -> Self {
+        Self { smells, total_files, parse_errors }
+    }
 }
 
 impl AnalysisReport {

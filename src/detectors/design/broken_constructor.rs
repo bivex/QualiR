@@ -16,6 +16,10 @@ impl Detector for BrokenConstructorDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let mut smells = Vec::new();
 
+        if file.path.to_string_lossy().contains("tests") {
+            return smells;
+        }
+
         // Collect struct info: name, has_pub_fields, has_constructor
         let mut structs: Vec<StructInfo> = Vec::new();
         let mut has_new: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -39,25 +43,45 @@ impl Detector for BrokenConstructorDetector {
                         syn::Fields::Unnamed(unnamed) => unnamed.unnamed.len(),
                         syn::Fields::Unit => 0,
                     };
+                    let has_default_derive = s.attrs.iter().any(|attr| {
+                        if attr.path().is_ident("derive") {
+                            if let Ok(nested) = attr.parse_args_with(syn::punctuated::Punctuated::<syn::Meta, syn::token::Comma>::parse_terminated) {
+                                nested.iter().any(|m| m.path().is_ident("Default"))
+                            } else { false }
+                        } else { false }
+                    });
+
                     structs.push(StructInfo {
                         name: s.ident.to_string(),
                         all_pub,
                         field_count,
                         line: line_of_struct(s),
+                        has_default_derive,
                     });
                 }
                 syn::Item::Impl(imp) => {
-                    // Check for new() method in impl blocks
-                    if imp.trait_.is_none() {
-                        if let syn::Type::Path(tp) = &*imp.self_ty {
-                            if let Some(seg) = tp.path.segments.last() {
-                                let type_name = seg.ident.to_string();
+                    if let syn::Type::Path(tp) = &*imp.self_ty {
+                        if let Some(seg) = tp.path.segments.last() {
+                            let type_name = seg.ident.to_string();
+                            
+                            // Check for new() or other constructors
+                            if imp.trait_.is_none() {
                                 for item in &imp.items {
                                     if let syn::ImplItem::Fn(method) = item {
-                                        if method.sig.ident == "new" {
+                                        let method_name = method.sig.ident.to_string();
+                                        if method_name == "new" 
+                                            || method_name.starts_with("from_") 
+                                            || method_name.starts_with("with_")
+                                            || method_name.starts_with("parse_") 
+                                        {
                                             has_new.insert(type_name.clone());
                                         }
                                     }
+                                }
+                            } else if let Some((_, path, _)) = &imp.trait_ {
+                                // Check for impl Default
+                                if path.is_ident("Default") {
+                                    has_new.insert(type_name.clone());
                                 }
                             }
                         }
@@ -68,8 +92,8 @@ impl Detector for BrokenConstructorDetector {
         }
 
         for s in &structs {
-            // Flag structs with all pub fields and no constructor
-            if s.all_pub && s.field_count >= 3 && !has_new.contains(&s.name) {
+            // Flag structs with all pub fields and no constructor/Default
+            if s.all_pub && s.field_count >= 3 && !has_new.contains(&s.name) && !s.has_default_derive {
                 smells.push(Smell::new(
                     SmellCategory::Design,
                     "Broken Constructor",
@@ -93,11 +117,13 @@ impl Detector for BrokenConstructorDetector {
     }
 }
 
+#[derive(Debug)]
 struct StructInfo {
     name: String,
     all_pub: bool,
     field_count: usize,
     line: usize,
+    has_default_derive: bool,
 }
 
 fn line_of_struct(s: &syn::ItemStruct) -> usize {

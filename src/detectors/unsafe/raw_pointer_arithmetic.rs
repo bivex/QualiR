@@ -56,10 +56,14 @@ impl<'ast> Visit<'ast> for PtrArithVisitor {
         ];
 
         if ptr_methods.iter().any(|m| *m == method) {
-            // Check if receiver is a raw pointer type
+            // Check if we are inside an unsafe block or function
+            // (Simplification: we just report it, but ideally we'd check nesting)
+            // For now, let's just make it more specific by checking the receiver string
             let receiver_str = expr_to_string(&node.receiver);
-            let line = node.method.span().start().line;
-            self.usages.push((line, format!("{}.{}()", receiver_str, method)));
+            if receiver_str.contains("ptr") || receiver_str.contains("raw") {
+                let line = node.method.span().start().line;
+                self.usages.push((line, format!("{}.{}()", receiver_str, method)));
+            }
         }
 
         syn::visit::visit_expr_method_call(self, node);
@@ -68,9 +72,11 @@ impl<'ast> Visit<'ast> for PtrArithVisitor {
 
 fn expr_to_string(expr: &syn::Expr) -> String {
     match expr {
-        syn::Expr::Path(p) => p.path.segments.last()
-            .map(|s| s.ident.to_string())
-            .unwrap_or_else(|| "ptr".into()),
+        syn::Expr::Path(p) => {
+            let last_seg = p.path.segments.last();
+            last_seg.map(|s| s.ident.to_string())
+                .unwrap_or_else(|| "ptr".into())
+        }
         syn::Expr::Cast(c) => {
             let type_str = type_to_string(&c.ty);
             if type_str.contains('*') {
