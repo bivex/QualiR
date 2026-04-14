@@ -394,8 +394,11 @@ mod long_method_chain {
 
     #[test]
     fn clean_short_chain() {
+        // Must use a non-test file path because the detector skips test files
         let code = "fn short(x: Vec<i32>) { x.iter().count(); }";
-        assert_clean(&DETECTOR, code);
+        let file = SourceFile::from_source(PathBuf::from("main.rs"), code.to_string()).unwrap();
+        let smells = DETECTOR.detect(&file);
+        assert!(smells.is_empty(), "Expected no smells, but found: {:?}", smells);
     }
 }
 
@@ -1093,10 +1096,10 @@ mod spawn_without_join {
     }
 
     #[test]
-    fn detects_assigned_spawn_via_expr() {
-        // Even assigned spawns are detected via visit_expr path
+    fn clean_assigned_spawn() {
+        // Spawn assigned to a named variable is safe
         let code = "fn foo() { let handle = std::thread::spawn(|| {}); handle.join().unwrap(); }";
-        assert_smell_count(&DETECTOR, code, "Spawn Without Join", 1);
+        assert_clean(&DETECTOR, code);
     }
 }
 
