@@ -56,18 +56,20 @@ struct SpawnVisitor {
 
 impl<'ast> Visit<'ast> for SpawnVisitor {
     fn visit_local(&mut self, local: &'ast syn::Local) {
-        // Check for `let _ = spawn(...)` pattern
         if let Some(init) = &local.init {
-            if is_underscore_binding(&local.pat) {
-                if let syn::Expr::Call(call) = &*init.expr {
-                    if let syn::Expr::Path(path) = &*call.func {
-                        let func_str = path_to_string(&path.path);
-                        if is_spawn(&func_str) {
+            if let syn::Expr::Call(call) = &*init.expr {
+                if let syn::Expr::Path(path) = &*call.func {
+                    let func_str = path_to_string(&path.path);
+                    if is_spawn(&func_str) {
+                        if is_underscore_binding(&local.pat) {
+                            // Discarded handle — flag it
                             let line = local.let_token.span.start().line;
                             self.spawns.push((func_str, line));
-                            // We return early to avoid visit_expr catching this same call
-                            return;
                         }
+                        // Named binding (let handle = spawn(...)) is safe.
+                        // Return early in both cases to prevent visit_expr
+                        // from catching this same call.
+                        return;
                     }
                 }
             }
