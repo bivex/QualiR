@@ -385,8 +385,11 @@ mod long_method_chain {
     #[test]
     fn detects_long_chain() {
         // 5 chained calls: iter().filter().map().flatten().collect() — depth > 4
+        // Must use a non-test file path because the detector skips test files
         let code = "fn chain(x: Vec<i32>) { x.iter().filter(|&&x| x > 0).map(|&x| x * 2).flatten().collect::<Vec<i32>>(); }";
-        assert_smell_count(&DETECTOR, code, "Long Method Chain", 1);
+        let file = SourceFile::from_source(PathBuf::from("main.rs"), code.to_string()).unwrap();
+        let smells = DETECTOR.detect(&file);
+        assert!(smells.iter().any(|s| s.name == "Long Method Chain"), "Should detect long chain: {:?}", smells);
     }
 
     #[test]
@@ -612,7 +615,7 @@ mod arc_mutex_overuse {
 
     #[test]
     fn detects_many_arc_mutex() {
-        // Threshold is 3 by default. 
+        // Threshold is 3 by default.
         // Our heuristic counts Arc, Mutex, and RwLock segments.
         // Arc<Mutex<i32>> counts twice (once as Arc, once as Mutex via recursive visit).
         let code = "\
@@ -622,6 +625,22 @@ struct State {
 }
 ";
         assert_smell_count(&DETECTOR, code, "Arc Mutex Overuse", 1);
+    }
+
+    #[test]
+    fn clean_few_usages() {
+        let code = "\
+struct State {
+    data: Arc<Mutex<i32>>,
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_no_arc_mutex() {
+        let code = "struct State { value: i32 }";
+        assert_clean(&DETECTOR, code);
     }
 }
 
@@ -637,6 +656,20 @@ mod large_future {
         let body: String = (0..120).map(|i| format!("let _ = {i};")).collect::<Vec<_>>().join("\n");
         let code = format!("async fn big() {{\n{body}\n}}");
         assert_smell_count(&DETECTOR, &code, "Large Future", 1);
+    }
+
+    #[test]
+    fn clean_short_async() {
+        let code = "async fn short() { let x = 1; }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_long_sync_function() {
+        // Long non-async functions are not flagged by LargeFutureDetector
+        let body: String = (0..120).map(|i| format!("let _ = {i};")).collect::<Vec<_>>().join("\n");
+        let code = format!("fn big_sync() {{\n{body}\n}}");
+        assert_clean(&DETECTOR, &code);
     }
 }
 
@@ -657,6 +690,23 @@ impl Drop for Resource {
 }
 ";
         assert_smell_count(&DETECTOR, code, "Manual Drop", 1);
+    }
+
+    #[test]
+    fn clean_no_drop_impl() {
+        let code = "struct Resource;";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_trait_impl_not_drop() {
+        let code = "\
+struct Resource;
+impl std::fmt::Debug for Resource {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result { Ok(()) }
+}
+";
+        assert_clean(&DETECTOR, code);
     }
 }
 
@@ -726,6 +776,37 @@ mod feature_concentration {
             code.push_str(&format!("use crate{}::item;\n", i));
         }
         assert_smell_count(&DETECTOR, &code, "Feature Concentration", 1);
+    }
+
+    #[test]
+    fn clean_few_external_crates() {
+        let code = "\
+use serde::Deserialize;
+use tokio::runtime::Runtime;
+use clap::Parser;
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_only_local_imports() {
+        let code = "\
+use crate::domain::User;
+use super::config;
+use self::inner::Helper;
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_repeated_crate_counts_once() {
+        // Same crate imported via different paths counts only once
+        let code = "\
+use serde::Deserialize;
+use serde::Serialize;
+use serde::de::Deserializer;
+";
+        assert_clean(&DETECTOR, code);
     }
 }
 
@@ -799,6 +880,31 @@ impl Default for Data {}
 ";
         assert_smell_count(&DETECTOR, code, "Trait Impl Leakage", 1);
     }
+
+    #[test]
+    fn clean_with_domain_trait() {
+        // Even with 5+ std traits, having one domain trait makes it safe
+        let code = "\
+struct Data;
+impl Debug for Data {}
+impl Clone for Data {}
+impl Copy for Data {}
+impl Hash for Data {}
+impl Default for Data {}
+impl crate::auth::Authorize for Data {}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_few_std_traits() {
+        let code = "\
+struct Data;
+impl Debug for Data {}
+impl Clone for Data {}
+";
+        assert_clean(&DETECTOR, code);
+    }
 }
 
 mod feature_envy {
@@ -820,6 +926,34 @@ pub fn process(other: &Other) {
 ";
         assert_smell_count(&DETECTOR, code, "Feature Envy", 1);
     }
+
+    #[test]
+    fn clean_private_function() {
+        // Private functions are never flagged, even with many calls
+        let code = "\
+fn process(other: &Other) {
+    other.do_a();
+    other.do_b();
+    other.do_c();
+    other.do_d();
+    other.do_e();
+    other.do_f();
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_within_threshold() {
+        let code = "\
+pub fn process(other: &Other) {
+    other.do_a();
+    other.do_b();
+    other.do_c();
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
 }
 
 mod wide_hierarchy {
@@ -835,6 +969,32 @@ enum Huge {
 }
 ";
         assert_smell_count(&DETECTOR, code, "Wide Hierarchy", 1);
+    }
+
+    #[test]
+    fn clean_small_enum() {
+        let code = "enum Color { Red, Green, Blue }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_enum_at_threshold() {
+        // Exactly 10 variants does NOT trigger (>10 required)
+        let code = "enum Status { V1, V2, V3, V4, V5, V6, V7, V8, V9, V10 }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_struct_few_fields() {
+        let code = "struct Point { x: f64, y: f64, z: f64 }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_tuple_struct_many_fields() {
+        // Tuple structs are not checked regardless of field count
+        let code = "pub struct Wrapper(pub i32, pub i32, pub i32, pub i32, pub i32, pub i32, pub i32, pub i32, pub i32, pub i32, pub i32);";
+        assert_clean(&DETECTOR, code);
     }
 }
 
@@ -853,6 +1013,57 @@ pub struct State {
 }
 ";
         assert_smell_count(&DETECTOR, code, "Broken Constructor", 1);
+    }
+
+    #[test]
+    fn clean_with_new_constructor() {
+        let code = "\
+pub struct State {
+    pub a: i32,
+    pub b: i32,
+    pub c: i32,
+}
+impl State {
+    pub fn new(a: i32, b: i32, c: i32) -> Self { Self { a, b, c } }
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_with_default_derive() {
+        let code = "\
+#[derive(Default)]
+pub struct State {
+    pub a: i32,
+    pub b: i32,
+    pub c: i32,
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_private_fields() {
+        let code = "\
+pub struct State {
+    a: i32,
+    pub b: i32,
+    pub c: i32,
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_few_fields() {
+        let code = "\
+pub struct Pair {
+    pub a: i32,
+    pub b: i32,
+}
+";
+        assert_clean(&DETECTOR, code);
     }
 }
 
@@ -874,6 +1085,19 @@ mod spawn_without_join {
         let code = "fn foo() { let _ = tokio::spawn(async {}); }";
         assert_smell_count(&DETECTOR, code, "Spawn Without Join", 1);
     }
+
+    #[test]
+    fn clean_no_spawn() {
+        let code = "fn foo() { let x = 1 + 2; }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn detects_assigned_spawn_via_expr() {
+        // Even assigned spawns are detected via visit_expr path
+        let code = "fn foo() { let handle = std::thread::spawn(|| {}); handle.join().unwrap(); }";
+        assert_smell_count(&DETECTOR, code, "Spawn Without Join", 1);
+    }
 }
 
 mod missing_send_bound {
@@ -885,6 +1109,19 @@ mod missing_send_bound {
     fn detects_missing_send() {
         let code = "fn run<T>(data: T) { spawn(move || { let _ = data; }); }";
         assert_smell_count(&DETECTOR, code, "Missing Send Bound", 1);
+    }
+
+    #[test]
+    fn clean_with_send_bound() {
+        let code = "fn run<T: Send>(data: T) { spawn(move || { let _ = data; }); }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_non_generic_fn() {
+        // Non-generic functions with spawn are not flagged
+        let code = "fn run() { spawn(|| {}); }";
+        assert_clean(&DETECTOR, code);
     }
 }
 
@@ -899,6 +1136,19 @@ mod raw_pointer_arithmetic {
     fn detects_pointer_arith() {
         let code = "fn foo(raw_ptr: *const i32) { unsafe { let _ = raw_ptr.offset(1); } }";
         assert_smell_count(&DETECTOR, code, "Raw Pointer Arithmetic", 1);
+    }
+
+    #[test]
+    fn clean_non_pointer_method() {
+        // .add() on a Vec receiver does not trigger — receiver must contain "ptr" or "raw"
+        let code = "fn foo(v: Vec<i32>) { let _ = v.len(); }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_no_pointer_methods() {
+        let code = "fn foo(p: *const i32) { let _ = p; }";
+        assert_clean(&DETECTOR, code);
     }
 }
 
@@ -947,4 +1197,532 @@ mod inline_assembly {
     }
 }
 
+// ─── False Positive Tests: Architecture ──────────────────────
 
+mod hidden_global_state {
+    use super::*;
+    use qualirs::detectors::architecture::hidden_global_state::HiddenGlobalStateDetector;
+    static DETECTOR: HiddenGlobalStateDetector = HiddenGlobalStateDetector;
+
+    #[test]
+    fn detects_many_statics() {
+        let code = "\
+static A: i32 = 1;
+static B: i32 = 2;
+static C: i32 = 3;
+static D: i32 = 4;
+";
+        assert_smell_count(&DETECTOR, code, "Hidden Global State", 1);
+    }
+
+    #[test]
+    fn clean_few_statics() {
+        let code = "\
+static COUNTER: i32 = 0;
+static VERSION: &str = \"1.0\";
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_const_not_static() {
+        // const items should not be counted as global state
+        let code = "\
+const MAX: i32 = 100;
+const MIN: i32 = 0;
+const NAME: &str = \"app\";
+const VER: &str = \"1.0\";
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_no_globals() {
+        let code = "fn main() { let x = 1; }";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod leaky_error {
+    use super::*;
+    use qualirs::detectors::architecture::leaky_error::LeakyErrorAbstractionDetector;
+    static DETECTOR: LeakyErrorAbstractionDetector = LeakyErrorAbstractionDetector;
+
+    #[test]
+    fn detects_leaky_error() {
+        // One smell per leaking variant
+        let code = "\
+pub enum AppError {
+    Db(sqlx::Error),
+    Http(reqwest::Error),
+}
+";
+        assert_smell_count(&DETECTOR, code, "Leaky Error Abstraction", 2);
+    }
+
+    #[test]
+    fn clean_private_error_enum() {
+        // Non-public enums are safe
+        let code = "\
+enum AppError {
+    Db(sqlx::Error),
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_non_error_name() {
+        // Enum name not ending in "Error" is safe
+        let code = "\
+pub enum AppResult {
+    Db(sqlx::Error),
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_named_field_variant() {
+        // Named-field variants are safe (only tuple variants checked)
+        let code = "\
+pub enum AppError {
+    Io { inner: std::io::Error },
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_non_flagged_crate() {
+        // Crates not in the hardcoded list are safe
+        let code = "\
+pub enum AppError {
+    Other(diesel::result::Error),
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_boxed_error() {
+        // Box<reqwest::Error> is safe — first segment is "Box", not "reqwest"
+        let code = "\
+pub enum AppError {
+    Http(Box<reqwest::Error>),
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+// ─── False Positive Tests: Design ────────────────────────────
+
+mod fat_impl {
+    use super::*;
+    use qualirs::detectors::design::fat_impl::FatImplDetector;
+    static DETECTOR: FatImplDetector = FatImplDetector;
+
+    #[test]
+    fn detects_fat_impl() {
+        let methods: String = (0..21)
+            .map(|i| format!("fn method_{i}(&self) {{}}"))
+            .collect::<Vec<_>>()
+            .join("\n    ");
+        let code = format!("struct Big;\nimpl Big {{\n    {methods}\n}}");
+        assert_smell_count(&DETECTOR, &code, "Fat Impl (God Object)", 1);
+    }
+
+    #[test]
+    fn clean_reasonable_impl() {
+        let code = "\
+struct Service;
+impl Service {
+    fn new() -> Self { Service }
+    fn run(&self) {}
+    fn stop(&self) {}
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_trait_impl_not_counted() {
+        // Trait impls are not counted toward the fat impl limit
+        let methods: String = (0..21)
+            .map(|i| format!("fn method_{i}(&self);"))
+            .collect::<Vec<_>>()
+            .join("\n    ");
+        let code = format!("trait Big {{\n    {methods}\n}}");
+        assert_clean(&DETECTOR, &code);
+    }
+
+    #[test]
+    fn clean_at_threshold() {
+        // Exactly 20 methods does NOT trigger
+        let methods: String = (0..20)
+            .map(|i| format!("fn method_{i}(&self) {{}}"))
+            .collect::<Vec<_>>()
+            .join("\n    ");
+        let code = format!("struct Big;\nimpl Big {{\n    {methods}\n}}");
+        assert_clean(&DETECTOR, &code);
+    }
+}
+
+mod primitive_obsession {
+    use super::*;
+    use qualirs::detectors::design::primitive_obsession::PrimitiveObsessionDetector;
+    static DETECTOR: PrimitiveObsessionDetector = PrimitiveObsessionDetector;
+
+    #[test]
+    fn detects_primitive_obsession() {
+        let code = "struct Data { a: i32, b: i32, c: i32, d: i32, e: i32 }";
+        assert_smell_count(&DETECTOR, code, "Primitive Obsession", 1);
+    }
+
+    #[test]
+    fn clean_mixed_types() {
+        // A struct with non-primitive fields is safe
+        let code = "struct Data { a: i32, b: i32, c: i32, d: i32, e: Vec<String> }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_few_fields() {
+        let code = "struct Point { x: f64, y: f64, z: f64 }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_thresholds_suffix() {
+        // Structs ending in "Thresholds" are excluded
+        let code = "struct MyThresholds { a: i32, b: i32, c: i32, d: i32, e: i32 }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_option_not_primitive() {
+        // Option<i32> is NOT considered primitive
+        let code = "struct Data { a: i32, b: i32, c: i32, d: i32, e: Option<i32> }";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod data_clumps {
+    use super::*;
+    use qualirs::detectors::design::data_clumps::DataClumpsDetector;
+    static DETECTOR: DataClumpsDetector = DataClumpsDetector;
+
+    #[test]
+    fn detects_data_clumps() {
+        let code = "\
+fn build_user(name: String, age: i32, email: String) {}
+fn update_user(name: String, age: i32, email: String) {}
+fn migrate_user(name: String, age: i32, email: String) {}
+";
+        assert_smell_count(&DETECTOR, code, "Data Clumps", 1);
+    }
+
+    #[test]
+    fn clean_few_params() {
+        // Functions with <3 params are never grouped
+        let code = "\
+fn build_user(name: String, age: i32) {}
+fn update_user(name: String, age: i32) {}
+fn migrate_user(name: String, age: i32) {}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_unique_signatures() {
+        // Different parameter names break the match
+        let code = "\
+fn build_user(name: String, age: i32, email: String) {}
+fn update_user(user_name: String, user_age: i32, user_email: String) {}
+fn migrate_user(full_name: String, years: i32, mail: String) {}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_only_two_occurrences() {
+        // Need 3+ occurrences of the same signature
+        let code = "\
+fn build_user(name: String, age: i32, email: String) {}
+fn update_user(name: String, age: i32, email: String) {}
+";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod multiple_impl_blocks {
+    use super::*;
+    use qualirs::detectors::design::multiple_impl_blocks::MultipleImplBlocksDetector;
+    static DETECTOR: MultipleImplBlocksDetector = MultipleImplBlocksDetector;
+
+    #[test]
+    fn detects_scattered_impl() {
+        let code = "\
+struct S;
+impl S { fn a(&self) {} }
+impl S { fn b(&self) {} }
+";
+        assert_smell_count(&DETECTOR, code, "Scattered Implementation", 1);
+    }
+
+    #[test]
+    fn clean_single_impl() {
+        let code = "\
+struct S;
+impl S { fn a(&self) {} fn b(&self) {} }
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_trait_impls_only() {
+        // Only inherent impls count; trait impls are excluded
+        let code = "\
+struct S;
+impl S { fn a(&self) {} }
+impl Debug for S { fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result { Ok(()) } }
+impl Clone for S { fn clone(&self) -> Self { S } }
+";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod rebellious_impl {
+    use super::*;
+    use qualirs::detectors::design::rebellious_impl::RebelliousImplDetector;
+    static DETECTOR: RebelliousImplDetector = RebelliousImplDetector;
+
+    #[test]
+    fn detects_rebellious_repo() {
+        let code = "\
+struct UserRepository;
+impl UserRepository {
+    fn find_by_id(&self) {}
+    fn print_report(&self) {}
+}
+";
+        assert_smell_count(&DETECTOR, code, "Rebellious Impl", 1);
+    }
+
+    #[test]
+    fn clean_unrelated_type() {
+        // Type name doesn't match any keyword pattern
+        let code = "\
+struct UserService;
+impl UserService {
+    fn print_report(&self) {}
+    fn format_output(&self) {}
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_well_behaved_repo() {
+        // Repo with only data-access methods is safe
+        let code = "\
+struct UserRepository;
+impl UserRepository {
+    fn find_by_id(&self) {}
+    fn save(&self) {}
+    fn delete(&self) {}
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_well_behaved_validator() {
+        // Validator with only validation methods is safe
+        let code = "\
+struct InputValidator;
+impl InputValidator {
+    fn is_valid(&self) -> bool { true }
+    fn check_length(&self) -> bool { true }
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+// ─── False Positive Tests: Implementation ────────────────────
+
+mod deeply_nested_type {
+    use super::*;
+    use qualirs::detectors::implementation::deeply_nested_type::DeeplyNestedTypeDetector;
+    static DETECTOR: DeeplyNestedTypeDetector = DeeplyNestedTypeDetector;
+
+    #[test]
+    fn detects_deep_nesting() {
+        let code = "struct S { data: Arc<Mutex<HashMap<String, Vec<i32>>>> }";
+        assert_smell_count(&DETECTOR, code, "Type Alias Explosion (Deep Nesting)", 1);
+    }
+
+    #[test]
+    fn clean_shallow_nesting() {
+        let code = "struct S { data: HashMap<String, Vec<i32>> }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_no_generics() {
+        let code = "struct S { value: i32 }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_option_result() {
+        let code = "struct S { data: Option<Result<String, std::io::Error>> }";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod interior_mutability_abuse {
+    use super::*;
+    use qualirs::detectors::implementation::interior_mutability_abuse::InteriorMutabilityAbuseDetector;
+    static DETECTOR: InteriorMutabilityAbuseDetector = InteriorMutabilityAbuseDetector;
+
+    #[test]
+    fn detects_many_refcell() {
+        let fields: String = (0..6)
+            .map(|i| format!("f{i}: RefCell<i32>"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let code = format!("struct S {{ {fields} }}");
+        assert_smell_count(&DETECTOR, &code, "Interior Mutability Abuse", 1);
+    }
+
+    #[test]
+    fn clean_few_usages() {
+        let code = "struct S { a: RefCell<i32>, b: Cell<bool> }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_no_interior_mutability() {
+        let code = "struct S { value: i32 }";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+// ─── False Positive Tests: Concurrency ───────────────────────
+
+mod sync_drop_blocking {
+    use super::*;
+    use qualirs::detectors::concurrency::sync_drop_blocking::SyncDropBlockingDetector;
+    static DETECTOR: SyncDropBlockingDetector = SyncDropBlockingDetector;
+
+    #[test]
+    fn detects_blocking_in_drop() {
+        let code = "\
+struct Conn;
+impl Drop for Conn {
+    fn drop(&mut self) {
+        self.flush();
+    }
+}
+";
+        assert_smell_count(&DETECTOR, code, "Sync Drop Blocking (Async Hazard)", 1);
+    }
+
+    #[test]
+    fn clean_safe_drop() {
+        let code = "\
+struct Handle;
+impl Drop for Handle {
+    fn drop(&mut self) {
+        println!(\"dropped\");
+    }
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_no_drop_impl() {
+        let code = "struct Handle;";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod async_trait_overhead {
+    use super::*;
+    use qualirs::detectors::concurrency::async_trait_overhead::AsyncTraitOverheadDetector;
+    static DETECTOR: AsyncTraitOverheadDetector = AsyncTraitOverheadDetector;
+
+    #[test]
+    fn detects_async_trait() {
+        let code = "\
+#[async_trait]
+pub trait Handler {
+    async fn handle(&self);
+}
+";
+        assert_smell_count(&DETECTOR, code, "Async Trait Overhead", 1);
+    }
+
+    #[test]
+    fn clean_no_async_trait() {
+        let code = "\
+pub trait Handler {
+    fn handle(&self);
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_other_attributes() {
+        let code = "\
+#[derive(Clone)]
+pub struct Handler;
+";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+// ─── False Positive Tests: Unsafe ────────────────────────────
+
+mod multi_mut_ref_unsafe {
+    use super::*;
+    use qualirs::detectors::r#unsafe::multi_mut_ref_unsafe::MultiMutRefUnsafeDetector;
+    static DETECTOR: MultiMutRefUnsafeDetector = MultiMutRefUnsafeDetector;
+
+    #[test]
+    fn detects_multiple_mut_ref() {
+        // Reports one smell per instance when threshold (>=2) is met
+        let code = "\
+fn foo(a: &mut i32, b: &mut i32) {
+    let x = &mut *a;
+    let y = &mut *b;
+}
+";
+        assert_smell_count(&DETECTOR, code, "Multi Mut Ref Unsafe", 2);
+    }
+
+    #[test]
+    fn clean_single_instance() {
+        // A single &mut *expr is safe (< 2 threshold)
+        let code = "fn foo(a: &mut i32) { let x = &mut *a; }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_immut_deref() {
+        // Immutable deref is safe
+        let code = "fn foo(a: &i32) { let x = &*a; let y = &*a; }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_normal_refs() {
+        let code = "fn foo(a: &mut i32) { *a = 42; }";
+        assert_clean(&DETECTOR, code);
+    }
+}
