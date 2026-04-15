@@ -43,3 +43,10 @@ fixed-json = { version = "0.2.1", features = ["std"] }
 
 [dev-dependencies]
 tempfile = "3"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
