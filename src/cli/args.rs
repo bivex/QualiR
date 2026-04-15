@@ -26,6 +26,10 @@ pub struct Args {
     #[arg(short, long)]
     pub quiet: bool,
 
+    /// Compact mode: show findings as a categorized list
+    #[arg(long, conflicts_with = "quiet")]
+    pub compact: bool,
+
     /// List available detectors and exit
     #[arg(long)]
     pub list_detectors: bool,

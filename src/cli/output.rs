@@ -22,6 +22,24 @@ pub fn print_report(report: &AnalysisReport) {
     print_footer(report);
 }
 
+/// Print findings as a compact categorized list.
+pub fn print_compact_report(report: &AnalysisReport) {
+    print_header();
+    print_summary(report);
+
+    if !report.smells.is_empty() {
+        println!();
+        print_compact_smells(report);
+    }
+
+    if !report.parse_errors.is_empty() {
+        println!();
+        print_parse_errors(report);
+    }
+
+    print_footer(report);
+}
+
 fn print_header() {
     println!();
     println!(
@@ -56,6 +74,55 @@ fn print_summary(report: &AnalysisReport) {
     }
 }
 
+fn print_compact_smells(report: &AnalysisReport) {
+    let categories = [
+        SmellCategory::Architecture,
+        SmellCategory::Design,
+        SmellCategory::Implementation,
+        SmellCategory::Performance,
+        SmellCategory::Idiomaticity,
+        SmellCategory::Concurrency,
+        SmellCategory::Unsafe,
+    ];
+
+    for category in categories {
+        let mut smells: Vec<_> = report
+            .smells
+            .iter()
+            .filter(|smell| smell.category == category)
+            .collect();
+
+        if smells.is_empty() {
+            continue;
+        }
+
+        smells.sort_by(|a, b| {
+            b.severity
+                .cmp(&a.severity)
+                .then_with(|| a.location.to_string().cmp(&b.location.to_string()))
+                .then_with(|| a.name.cmp(&b.name))
+        });
+
+        println!(
+            "{} {}",
+            "▸".bright_magenta(),
+            compact_category_label(&category).bold()
+        );
+
+        for smell in smells {
+            println!(
+                "  {} {} {}",
+                compact_severity_label(&smell.severity),
+                smell.name.bold(),
+                smell.location.to_string().dimmed()
+            );
+            println!("    {}", smell.message);
+        }
+
+        println!();
+    }
+}
+
 fn print_smell_table(report: &AnalysisReport) {
     let mut table = Table::new();
     table.load_preset(UTF8_FULL);
@@ -84,6 +151,26 @@ fn print_smell_table(report: &AnalysisReport) {
     }
 
     println!("{table}");
+}
+
+fn compact_severity_label(severity: &Severity) -> colored::ColoredString {
+    match severity {
+        Severity::Critical => "CRIT".red().bold(),
+        Severity::Warning => "WARN".yellow().bold(),
+        Severity::Info => "INFO".blue().bold(),
+    }
+}
+
+fn compact_category_label(category: &SmellCategory) -> colored::ColoredString {
+    match category {
+        SmellCategory::Architecture => category.to_string().magenta(),
+        SmellCategory::Design => category.to_string().cyan(),
+        SmellCategory::Implementation => category.to_string().green(),
+        SmellCategory::Performance => category.to_string().blue(),
+        SmellCategory::Idiomaticity => category.to_string().white(),
+        SmellCategory::Concurrency => category.to_string().yellow(),
+        SmellCategory::Unsafe => category.to_string().red(),
+    }
 }
 
 fn severity_cell(severity: &Severity) -> Cell {
