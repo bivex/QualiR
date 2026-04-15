@@ -40,6 +40,43 @@ pub fn print_compact_report(report: &AnalysisReport) {
     print_footer(report);
 }
 
+/// Print findings as paste-friendly Markdown for coding assistants.
+pub fn print_llm_report(report: &AnalysisReport) {
+    println!("# QualiRS Findings");
+    println!();
+    println!(
+        "Fix the following Rust code smells. Preserve existing behavior and keep changes focused."
+    );
+    println!();
+    println!("- Files analyzed: {}", report.total_files);
+    println!("- Findings: {}", report.total_smells());
+    println!(
+        "- Severity counts: critical={}, warning={}, info={}",
+        report.count_by_severity(Severity::Critical),
+        report.count_by_severity(Severity::Warning),
+        report.count_by_severity(Severity::Info),
+    );
+
+    if report.smells.is_empty() {
+        println!();
+        println!("No findings.");
+    } else {
+        println!();
+        print_llm_smells(report);
+    }
+
+    if !report.parse_errors.is_empty() {
+        println!();
+        println!("## Parse Errors");
+        for error in &report.parse_errors {
+            println!();
+            println!("```text");
+            println!("{error}");
+            println!("```");
+        }
+    }
+}
+
 fn print_header() {
     println!();
     println!(
@@ -71,6 +108,53 @@ fn print_summary(report: &AnalysisReport) {
             warnings.to_string().yellow().bold(),
             info.to_string().blue().bold()
         );
+    }
+}
+
+fn print_llm_smells(report: &AnalysisReport) {
+    let categories = [
+        SmellCategory::Architecture,
+        SmellCategory::Design,
+        SmellCategory::Implementation,
+        SmellCategory::Performance,
+        SmellCategory::Idiomaticity,
+        SmellCategory::Concurrency,
+        SmellCategory::Unsafe,
+    ];
+
+    for category in categories {
+        let mut smells: Vec<_> = report
+            .smells
+            .iter()
+            .filter(|smell| smell.category == category)
+            .collect();
+
+        if smells.is_empty() {
+            continue;
+        }
+
+        smells.sort_by(|a, b| {
+            b.severity
+                .cmp(&a.severity)
+                .then_with(|| a.location.to_string().cmp(&b.location.to_string()))
+                .then_with(|| a.name.cmp(&b.name))
+        });
+
+        println!("## {category}");
+
+        for smell in smells {
+            println!();
+            println!("```text");
+            println!("Severity: {}", smell.severity);
+            println!("Category: {}", smell.category);
+            println!("Smell: {}", smell.name);
+            println!("Location: {}", smell.location);
+            println!("Message: {}", smell.message);
+            println!("Suggestion: {}", smell.suggestion);
+            println!("```");
+        }
+
+        println!();
     }
 }
 

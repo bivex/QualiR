@@ -30,6 +30,10 @@ pub struct Args {
     #[arg(long, conflicts_with = "quiet")]
     pub compact: bool,
 
+    /// LLM mode: show compact Markdown with fenced finding blocks for coding assistants
+    #[arg(long, conflicts_with_all = ["quiet", "compact"])]
+    pub llm: bool,
+
     /// List available detectors and exit
     #[arg(long)]
     pub list_detectors: bool,
