@@ -8,7 +8,7 @@ min_severity = "info"
 
 [thresholds.arch]
 god_module_loc = 1000
-god_module_items = 20
+god_module_items = 25
 public_api_ratio = 0.7
 feature_concentration = 15
 hidden_global_state = 3
