@@ -32,7 +32,7 @@ impl Detector for DerefAbuseDetector {
                                 if !is_smart_pointer_name(&type_name) {
                                     let line = imp.self_ty.span().start().line;
                                     smells.push(Smell::new(
-                                        SmellCategory::Design,
+                                        SmellCategory::Idiomaticity,
                                         "Deref Abuse",
                                         Severity::Warning,
                                         SourceLocation {

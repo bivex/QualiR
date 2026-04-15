@@ -26,7 +26,7 @@ impl Detector for UnusedResultDetector {
 
                 for (line, expr_desc) in visitor.findings {
                     smells.push(Smell::new(
-                        SmellCategory::Implementation,
+                        SmellCategory::Idiomaticity,
                         "Unused Result Ignored",
                         Severity::Warning,
                         SourceLocation {

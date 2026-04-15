@@ -27,7 +27,7 @@ impl Detector for ManualDropDetector {
                             if let Some(seg) = tp.path.segments.last() {
                                 let line = imp.self_ty.span().start().line;
                                 smells.push(Smell::new(
-                                    SmellCategory::Design,
+                                    SmellCategory::Idiomaticity,
                                     "Manual Drop",
                                     Severity::Info,
                                     SourceLocation {

@@ -7,6 +7,8 @@ pub enum SmellCategory {
     Architecture,
     Design,
     Implementation,
+    Performance,
+    Idiomaticity,
     Concurrency,
     Unsafe,
 }
@@ -17,8 +19,29 @@ impl fmt::Display for SmellCategory {
             Self::Architecture => write!(f, "Architecture"),
             Self::Design => write!(f, "Design"),
             Self::Implementation => write!(f, "Implementation"),
+            Self::Performance => write!(f, "Performance"),
+            Self::Idiomaticity => write!(f, "Idiomaticity"),
             Self::Concurrency => write!(f, "Concurrency"),
             Self::Unsafe => write!(f, "Unsafe"),
+        }
+    }
+}
+
+impl std::str::FromStr for SmellCategory {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value.trim().to_lowercase().as_str() {
+            "architecture" | "arch" => Ok(Self::Architecture),
+            "design" => Ok(Self::Design),
+            "implementation" | "impl" => Ok(Self::Implementation),
+            "performance" | "perf" => Ok(Self::Performance),
+            "idiomaticity" | "idiomatic" | "idiom" => Ok(Self::Idiomaticity),
+            "concurrency" | "concurrent" => Ok(Self::Concurrency),
+            "unsafe" => Ok(Self::Unsafe),
+            other => Err(format!(
+                "Unknown category: {other}. Use: architecture, design, implementation, performance, idiomaticity, concurrency, unsafe"
+            )),
         }
     }
 }
@@ -96,5 +119,30 @@ impl Smell {
             message: message.into(),
             suggestion: suggestion.into(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_all_smell_categories() {
+        assert_eq!("architecture".parse::<SmellCategory>(), Ok(SmellCategory::Architecture));
+        assert_eq!("design".parse::<SmellCategory>(), Ok(SmellCategory::Design));
+        assert_eq!("implementation".parse::<SmellCategory>(), Ok(SmellCategory::Implementation));
+        assert_eq!("performance".parse::<SmellCategory>(), Ok(SmellCategory::Performance));
+        assert_eq!("idiomaticity".parse::<SmellCategory>(), Ok(SmellCategory::Idiomaticity));
+        assert_eq!("concurrency".parse::<SmellCategory>(), Ok(SmellCategory::Concurrency));
+        assert_eq!("unsafe".parse::<SmellCategory>(), Ok(SmellCategory::Unsafe));
+    }
+
+    #[test]
+    fn parses_common_category_aliases() {
+        assert_eq!("arch".parse::<SmellCategory>(), Ok(SmellCategory::Architecture));
+        assert_eq!("impl".parse::<SmellCategory>(), Ok(SmellCategory::Implementation));
+        assert_eq!("perf".parse::<SmellCategory>(), Ok(SmellCategory::Performance));
+        assert_eq!("idiom".parse::<SmellCategory>(), Ok(SmellCategory::Idiomaticity));
+        assert_eq!("idiomatic".parse::<SmellCategory>(), Ok(SmellCategory::Idiomaticity));
     }
 }

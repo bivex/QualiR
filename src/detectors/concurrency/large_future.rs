@@ -26,7 +26,7 @@ impl Detector for LargeFutureDetector {
 
                     if loc > thresholds.concurrency.large_future_loc {
                         smells.push(Smell::new(
-                            SmellCategory::Concurrency,
+                            SmellCategory::Performance,
                             "Large Future",
                             if loc > thresholds.concurrency.large_future_loc * 2 {
                                 Severity::Critical

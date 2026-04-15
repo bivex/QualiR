@@ -2,11 +2,11 @@
 
 **Structural and architectural code smell detector for Rust.**
 
-QualiRS parses your Rust source code via AST analysis and detects 14 types of code smells across 4 categories: Architecture, Design, Implementation, and Unsafe. It is designed to complement `clippy` — where clippy focuses on lint-level correctness and idioms, QualiRS focuses on structural, architectural, and design-level problems.
+QualiRS parses your Rust source code via AST analysis and detects 53 types of code smells across 7 categories: Architecture, Design, Implementation, Performance, Idiomaticity, Concurrency, and Unsafe. It is designed to complement `clippy` — where clippy focuses on lint-level correctness and idioms, QualiRS focuses on structural, architectural, and design-level problems.
 
 ## Features
 
-- 53 built-in smell detectors across 5 categories: Architecture, Design, Implementation, Concurrency, and Unsafe.
+- 53 built-in smell detectors across 7 categories: Architecture, Design, Implementation, Performance, Idiomaticity, Concurrency, and Unsafe.
 - Parallel analysis via rayon (all CPU cores)
 - Configurable thresholds via `qualirs.toml`
 - Colored terminal table output with severity levels
@@ -48,7 +48,8 @@ Options:
   -m, --min-severity <LEVEL>   Minimum severity to report [default: info]
                                Values: info, warning, critical
   -t, --category <CATEGORY>    Filter by smell category
-                               Values: architecture, design, implementation, concurrency, unsafe
+                               Values: architecture, design, implementation, performance,
+                                       idiomaticity, concurrency, unsafe
   -q, --quiet                  Summary only: file count, smell counts by severity
       --list-detectors         List available detectors and exit
   -h, --help                   Print help
@@ -57,7 +58,7 @@ Options:
 
 ## Detectors
 
-### Architecture (8)
+### Architecture
 
 | Detector | What it detects | Default threshold | Severity |
 |---|---|---|---|
@@ -66,7 +67,7 @@ Options:
 | **Hidden Global State** | Files with too many static/lazy_static usages | >3 objects | Warning |
 | **Leaky Error Abstraction** | Public enum variants wrapping external library paths | Any | Warning |
 
-### Design (14)
+### Design
 
 | Detector | What it detects | Default threshold | Severity |
 |---|---|---|---|
@@ -78,39 +79,52 @@ Options:
 | **Data Clumps** | Same parameter groups passed to multiple functions | >3 params, >3 funcs | Warning |
 | **Scattered Implementation** | Single struct has multiple `impl` blocks in one file | Any | Info |
 
-### Implementation (17)
+### Implementation
 
 | Detector | What it detects | Default threshold | Severity |
 |---|---|---|---|
 | **Long Function** | Functions exceeding a line count | >50 LOC (Critical if >100) | Warning / Critical |
 | **Deeply Nested Type** | Deeply nested generic types (e.g. Arc<Mutex<...>>) | >3 levels | Info |
-| **Interior Mutability Abuse**| Excessive RefCell/Cell/OnceCell usage in a file | >5 cells | Warning |
 | **Too Many Arguments** | Functions with too many parameters | >6 arguments | Warning |
-| **Excessive Unwrap** | Functions with too many `.unwrap()` / `.expect()` calls | >3 calls | Warning |
 | **Deep Match Nesting** | Deeply nested `match` expressions | >3 levels deep | Warning |
-| **Excessive Clone** | Functions with too many `.clone()` calls | >10 calls | Info |
 | **Magic Numbers** | Numeric literals that aren't well-known constants | Any non-whitelisted literal | Info |
 | **Large Enum** | Enums with too many variants | >20 variants | Warning |
 | **High Cyclomatic Complexity** | Functions with too many branching paths (if/match/loop/&&/\|\|/?/while/for) | >15 | Warning / Critical |
 | **Deep If/Else Nesting** | Deeply nested if/else chains | >4 levels deep | Warning |
 | **Long Method Chain** | Excessive chained method calls `a.b().c().d().e()` | >=4 chained calls | Info |
-| **Unused Result Ignored** | `let _ = expr()` discarding Result/Option values | Any | Warning |
-| **Panic in Library** | `panic!`, `todo!`, `unimplemented!` in non-test library code | Any | Warning |
 | **Unsafe Block Overuse** | Files with too many unsafe blocks | >5 per file | Warning |
 | **Lifetime Explosion** | Functions/structs/enums with too many lifetime parameters | >4 lifetimes | Warning |
-| **Copy + Drop Conflict** | Types implementing both Copy and Drop (double-free risk) | Any | Critical |
 
-### Concurrency (8)
+### Performance
+
+| Detector | What it detects | Default threshold | Severity |
+|---|---|---|---|
+| **Excessive Clone** | Functions with too many `.clone()` calls | >10 calls | Info |
+| **Arc Mutex Overuse** | Excessive shared-state primitives in one type | >3 per type | Warning |
+| **Large Future** | Very large async functions that create large futures | >100 LOC | Warning / Critical |
+| **Async Trait Overhead** | Usage of `#[async_trait]` macro when native is preferred | Any | Info |
+| **Interior Mutability Abuse**| Excessive RefCell/Cell/OnceCell usage in a file | >5 cells | Warning |
+
+### Idiomaticity
+
+| Detector | What it detects | Default threshold | Severity |
+|---|---|---|---|
+| **Excessive Unwrap** | Functions with too many `.unwrap()` / `.expect()` calls | >3 calls | Warning |
+| **Unused Result Ignored** | `let _ = expr()` discarding Result/Option values | Any | Warning |
+| **Panic in Library** | `panic!`, `todo!`, `unimplemented!` in non-test library code | Any | Warning |
+| **Copy + Drop Conflict** | Types implementing both Copy and Drop (double-free risk) | Any | Critical |
+| **Deref Abuse** | Deref/DerefMut implementations for non-pointer semantics | Any | Warning |
+| **Manual Drop** | Manual `Drop` implementations that should be reviewed | Any | Info |
+
+### Concurrency
 
 | Detector | What it detects | Default threshold | Severity |
 |---|---|---|---|
 | **Blocking in Async** | Blocking calls (sleep, io) in async fns | Any | Warning |
 | **Sync Drop Blocking** | Potentially blocking operations inside `impl Drop` | Any | Critical |
-| **Async Trait Overhead** | Usage of `#[async_trait]` macro when native is preferred | Any | Info |
 | **Deadlock Risk** | Nested locking patterns | Any | Critical |
-| **Arc Mutex Overuse** | Excessive shared-state primitives in one type | >3 per type | Warning |
 
-### Unsafe (6)
+### Unsafe
 
 | Detector | What it detects | Default threshold | Severity |
 |---|---|---|---|

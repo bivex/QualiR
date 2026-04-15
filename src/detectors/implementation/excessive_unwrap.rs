@@ -26,7 +26,7 @@ impl Detector for ExcessiveUnwrapDetector {
                     let line = fn_item.sig.fn_token.span.start().line;
 
                     smells.push(Smell::new(
-                        SmellCategory::Implementation,
+                        SmellCategory::Idiomaticity,
                         "Excessive Unwrap",
                         Severity::Warning,
                         SourceLocation {

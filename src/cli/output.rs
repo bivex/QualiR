@@ -99,6 +99,8 @@ fn category_cell(category: &SmellCategory) -> Cell {
         SmellCategory::Architecture => TableColor::Magenta,
         SmellCategory::Design => TableColor::Cyan,
         SmellCategory::Implementation => TableColor::Green,
+        SmellCategory::Performance => TableColor::Blue,
+        SmellCategory::Idiomaticity => TableColor::White,
         SmellCategory::Concurrency => TableColor::Yellow,
         SmellCategory::Unsafe => TableColor::Red,
     };
@@ -141,29 +143,46 @@ pub fn print_detector_list() {
 
     let detectors = [
         ("Architecture", vec!["God Module", "Public API Explosion", "Feature Concentration", "Cyclic Crate Dependency", "Layer Violation", "Unstable Dependency"]),
-        ("Design", vec!["Large Trait", "Excessive Generics", "Anemic Struct", "Wide Hierarchy", "Trait Impl Leakage", "Feature Envy", "Broken Constructor", "Rebellious Impl", "Deref Abuse", "Manual Drop"]),
+        ("Design", vec!["Large Trait", "Excessive Generics", "Anemic Struct", "Wide Hierarchy", "Trait Impl Leakage", "Feature Envy", "Broken Constructor", "Rebellious Impl", "Fat Impl", "Primitive Obsession", "Data Clumps", "Multiple Impl Blocks"]),
         (
             "Implementation",
             vec![
                 "Long Function",
                 "Too Many Arguments",
-                "Excessive Unwrap",
                 "Deep Match Nesting",
-                "Excessive Clone",
                 "Magic Numbers",
                 "Large Enum",
                 "High Cyclomatic Complexity",
                 "Deep If/Else Nesting",
                 "Long Method Chain",
-                "Unused Result Ignored",
-                "Panic in Library",
                 "Unsafe Block Overuse",
                 "Lifetime Explosion",
-                "Copy + Drop Conflict",
+                "Deeply Nested Type",
             ],
         ),
-        ("Concurrency", vec!["Blocking in Async", "Large Future", "Arc Mutex Overuse", "Deadlock Risk", "Spawn Without Join", "Missing Send Bound"]),
-        ("Unsafe", vec!["Unsafe Without Comment", "Transmute Usage", "Raw Pointer Arithmetic", "Multi Mut Ref Unsafe", "FFI Without Wrapper"]),
+        (
+            "Performance",
+            vec![
+                "Excessive Clone",
+                "Arc Mutex Overuse",
+                "Large Future",
+                "Async Trait Overhead",
+                "Interior Mutability Abuse",
+            ],
+        ),
+        (
+            "Idiomaticity",
+            vec![
+                "Excessive Unwrap",
+                "Unused Result Ignored",
+                "Panic in Library",
+                "Copy + Drop Conflict",
+                "Deref Abuse",
+                "Manual Drop",
+            ],
+        ),
+        ("Concurrency", vec!["Blocking in Async", "Deadlock Risk", "Spawn Without Join", "Missing Send Bound", "Sync Drop Blocking"]),
+        ("Unsafe", vec!["Unsafe Without Comment", "Transmute Usage", "Raw Pointer Arithmetic", "Multi Mut Ref Unsafe", "FFI Without Wrapper", "Inline Assembly"]),
     ];
 
     for (category, names) in &detectors {

@@ -30,7 +30,7 @@ impl Detector for ArcMutexOveruseDetector {
         if visitor.arc_mutex_count > thresholds.concurrency.arc_mutex_overuse {
             let line = visitor.first_line.unwrap_or(1);
             smells.push(Smell::new(
-                SmellCategory::Concurrency,
+                SmellCategory::Performance,
                 "Arc Mutex Overuse",
                 Severity::Warning,
                 SourceLocation {

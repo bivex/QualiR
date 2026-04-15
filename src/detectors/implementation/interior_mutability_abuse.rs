@@ -25,7 +25,7 @@ impl Detector for InteriorMutabilityAbuseDetector {
 
         if visitor.count > thresholds.r#impl.type_safety.interior_mutability_abuse {
             smells.push(Smell::new(
-                SmellCategory::Implementation,
+                SmellCategory::Performance,
                 "Interior Mutability Abuse",
                 Severity::Warning,
                 SourceLocation::new(file.path.clone(), visitor.first_line, visitor.first_line, None),

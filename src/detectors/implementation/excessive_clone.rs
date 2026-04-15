@@ -26,7 +26,7 @@ impl Detector for ExcessiveCloneDetector {
                     let line = fn_item.sig.fn_token.span.start().line;
 
                     smells.push(Smell::new(
-                        SmellCategory::Implementation,
+                        SmellCategory::Performance,
                         "Excessive Clone",
                         Severity::Info,
                         SourceLocation {

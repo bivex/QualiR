@@ -25,7 +25,7 @@ impl Detector for CopyDropConflictDetector {
             if drop_types.iter().any(|d| d.name == copy_type.name) {
                 let line = copy_type.line;
                 smells.push(Smell::new(
-                    SmellCategory::Implementation,
+                    SmellCategory::Idiomaticity,
                     "Copy + Drop Conflict",
                     Severity::Critical,
                     SourceLocation {

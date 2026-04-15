@@ -7,7 +7,7 @@ mod infrastructure;
 use analysis::engine::Engine;
 use cli::args::Args;
 use domain::config::Config;
-use domain::smell::Severity;
+use domain::smell::{Severity, SmellCategory};
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse_args();
@@ -19,7 +19,12 @@ fn main() -> anyhow::Result<()> {
 
     let config = get_config(&args)?;
     let engine = setup_engine(config);
-    let report = engine.analyze(&args.path);
+    let mut report = engine.analyze(&args.path);
+
+    if let Some(category) = &args.category {
+        let category = category.parse::<SmellCategory>().map_err(anyhow::Error::msg)?;
+        report.smells.retain(|smell| smell.category == category);
+    }
 
     if args.quiet {
         print_summary(&report);

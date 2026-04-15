@@ -24,7 +24,7 @@ impl Detector for AsyncTraitOverheadDetector {
 
         for line in visitor.violations {
             smells.push(Smell::new(
-                SmellCategory::Concurrency,
+                SmellCategory::Performance,
                 "Async Trait Overhead",
                 Severity::Info,
                 SourceLocation::new(file.path.clone(), line, line, None),
