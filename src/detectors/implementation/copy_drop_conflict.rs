@@ -60,17 +60,15 @@ fn conflict_smell(file: &SourceFile, copy_type: &TypeInfo<'_>) -> Smell {
 fn collect_drop_types(ast: &syn::File) -> Vec<TypeInfo<'_>> {
     let mut drop_types = Vec::new();
     for item in &ast.items {
-        if let syn::Item::Impl(imp) = item {
-            if let Some((_, trait_path, _)) = &imp.trait_ {
-                if is_trait(trait_path, "Drop") {
-                    if let Some(name) = extract_impl_target_name(&imp.self_ty) {
-                        drop_types.push(TypeInfo {
-                            name,
-                            line: imp.impl_token.span.start().line,
-                        });
-                    }
-                }
-            }
+        if let syn::Item::Impl(imp) = item
+            && let Some((_, trait_path, _)) = &imp.trait_
+            && is_trait(trait_path, "Drop")
+            && let Some(name) = extract_impl_target_name(&imp.self_ty)
+        {
+            drop_types.push(TypeInfo {
+                name,
+                line: imp.impl_token.span.start().line,
+            });
         }
     }
     drop_types

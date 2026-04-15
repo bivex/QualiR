@@ -61,12 +61,12 @@ struct UnusedResultVisitor {
 impl<'ast> Visit<'ast> for UnusedResultVisitor {
     fn visit_local(&mut self, local: &'ast syn::Local) {
         // Check for `let _ = expr;` pattern
-        if let syn::Pat::Wild(wild) = &local.pat {
-            if let Some(init) = &local.init {
-                let description = describe_expr(&init.expr);
-                let line = wild.underscore_token.span.start().line;
-                self.findings.push((line, description));
-            }
+        if let syn::Pat::Wild(wild) = &local.pat
+            && let Some(init) = &local.init
+        {
+            let description = describe_expr(&init.expr);
+            let line = wild.underscore_token.span.start().line;
+            self.findings.push((line, description));
         }
         syn::visit::visit_local(self, local);
     }

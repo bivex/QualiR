@@ -16,10 +16,12 @@ impl Detector for LargeErrorEnumDetector {
         let mut smells = Vec::new();
 
         for item in &file.ast.items {
-            if let syn::Item::Enum(enm) = item {
-                if enm.ident.to_string().ends_with("Error") && enm.variants.len() > threshold {
-                    let line = enm.enum_token.span.start().line;
-                    smells.push(Smell::new(
+            if let syn::Item::Enum(enm) = item
+                && enm.ident.to_string().ends_with("Error")
+                && enm.variants.len() > threshold
+            {
+                let line = enm.enum_token.span.start().line;
+                smells.push(Smell::new(
                         SmellCategory::Design,
                         "Large Error Enum",
                         Severity::Warning,
@@ -32,7 +34,6 @@ impl Detector for LargeErrorEnumDetector {
                         ),
                         "Split broad errors by layer or use nested source errors behind stable public variants.",
                     ));
-                }
             }
         }
 

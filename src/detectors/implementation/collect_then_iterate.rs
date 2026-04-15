@@ -42,10 +42,10 @@ struct CollectThenIterateVisitor {
 impl<'ast> Visit<'ast> for CollectThenIterateVisitor {
     fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
         let method = node.method.to_string();
-        if matches!(method.as_str(), "iter" | "into_iter" | "len" | "is_empty") {
-            if is_collect_call(&node.receiver) {
-                self.findings.push(node.method.span().start().line);
-            }
+        if matches!(method.as_str(), "iter" | "into_iter" | "len" | "is_empty")
+            && is_collect_call(&node.receiver)
+        {
+            self.findings.push(node.method.span().start().line);
         }
         visit_expr_method_call(self, node);
     }

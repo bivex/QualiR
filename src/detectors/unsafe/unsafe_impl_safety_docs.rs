@@ -15,17 +15,19 @@ impl Detector for UnsafeImplSafetyDocsDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let mut smells = Vec::new();
         for item in &file.ast.items {
-            if let syn::Item::Impl(imp) = item {
-                if imp.unsafety.is_some() && !has_safety_docs(&imp.attrs) {
-                    let trait_name = imp
-                        .trait_
-                        .as_ref()
-                        .and_then(|(_, path, _)| path.segments.last())
-                        .map(|seg| seg.ident.to_string())
-                        .unwrap_or_default();
-                    if matches!(trait_name.as_str(), "Send" | "Sync") {
-                        let line = imp.impl_token.span.start().line;
-                        smells.push(Smell::new(
+            if let syn::Item::Impl(imp) = item
+                && imp.unsafety.is_some()
+                && !has_safety_docs(&imp.attrs)
+            {
+                let trait_name = imp
+                    .trait_
+                    .as_ref()
+                    .and_then(|(_, path, _)| path.segments.last())
+                    .map(|seg| seg.ident.to_string())
+                    .unwrap_or_default();
+                if matches!(trait_name.as_str(), "Send" | "Sync") {
+                    let line = imp.impl_token.span.start().line;
+                    smells.push(Smell::new(
                             SmellCategory::Unsafe,
                             "Unsafe Impl Missing Safety Docs",
                             Severity::Critical,
@@ -33,7 +35,6 @@ impl Detector for UnsafeImplSafetyDocsDetector {
                             format!("Unsafe `{trait_name}` impl lacks a safety explanation"),
                             "Add a SAFETY comment explaining why the impl upholds Send/Sync invariants.",
                         ));
-                    }
                 }
             }
         }

@@ -72,14 +72,12 @@ struct MagicNumberVisitor {
 
 impl<'ast> Visit<'ast> for MagicNumberVisitor {
     fn visit_expr(&mut self, expr: &'ast syn::Expr) {
-        if let syn::Expr::Lit(lit_expr) = expr {
-            if let syn::Lit::Int(lit_int) = &lit_expr.lit {
-                if let Ok(val) = lit_int.base10_parse::<i64>() {
-                    if !WHITELIST.contains(&val) {
-                        self.magic_numbers.push(val);
-                    }
-                }
-            }
+        if let syn::Expr::Lit(lit_expr) = expr
+            && let syn::Lit::Int(lit_int) = &lit_expr.lit
+            && let Ok(val) = lit_int.base10_parse::<i64>()
+            && !WHITELIST.contains(&val)
+        {
+            self.magic_numbers.push(val);
         }
         visit_expr(self, expr);
     }

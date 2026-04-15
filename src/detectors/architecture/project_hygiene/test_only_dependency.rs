@@ -63,12 +63,10 @@ fn dev_dependencies(manifest: &Path) -> std::collections::HashSet<String> {
             in_dev = trimmed == "[dev-dependencies]";
             continue;
         }
-        if in_dev {
-            if let Some((name, _)) = trimmed.split_once('=') {
-                let name = name.trim().trim_matches('"').replace('-', "_");
-                if !name.is_empty() {
-                    deps.insert(name);
-                }
+        if in_dev && let Some((name, _)) = trimmed.split_once('=') {
+            let name = name.trim().trim_matches('"').replace('-', "_");
+            if !name.is_empty() {
+                deps.insert(name);
             }
         }
     }

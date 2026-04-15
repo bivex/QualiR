@@ -66,29 +66,29 @@ impl Detector for BrokenConstructorDetector {
                     });
                 }
                 syn::Item::Impl(imp) => {
-                    if let syn::Type::Path(tp) = &*imp.self_ty {
-                        if let Some(seg) = tp.path.segments.last() {
-                            let type_name = seg.ident.to_string();
+                    if let syn::Type::Path(tp) = &*imp.self_ty
+                        && let Some(seg) = tp.path.segments.last()
+                    {
+                        let type_name = seg.ident.to_string();
 
-                            // Check for new() or other constructors
-                            if imp.trait_.is_none() {
-                                for item in &imp.items {
-                                    if let syn::ImplItem::Fn(method) = item {
-                                        let method_name = method.sig.ident.to_string();
-                                        if method_name == "new"
-                                            || method_name.starts_with("from_")
-                                            || method_name.starts_with("with_")
-                                            || method_name.starts_with("parse_")
-                                        {
-                                            has_new.insert(type_name.clone());
-                                        }
+                        // Check for new() or other constructors
+                        if imp.trait_.is_none() {
+                            for item in &imp.items {
+                                if let syn::ImplItem::Fn(method) = item {
+                                    let method_name = method.sig.ident.to_string();
+                                    if method_name == "new"
+                                        || method_name.starts_with("from_")
+                                        || method_name.starts_with("with_")
+                                        || method_name.starts_with("parse_")
+                                    {
+                                        has_new.insert(type_name.clone());
                                     }
                                 }
-                            } else if let Some((_, path, _)) = &imp.trait_ {
-                                // Check for impl Default
-                                if path.is_ident("Default") {
-                                    has_new.insert(type_name.clone());
-                                }
+                            }
+                        } else if let Some((_, path, _)) = &imp.trait_ {
+                            // Check for impl Default
+                            if path.is_ident("Default") {
+                                has_new.insert(type_name.clone());
                             }
                         }
                     }

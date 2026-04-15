@@ -53,26 +53,24 @@ struct MutRefVisitor {
 impl<'ast> Visit<'ast> for MutRefVisitor {
     fn visit_expr(&mut self, expr: &'ast syn::Expr) {
         // Match &mut *expr pattern (deref + mutable reborrow)
-        if let syn::Expr::Reference(r) = expr {
-            if r.mutability.is_some() {
-                if let syn::Expr::Unary(u) = &*r.expr {
-                    if let syn::UnOp::Deref(_) = u.op {
-                        let line = r.and_token.span.start().line;
-                        let inner = expr_to_short_string(&u.expr);
-                        self.mut_ref_casts.push((line, format!("&mut *{}", inner)));
-                    }
-                }
-            }
+        if let syn::Expr::Reference(r) = expr
+            && r.mutability.is_some()
+            && let syn::Expr::Unary(u) = &*r.expr
+            && let syn::UnOp::Deref(_) = u.op
+        {
+            let line = r.and_token.span.start().line;
+            let inner = expr_to_short_string(&u.expr);
+            self.mut_ref_casts.push((line, format!("&mut *{}", inner)));
         }
 
         // Also match ptr.as_mut().unwrap() patterns
-        if let syn::Expr::MethodCall(mc) = expr {
-            if mc.method == "as_mut" {
-                let line = mc.method.span().start().line;
-                let receiver = expr_to_short_string(&mc.receiver);
-                self.mut_ref_casts
-                    .push((line, format!("{}.as_mut()", receiver)));
-            }
+        if let syn::Expr::MethodCall(mc) = expr
+            && mc.method == "as_mut"
+        {
+            let line = mc.method.span().start().line;
+            let receiver = expr_to_short_string(&mc.receiver);
+            self.mut_ref_casts
+                .push((line, format!("{}.as_mut()", receiver)));
         }
 
         syn::visit::visit_expr(self, expr);

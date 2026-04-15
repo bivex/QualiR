@@ -29,8 +29,8 @@ impl<'a> RustFileWalker<'a> {
             .build()
             .filter_map(|entry| entry.ok())
             .filter(|entry| {
-                entry.file_type().map_or(false, |ft| ft.is_file())
-                    && entry.path().extension().map_or(false, |ext| ext == "rs")
+                entry.file_type().is_some_and(|ft| ft.is_file())
+                    && entry.path().extension().is_some_and(|ext| ext == "rs")
             })
             .map(|entry| entry.into_path())
             .collect()

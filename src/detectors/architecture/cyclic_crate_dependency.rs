@@ -134,7 +134,7 @@ fn extract_root_ident(tree: &syn::UseTree) -> Option<String> {
         syn::UseTree::Path(p) => Some(p.ident.to_string()),
         syn::UseTree::Name(n) => Some(n.ident.to_string()),
         syn::UseTree::Rename(r) => Some(r.ident.to_string()),
-        syn::UseTree::Group(g) => g.items.first().and_then(|t| extract_root_ident(t)),
+        syn::UseTree::Group(g) => g.items.first().and_then(extract_root_ident),
         syn::UseTree::Glob(_) => None,
     }
 }

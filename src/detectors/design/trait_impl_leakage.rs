@@ -22,20 +22,20 @@ impl Detector for TraitImplLeakageDetector {
             std::collections::HashMap::new();
 
         for item in &file.ast.items {
-            if let syn::Item::Impl(imp) = item {
-                if let Some((_, trait_path, _)) = &imp.trait_ {
-                    let trait_name = trait_path_to_string(trait_path);
-                    let kind = classify_trait(&trait_name);
-                    if let syn::Type::Path(tp) = &*imp.self_ty {
-                        let type_name = tp
-                            .path
-                            .segments
-                            .last()
-                            .map(|s| s.ident.to_string())
-                            .unwrap_or_default();
-                        if !type_name.is_empty() {
-                            type_impls.entry(type_name).or_default().push(kind);
-                        }
+            if let syn::Item::Impl(imp) = item
+                && let Some((_, trait_path, _)) = &imp.trait_
+            {
+                let trait_name = trait_path_to_string(trait_path);
+                let kind = classify_trait(&trait_name);
+                if let syn::Type::Path(tp) = &*imp.self_ty {
+                    let type_name = tp
+                        .path
+                        .segments
+                        .last()
+                        .map(|s| s.ident.to_string())
+                        .unwrap_or_default();
+                    if !type_name.is_empty() {
+                        type_impls.entry(type_name).or_default().push(kind);
                     }
                 }
             }
@@ -117,7 +117,7 @@ fn classify_trait(name: &str) -> TraitKind {
         "FnOnce",
     ];
 
-    if std_traits.iter().any(|t| name == *t) {
+    if std_traits.contains(&name) {
         TraitKind::Std
     } else {
         TraitKind::Domain

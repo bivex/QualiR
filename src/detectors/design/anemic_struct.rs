@@ -40,7 +40,7 @@ impl Detector for AnemicStructDetector {
         }
 
         // Collect struct names that have impl blocks (inherent or trait) in this file
-        let impl_targets: Vec<String> = file
+        let impl_targets: Vec<&syn::Ident> = file
             .ast
             .items
             .iter()
@@ -51,7 +51,7 @@ impl Detector for AnemicStructDetector {
             .collect();
 
         for s in &structs_with_fields {
-            let has_impl = impl_targets.iter().any(|id| *id == s.ident.to_string());
+            let has_impl = impl_targets.contains(&&s.ident);
             if !has_impl {
                 let line = line_of_struct(s);
 
@@ -83,9 +83,9 @@ fn has_fields(s: &syn::ItemStruct) -> bool {
     }
 }
 
-fn extract_type_ident(ty: &syn::Type) -> Option<String> {
+fn extract_type_ident(ty: &syn::Type) -> Option<&syn::Ident> {
     if let syn::Type::Path(tp) = ty {
-        tp.path.segments.first().map(|s| s.ident.to_string())
+        tp.path.segments.first().map(|s| &s.ident)
     } else {
         None
     }

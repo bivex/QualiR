@@ -41,12 +41,11 @@ struct DroppedJoinHandleVisitor {
 
 impl<'ast> Visit<'ast> for DroppedJoinHandleVisitor {
     fn visit_local(&mut self, node: &'ast syn::Local) {
-        if matches!(node.pat, syn::Pat::Wild(_)) {
-            if let Some(init) = &node.init {
-                if is_spawn_call(&init.expr) {
-                    self.findings.push(node.let_token.span.start().line);
-                }
-            }
+        if matches!(node.pat, syn::Pat::Wild(_))
+            && let Some(init) = &node.init
+            && is_spawn_call(&init.expr)
+        {
+            self.findings.push(node.let_token.span.start().line);
         }
         syn::visit::visit_local(self, node);
     }

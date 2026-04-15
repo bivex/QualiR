@@ -80,21 +80,21 @@ impl<'ast> Visit<'ast> for AllocationLoopVisitor {
             return;
         }
 
-        if self.loop_depth > 0 {
-            if let syn::Expr::Path(path) = &*node.func {
-                let call = path
-                    .path
-                    .segments
-                    .iter()
-                    .map(|s| s.ident.to_string())
-                    .collect::<Vec<_>>()
-                    .join("::");
-                if call == "String::from" {
-                    self.findings.push((
-                        path.path.segments.last().unwrap().ident.span().start().line,
-                        call,
-                    ));
-                }
+        if self.loop_depth > 0
+            && let syn::Expr::Path(path) = &*node.func
+        {
+            let call = path
+                .path
+                .segments
+                .iter()
+                .map(|s| s.ident.to_string())
+                .collect::<Vec<_>>()
+                .join("::");
+            if call == "String::from" {
+                self.findings.push((
+                    path.path.segments.last().unwrap().ident.span().start().line,
+                    call,
+                ));
             }
         }
         syn::visit::visit_expr_call(self, node);
@@ -119,13 +119,11 @@ impl<'ast> Visit<'ast> for AllocationLoopVisitor {
     }
 
     fn visit_macro(&mut self, node: &'ast syn::Macro) {
-        if self.loop_depth > 0 {
-            if node.path.is_ident("format") {
-                self.findings.push((
-                    node.path.segments[0].ident.span().start().line,
-                    "format!".into(),
-                ));
-            }
+        if self.loop_depth > 0 && node.path.is_ident("format") {
+            self.findings.push((
+                node.path.segments[0].ident.span().start().line,
+                "format!".into(),
+            ));
         }
         syn::visit::visit_macro(self, node);
     }

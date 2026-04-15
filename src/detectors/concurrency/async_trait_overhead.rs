@@ -46,12 +46,12 @@ struct MacroAttributeVisitor {
 
 impl<'ast> Visit<'ast> for MacroAttributeVisitor {
     fn visit_attribute(&mut self, node: &'ast syn::Attribute) {
-        if let Some(seg) = node.path().segments.last() {
-            if seg.ident == "async_trait" {
-                // Approximate line number since span might encompass the whole attribute
-                let line = seg.ident.span().start().line;
-                self.violations.push(line);
-            }
+        if let Some(seg) = node.path().segments.last()
+            && seg.ident == "async_trait"
+        {
+            // Approximate line number since span might encompass the whole attribute
+            let line = seg.ident.span().start().line;
+            self.violations.push(line);
         }
         syn::visit::visit_attribute(self, node);
     }

@@ -19,19 +19,21 @@ impl Detector for DerefAbuseDetector {
         let mut smells = Vec::new();
 
         for item in &file.ast.items {
-            if let syn::Item::Impl(imp) = item {
-                if let Some((_, trait_path, _)) = &imp.trait_ {
-                    let trait_name = path_last_segment(trait_path);
+            if let syn::Item::Impl(imp) = item
+                && let Some((_, trait_path, _)) = &imp.trait_
+            {
+                let trait_name = path_last_segment(trait_path);
 
-                    if trait_name == "Deref" || trait_name == "DerefMut" {
-                        // Check if the type looks like a smart pointer
-                        if let syn::Type::Path(tp) = &*imp.self_ty {
-                            if let Some(seg) = tp.path.segments.last() {
-                                let type_name = seg.ident.to_string();
+                if trait_name == "Deref" || trait_name == "DerefMut" {
+                    // Check if the type looks like a smart pointer
+                    if let syn::Type::Path(tp) = &*imp.self_ty
+                        && let Some(seg) = tp.path.segments.last()
+                    {
+                        let type_name = seg.ident.to_string();
 
-                                if !is_smart_pointer_name(&type_name) {
-                                    let line = imp.self_ty.span().start().line;
-                                    smells.push(Smell::new(
+                        if !is_smart_pointer_name(&type_name) {
+                            let line = imp.self_ty.span().start().line;
+                            smells.push(Smell::new(
                                         SmellCategory::Idiomaticity,
                                         "Deref Abuse",
                                         Severity::Warning,
@@ -47,8 +49,6 @@ impl Detector for DerefAbuseDetector {
                                         ),
                                         "Use composition or From/Into instead of Deref for method forwarding.",
                                     ));
-                                }
-                            }
                         }
                     }
                 }
