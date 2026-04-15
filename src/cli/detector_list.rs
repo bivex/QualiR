@@ -1,5 +1,7 @@
 use colored::*;
 
+use crate::domain::smell::rule_code_for;
+
 struct DetectorGroup {
     category: &'static str,
     names: &'static [&'static str],
@@ -164,6 +166,7 @@ fn print_group(group: &DetectorGroup) {
     println!();
     println!("  {} {}", "▸".bright_magenta(), group.category.bold());
     for name in group.names {
-        println!("    • {name}");
+        let code = rule_code_for(name).unwrap_or("Q0000");
+        println!("    • {} {name}", code.cyan().bold());
     }
 }

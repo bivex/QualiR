@@ -166,6 +166,8 @@ mod tests {
         assert_eq!(config.min_severity, crate::domain::smell::Severity::Info);
         assert_eq!(config.thresholds.arch.god_module_loc, 1000);
         assert!(config.exclude_paths.iter().any(|path| path == "target"));
+        assert!(config.ignore_findings.is_empty());
+        assert!(toml.contains("ignore_findings = []"));
         assert!(toml.contains("[policy]"));
         assert!(toml.contains("skip_tests = true"));
     }
@@ -206,6 +208,32 @@ skip_tests = false
         let config: Config = toml::from_str(&toml).expect("parse default config");
 
         assert_eq!(config.min_severity, crate::domain::smell::Severity::Info);
+    }
+
+    #[test]
+    fn config_accepts_ignored_finding_codes() {
+        let config: Config = toml::from_str(
+            r#"
+ignore_findings = ["Q0001", "q0068"]
+"#,
+        )
+        .expect("parse ignored finding codes");
+
+        assert_eq!(config.ignore_findings, ["Q0001", "q0068"]);
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn config_rejects_malformed_ignored_finding_codes() {
+        let config: Config = toml::from_str(
+            r#"
+ignore_findings = ["god_module"]
+"#,
+        )
+        .expect("parse ignored finding codes");
+
+        let err = config.validate().expect_err("invalid ignored finding code");
+        assert!(err.to_string().contains("invalid ignored finding code"));
     }
 
     #[test]
@@ -299,6 +327,8 @@ pub struct Config {
     pub policy: PolicyConfig,
     #[serde(default = "default_exclude_paths")]
     pub exclude_paths: Vec<String>,
+    #[serde(default, alias = "ignored_findings", alias = "ignore_codes")]
+    pub ignore_findings: Vec<String>,
     #[serde(default = "default_min_severity")]
     pub min_severity: crate::domain::smell::Severity,
 }
@@ -309,6 +339,7 @@ impl Default for Config {
             thresholds: Thresholds::default(),
             policy: PolicyConfig::default(),
             exclude_paths: default_exclude_paths(),
+            ignore_findings: Vec::new(),
             min_severity: default_min_severity(),
         }
     }
@@ -420,6 +451,7 @@ impl Config {
     pub fn load_from_file(path: &std::path::Path) -> anyhow::Result<Self> {
         let content = std::fs::read_to_string(path)?;
         let config: Config = toml::from_str(&content)?;
+        config.validate()?;
         Ok(config)
     }
 
@@ -434,4 +466,23 @@ impl Config {
             Self::default()
         }
     }
+
+    fn validate(&self) -> anyhow::Result<()> {
+        for code in &self.ignore_findings {
+            if !is_rule_code(code) {
+                anyhow::bail!(
+                    "invalid ignored finding code `{code}`. Use Q followed by four digits, for example Q0001"
+                );
+            }
+        }
+
+        Ok(())
+    }
+}
+
+pub(crate) fn is_rule_code(code: &str) -> bool {
+    let bytes = code.as_bytes();
+    bytes.len() == 5
+        && bytes[0].eq_ignore_ascii_case(&b'Q')
+        && bytes[1..].iter().all(u8::is_ascii_digit)
 }
