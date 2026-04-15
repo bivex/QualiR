@@ -2,7 +2,8 @@ use std::collections::HashSet;
 
 use syn::visit::{
     Visit, visit_arm, visit_expr_closure, visit_expr_for_loop, visit_expr_loop,
-    visit_expr_method_call, visit_expr_while, visit_item_fn, visit_item_mod, visit_local,
+    visit_expr_method_call, visit_expr_struct, visit_expr_while, visit_item_fn, visit_item_mod,
+    visit_local,
 };
 
 use crate::analysis::detector::Detector;
@@ -24,6 +25,7 @@ impl Detector for RepeatedStringConversionDetector {
             loop_depth: 0,
             iterator_closure_depth: 0,
             pending_iterator_closure: 0,
+            struct_literal_depth: 0,
             hot_bindings: Vec::new(),
             findings: Vec::new(),
         };
@@ -52,6 +54,7 @@ struct StringConversionVisitor {
     loop_depth: usize,
     iterator_closure_depth: usize,
     pending_iterator_closure: usize,
+    struct_literal_depth: usize,
     hot_bindings: Vec<HashSet<String>>,
     findings: Vec<(usize, String)>,
 }
@@ -134,6 +137,7 @@ impl<'ast> Visit<'ast> for StringConversionVisitor {
             && (self.loop_depth > 0 || self.iterator_closure_depth > 0);
 
         if is_hot_conversion
+            && self.struct_literal_depth == 0
             && !receiver_is_string_literal(&node.receiver)
             && !self.receiver_depends_on_hot_binding(&node.receiver)
         {
@@ -168,6 +172,12 @@ impl<'ast> Visit<'ast> for StringConversionVisitor {
         } else {
             visit_expr_closure(self, node);
         }
+    }
+
+    fn visit_expr_struct(&mut self, node: &'ast syn::ExprStruct) {
+        self.struct_literal_depth += 1;
+        visit_expr_struct(self, node);
+        self.struct_literal_depth -= 1;
     }
 }
 

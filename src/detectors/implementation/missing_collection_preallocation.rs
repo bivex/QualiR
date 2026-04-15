@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use syn::visit::{
-    Visit, visit_expr_for_loop, visit_expr_loop, visit_expr_method_call, visit_expr_while,
-    visit_item_fn, visit_item_mod, visit_local, visit_macro,
+    Visit, visit_expr_assign, visit_expr_for_loop, visit_expr_loop, visit_expr_method_call,
+    visit_expr_while, visit_item_fn, visit_item_mod, visit_local, visit_macro,
 };
 
 use crate::analysis::detector::Detector;
@@ -24,6 +24,7 @@ impl Detector for MissingCollectionPreallocationDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let mut visitor = PreallocationVisitor {
             loop_depth: 0,
+            loop_capacity_stack: Vec::new(),
             candidates: HashMap::new(),
             findings: Vec::new(),
         };
@@ -81,7 +82,13 @@ impl CollectionKind {
 struct Candidate {
     kind: CollectionKind,
     reserved: bool,
-    reported: bool,
+    invalidated: bool,
+    growth: Option<Growth>,
+}
+
+#[derive(Clone, Copy)]
+struct Growth {
+    line: usize,
 }
 
 struct Finding {
@@ -92,6 +99,7 @@ struct Finding {
 
 struct PreallocationVisitor {
     loop_depth: usize,
+    loop_capacity_stack: Vec<bool>,
     candidates: HashMap<String, Candidate>,
     findings: Vec<Finding>,
 }
@@ -109,8 +117,11 @@ impl<'ast> Visit<'ast> for PreallocationVisitor {
             return;
         }
         let previous = std::mem::take(&mut self.candidates);
+        let previous_loop_capacity_stack = std::mem::take(&mut self.loop_capacity_stack);
         visit_item_fn(self, node);
+        self.flush_candidates();
         self.candidates = previous;
+        self.loop_capacity_stack = previous_loop_capacity_stack;
     }
 
     fn visit_local(&mut self, node: &'ast syn::Local) {
@@ -126,7 +137,8 @@ impl<'ast> Visit<'ast> for PreallocationVisitor {
                     Candidate {
                         kind,
                         reserved: false,
-                        reported: false,
+                        invalidated: false,
+                        growth: None,
                     },
                 );
             } else if self.candidates.contains_key(&name) {
@@ -139,19 +151,26 @@ impl<'ast> Visit<'ast> for PreallocationVisitor {
 
     fn visit_expr_for_loop(&mut self, node: &'ast syn::ExprForLoop) {
         self.loop_depth += 1;
+        self.loop_capacity_stack
+            .push(expr_has_capacity_hint(&node.expr));
         visit_expr_for_loop(self, node);
+        self.loop_capacity_stack.pop();
         self.loop_depth -= 1;
     }
 
     fn visit_expr_while(&mut self, node: &'ast syn::ExprWhile) {
         self.loop_depth += 1;
+        self.loop_capacity_stack.push(false);
         visit_expr_while(self, node);
+        self.loop_capacity_stack.pop();
         self.loop_depth -= 1;
     }
 
     fn visit_expr_loop(&mut self, node: &'ast syn::ExprLoop) {
         self.loop_depth += 1;
+        self.loop_capacity_stack.push(false);
         visit_expr_loop(self, node);
+        self.loop_capacity_stack.pop();
         self.loop_depth -= 1;
     }
 
@@ -168,11 +187,29 @@ impl<'ast> Visit<'ast> for PreallocationVisitor {
             candidate.reserved = true;
         }
 
+        if self.loop_depth > 0
+            && method == "clear"
+            && let Some(candidate) = self.candidates.get_mut(&receiver)
+        {
+            candidate.invalidated = true;
+        }
+
         if self.loop_depth > 0 {
             self.record_growth(&receiver, &method, node.method.span().start().line);
         }
 
         visit_expr_method_call(self, node);
+    }
+
+    fn visit_expr_assign(&mut self, node: &'ast syn::ExprAssign) {
+        if self.loop_depth > 0
+            && let Some(target) = expr_path_tail(&node.left)
+            && let Some(candidate) = self.candidates.get_mut(&target)
+        {
+            candidate.invalidated = true;
+        }
+
+        visit_expr_assign(self, node);
     }
 
     fn visit_macro(&mut self, node: &'ast syn::Macro) {
@@ -193,19 +230,42 @@ impl<'ast> Visit<'ast> for PreallocationVisitor {
 
 impl PreallocationVisitor {
     fn record_growth(&mut self, receiver: &str, method: &str, line: usize) {
-        let Some(candidate) = self.candidates.get_mut(receiver) else {
-            return;
-        };
-        if candidate.reported || candidate.reserved || !candidate.kind.grows_with(method) {
+        if !self.in_capacity_informative_loop() {
             return;
         }
 
-        candidate.reported = true;
-        self.findings.push(Finding {
-            line,
-            name: receiver.to_string(),
-            kind: candidate.kind,
-        });
+        let Some(candidate) = self.candidates.get_mut(receiver) else {
+            return;
+        };
+        if candidate.growth.is_some()
+            || candidate.reserved
+            || candidate.invalidated
+            || !candidate.kind.grows_with(method)
+        {
+            return;
+        }
+
+        candidate.growth = Some(Growth { line });
+    }
+
+    fn in_capacity_informative_loop(&self) -> bool {
+        self.loop_capacity_stack.last().copied().unwrap_or(false)
+    }
+
+    fn flush_candidates(&mut self) {
+        for (name, candidate) in self.candidates.drain() {
+            if candidate.reserved || candidate.invalidated {
+                continue;
+            }
+
+            if let Some(growth) = candidate.growth {
+                self.findings.push(Finding {
+                    line: growth.line,
+                    name,
+                    kind: candidate.kind,
+                });
+            }
+        }
     }
 }
 
@@ -244,4 +304,37 @@ fn is_diagnostic_collection_name(name: &str) -> bool {
             | "messages"
             | "violations"
     )
+}
+
+fn expr_has_capacity_hint(expr: &syn::Expr) -> bool {
+    match expr {
+        syn::Expr::Array(_) | syn::Expr::Field(_) | syn::Expr::Path(_) | syn::Expr::Tuple(_) => {
+            true
+        }
+        syn::Expr::Reference(reference) => expr_has_capacity_hint(&reference.expr),
+        syn::Expr::Paren(paren) => expr_has_capacity_hint(&paren.expr),
+        syn::Expr::Group(group) => expr_has_capacity_hint(&group.expr),
+        syn::Expr::MethodCall(method) => {
+            matches!(
+                method.method.to_string().as_str(),
+                "iter" | "iter_mut" | "into_iter"
+            ) && expr_has_capacity_hint(&method.receiver)
+        }
+        syn::Expr::Range(range) => range
+            .end
+            .as_ref()
+            .is_some_and(|end| range_bound_has_capacity_hint(end)),
+        _ => false,
+    }
+}
+
+fn range_bound_has_capacity_hint(expr: &syn::Expr) -> bool {
+    match expr {
+        syn::Expr::Lit(_) => true,
+        syn::Expr::MethodCall(method) if method.method == "len" => true,
+        syn::Expr::Reference(reference) => range_bound_has_capacity_hint(&reference.expr),
+        syn::Expr::Paren(paren) => range_bound_has_capacity_hint(&paren.expr),
+        syn::Expr::Group(group) => range_bound_has_capacity_hint(&group.expr),
+        _ => expr_has_capacity_hint(expr),
+    }
 }

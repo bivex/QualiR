@@ -353,6 +353,35 @@ mod magic_numbers {
             SourceFile::from_source(PathBuf::from("tests/magic.rs"), code.to_string()).unwrap();
         assert!(DETECTOR.detect(&file).is_empty());
     }
+
+    #[test]
+    fn clean_default_value_provider() {
+        let code = "fn default_retry_backoff_millis() -> u64 { 250 }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_database_column_indexes() {
+        let code = r#"
+fn map_project(row: &Row) -> Result<Project, Error> {
+    Ok(Project {
+        id: parse_uuid(get_string(row, 3)?, 3)?,
+        created_at: parse_datetime(get_string(row, 4)?, 4)?,
+        source: parse_project_source(get_string(row, 5)?, 5)?,
+        claims: parse_claims_json(get_string(row, 6)?, 6)?,
+        error: StoreError { column: offset + 7 },
+    })
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_named_local_constants() {
+        let code =
+            r#"fn human_bytes() { const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"]; }"#;
+        assert_clean(&DETECTOR, code);
+    }
 }
 
 mod large_enum {
@@ -2899,6 +2928,37 @@ fn build(items: &[u32]) -> Vec<u32> {
 "#;
         assert_clean(&DETECTOR, code);
     }
+
+    #[test]
+    fn clean_when_loop_size_is_not_obvious() {
+        let code = r#"
+fn build(reader: &mut Reader) -> Vec<u32> {
+    let mut out = Vec::new();
+    while let Some(item) = reader.next() {
+        out.push(item);
+    }
+    out
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_reused_string_buffer() {
+        let code = r#"
+fn ascii_strings(contents: &[u8]) -> String {
+    let mut current = String::new();
+    for byte in contents {
+        current.push(*byte as char);
+        if *byte == 0 {
+            current.clear();
+        }
+    }
+    current
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
 }
 
 mod repeated_string_conversion {
@@ -2965,6 +3025,27 @@ fn convert(items: &[Item]) -> Vec<String> {
         item.check().map_err(|error| error.to_string()).ok();
     }
     errors
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_owned_struct_field_conversion() {
+        let code = r#"
+struct Activity {
+    tenant_slug: String,
+}
+
+fn recent(projects: &[Project], tenant: &Tenant) -> Vec<Activity> {
+    let mut out = Vec::new();
+    for project in projects {
+        consume(project);
+        out.push(Activity {
+            tenant_slug: tenant.slug.as_str().to_string(),
+        });
+    }
+    out
 }
 "#;
         assert_clean(&DETECTOR, code);
