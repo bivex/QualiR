@@ -58,7 +58,7 @@ fn conflict_smell(file: &SourceFile, copy_type: &TypeInfo<'_>) -> Smell {
 }
 
 fn collect_drop_types(ast: &syn::File) -> Vec<TypeInfo<'_>> {
-    let mut drop_types = Vec::new();
+    let mut drop_types = Vec::with_capacity(ast.items.len());
     for item in &ast.items {
         if let syn::Item::Impl(imp) = item
             && let Some((_, trait_path, _)) = &imp.trait_
@@ -75,7 +75,7 @@ fn collect_drop_types(ast: &syn::File) -> Vec<TypeInfo<'_>> {
 }
 
 fn collect_copy_types(ast: &syn::File) -> Vec<TypeInfo<'_>> {
-    let mut copy_types = Vec::new();
+    let mut copy_types = Vec::with_capacity(ast.items.len());
 
     for item in &ast.items {
         match item {

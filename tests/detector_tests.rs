@@ -71,6 +71,44 @@ pub fn e() {}
     }
 }
 
+mod cyclic_crate_dependency {
+    use super::*;
+    use qualirs::detectors::architecture::cyclic_crate_dependency::CyclicDependencyDetector;
+
+    static DETECTOR: CyclicDependencyDetector = CyclicDependencyDetector;
+
+    #[test]
+    fn clean_same_file_name_in_different_module() {
+        let code = "\
+use crate::de::Deserialize;
+use crate::ser::Serialize;
+";
+        let source = SourceFile::from_source("src/private/de.rs".into(), code.to_string()).unwrap();
+        let smells = DETECTOR.detect(&source);
+        assert!(
+            smells.iter().all(|smell| smell.name != "Cyclic Dependency"),
+            "Should not treat crate::de as private::de importing itself. Smells found: {smells:?}"
+        );
+    }
+
+    #[test]
+    fn detects_exact_self_import() {
+        let code = "\
+use crate::private::de::Helper;
+use crate::ser::Serialize;
+";
+        let source = SourceFile::from_source("src/private/de.rs".into(), code.to_string()).unwrap();
+        let smells = DETECTOR.detect(&source);
+        assert_eq!(
+            smells
+                .iter()
+                .filter(|smell| smell.name == "Cyclic Dependency")
+                .count(),
+            1
+        );
+    }
+}
+
 // ─── Design ────────────────────────────────────────────────
 
 mod large_trait {
@@ -202,6 +240,25 @@ mod too_many_arguments {
     }
 }
 
+mod large_value_passed_by_value {
+    use super::*;
+    use qualirs::detectors::implementation::large_value_passed_by_value::LargeValuePassedByValueDetector;
+
+    static DETECTOR: LargeValuePassedByValueDetector = LargeValuePassedByValueDetector;
+
+    #[test]
+    fn detects_large_inline_array() {
+        let code = "fn process(bytes: [u8; 64]) {}";
+        assert_smell_count(&DETECTOR, code, "Large Value Passed By Value", 1);
+    }
+
+    #[test]
+    fn clean_owned_heap_containers_are_cheap_to_move() {
+        let code = "fn process(name: String, bytes: Vec<u8>, lookup: HashMap<String, String>) {}";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
 mod excessive_unwrap {
     use super::*;
     use qualirs::detectors::implementation::excessive_unwrap::ExcessiveUnwrapDetector;
@@ -224,6 +281,23 @@ fn risky() {
     #[test]
     fn clean_single_unwrap() {
         let code = "fn ok() { let x = Some(1).unwrap(); }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_regex_literal_expect_calls() {
+        let code = r#"
+use regex::Regex;
+use std::sync::LazyLock;
+
+fn redact(value: &str) -> String {
+    static A: LazyLock<Regex> = LazyLock::new(|| Regex::new("a").expect("valid regex"));
+    static B: LazyLock<Regex> = LazyLock::new(|| Regex::new("b").expect("valid regex"));
+    static C: LazyLock<Regex> = LazyLock::new(|| Regex::new("c").expect("valid regex"));
+    static D: LazyLock<Regex> = LazyLock::new(|| Regex::new("d").expect("valid regex"));
+    A.replace_all(value, "x").to_string()
+}
+"#;
         assert_clean(&DETECTOR, code);
     }
 
@@ -333,6 +407,80 @@ mod magic_numbers {
         let file =
             SourceFile::from_source(PathBuf::from("tests/magic.rs"), code.to_string()).unwrap();
         assert!(DETECTOR.detect(&file).is_empty());
+    }
+
+    #[test]
+    fn clean_default_value_provider() {
+        let code = "fn default_retry_backoff_millis() -> u64 { 250 }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_database_column_indexes() {
+        let code = r#"
+fn map_project(row: &Row) -> Result<Project, Error> {
+    Ok(Project {
+        id: parse_uuid(get_string(row, 3)?, 3)?,
+        created_at: parse_datetime(get_string(row, 4)?, 4)?,
+        source: parse_project_source(get_string(row, 5)?, 5)?,
+        claims: parse_claims_json(get_string(row, 6)?, 6)?,
+        error: StoreError { column: offset + 7 },
+    })
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_named_local_constants() {
+        let code =
+            r#"fn human_bytes() { const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"]; }"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_contextual_literals_from_protocol_and_display_code() {
+        let code = r#"
+fn looks_like_executable_binary(contents: &[u8]) -> bool {
+    contents.starts_with(&[0xfe, 0xed, 0xfa, 0xce]) || contents.starts_with(&[0x1f, 0x8b])
+}
+
+fn severity_rank(severity: &str) -> u8 {
+    match severity {
+        "critical" => 5,
+        "high" => 4,
+        "medium" => 3,
+        "low" => 2,
+        _ => 0,
+    }
+}
+
+fn severity_color(severity: u8) -> u32 {
+    match severity {
+        5 => 0xe74c3c,
+        4 => 0xe67e22,
+        _ => 0x7f8c8d,
+    }
+}
+
+fn redact(captures: regex::Captures<'_>) {
+    let _scheme_or_value = &captures[3];
+}
+
+fn inspect(bytes: &[u8]) {
+    let mut header = [0_u8; 8];
+    let _window = &bytes[..bytes.len().min(8)];
+}
+
+fn sql_server_config(url: Url, mut config: Config) {
+    config.port(url.port().unwrap_or(1433));
+}
+
+fn limit(items: Vec<String>) {
+    let _visible = items.into_iter().take(96).collect::<Vec<_>>();
+}
+"#;
+        assert_clean(&DETECTOR, code);
     }
 }
 
@@ -459,6 +607,88 @@ mod long_method_chain {
             smells
         );
     }
+
+    #[test]
+    fn clean_async_result_iterator_pipeline() {
+        let code = r#"
+async fn tenants(state: State) -> Result<Vec<TenantView>, Error> {
+    Ok(state
+        .app
+        .list_tenants()
+        .await?
+        .into_iter()
+        .map(tenant_view)
+        .collect())
+}
+"#;
+        let file = SourceFile::from_source(PathBuf::from("main.rs"), code.to_string()).unwrap();
+        assert!(
+            DETECTOR.detect(&file).is_empty(),
+            "async/try syntax should not inflate method-chain depth"
+        );
+    }
+
+    #[test]
+    fn clean_router_builder_chain() {
+        let code = r#"
+fn routes(state: AppState, layer: Layer) -> Router<AppState> {
+    Router::new()
+        .route("/", get(index))
+        .route("/admin", get(admin_index).post(admin_submit))
+        .merge(package_routes())
+        .method_not_allowed_fallback(method_not_allowed)
+        .fallback(not_found)
+        .layer(layer)
+        .with_state(state)
+}
+"#;
+        let file = SourceFile::from_source(PathBuf::from("main.rs"), code.to_string()).unwrap();
+        assert!(
+            DETECTOR.detect(&file).is_empty(),
+            "fluent builder APIs should not be reported as long method chains"
+        );
+    }
+
+    #[test]
+    fn clean_option_result_cleanup_chain() {
+        let code = r#"
+fn relative_path(root: &Path, raw: &str) -> Option<String> {
+    let path = Path::new(raw);
+    path.strip_prefix(root)
+        .ok()
+        .or_else(|| path.strip_prefix(".").ok())
+        .unwrap_or(path)
+        .to_str()
+        .map(|value| value.replace('\\', "/"))
+        .filter(|value| !value.is_empty())
+}
+"#;
+        let file = SourceFile::from_source(PathBuf::from("main.rs"), code.to_string()).unwrap();
+        assert!(
+            DETECTOR.detect(&file).is_empty(),
+            "Option/Result cleanup chains should not be reported as long method chains"
+        );
+    }
+
+    #[test]
+    fn clean_string_normalization_chain() {
+        let code = r#"
+fn normalize(raw: &str) -> Option<IpAddr> {
+    raw.trim()
+        .trim_matches('"')
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .trim()
+        .parse()
+        .ok()
+}
+"#;
+        let file = SourceFile::from_source(PathBuf::from("main.rs"), code.to_string()).unwrap();
+        assert!(
+            DETECTOR.detect(&file).is_empty(),
+            "cleanup chains should not be reported as long method chains"
+        );
+    }
 }
 
 mod unused_result {
@@ -486,6 +716,45 @@ mod unused_result {
             SourceFile::from_source(PathBuf::from("src/settings/tests.rs"), code.to_string())
                 .unwrap();
         assert!(DETECTOR.detect(&file).is_empty());
+    }
+
+    #[test]
+    fn clean_string_buffer_write_result() {
+        let code = r#"
+fn render() -> String {
+    let mut out = String::new();
+    let _ = writeln!(out, "hello");
+    out
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_string_param_write_result() {
+        let code = r#"
+fn render(out: &mut String) {
+    let _ = write!(out, "hello");
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn detects_unknown_writer_discard() {
+        let code = r#"
+struct Writer;
+fn render(writer: Writer) {
+    let _ = writeln!(writer, "hello");
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Unused Result Ignored", 1);
+    }
+
+    #[test]
+    fn clean_channel_sender_discard() {
+        let code = "fn notify(sender: Sender) { let _ = sender.send(1); }";
+        assert_clean(&DETECTOR, code);
     }
 }
 
@@ -534,6 +803,258 @@ fn validate(value: &str) -> bool {
     VALID
         .get_or_init(|| Regex::new(r"^[a-z]+$").expect("valid regex"))
         .is_match(value)
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod inline_candidate {
+    use super::*;
+    use qualirs::detectors::implementation::inline_candidate::InlineCandidateDetector;
+
+    static DETECTOR: InlineCandidateDetector = InlineCandidateDetector;
+
+    #[test]
+    fn detects_tiny_repeated_function() {
+        let code = r#"
+fn score(value: u32) -> u32 {
+    value + 1
+}
+
+fn total() -> u32 {
+    score(1) + score(2) + score(3)
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Inline Candidate", 1);
+    }
+
+    #[test]
+    fn detects_tiny_repeated_method() {
+        let code = r#"
+struct Price(u32);
+
+impl Price {
+    fn cents(&self) -> u32 {
+        self.0
+    }
+}
+
+fn total(a: Price, b: Price, c: Price) -> u32 {
+    a.cents() + b.cents() + c.cents()
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Inline Candidate", 1);
+    }
+
+    #[test]
+    fn detects_tiny_repeated_associated_function_for_same_type() {
+        let code = r#"
+struct Token(u32);
+
+impl Token {
+    fn generated() -> Self {
+        Self(1)
+    }
+}
+
+fn build() -> (Token, Token, Token) {
+    (Token::generated(), Token::generated(), Token::generated())
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Inline Candidate", 1);
+    }
+
+    #[test]
+    fn clean_unrelated_new_constructors() {
+        let code = r#"
+struct Local;
+
+impl Local {
+    fn new() -> Self {
+        Self
+    }
+}
+
+struct Other;
+
+impl Other {
+    fn new() -> Self {
+        Self
+    }
+}
+
+fn build() {
+    let _local = Local::new();
+    let _other = Other::new();
+    let _items = Vec::<u8>::new();
+    let _text = String::new();
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_repeated_new_constructor() {
+        let code = r#"
+struct Status;
+
+impl Status {
+    fn new() -> Self {
+        Self
+    }
+}
+
+fn build() -> (Status, Status, Status, Status) {
+    (Status::new(), Status::new(), Status::new(), Status::new())
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_ambiguous_same_named_methods() {
+        let code = r#"
+struct EmailConfig;
+
+impl EmailConfig {
+    fn validate(&self) -> bool {
+        true
+    }
+}
+
+struct WebConfig;
+
+impl WebConfig {
+    fn validate(&self) -> bool {
+        true
+    }
+}
+
+fn validate_all(email: EmailConfig, web: WebConfig) -> bool {
+    email.validate() && web.validate() && email.validate() && web.validate()
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_existing_inline_hint() {
+        let code = r#"
+#[inline]
+fn score(value: u32) -> u32 {
+    value + 1
+}
+
+fn total() -> u32 {
+    score(1) + score(2) + score(3)
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_low_call_count() {
+        let code = r#"
+fn score(value: u32) -> u32 {
+    value + 1
+}
+
+fn total() -> u32 {
+    score(1)
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_complex_small_function() {
+        let code = r#"
+fn score(value: u32) -> u32 {
+    if value > 10 { value } else { 10 }
+}
+
+fn total() -> u32 {
+    score(1) + score(2) + score(3)
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_cfg_test_helpers() {
+        let code = r#"
+#[cfg(test)]
+mod tests {
+    fn fixture(value: u32) -> u32 {
+        value + 1
+    }
+
+    fn smoke() -> u32 {
+        fixture(1) + fixture(2) + fixture(3)
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod manual_option_result_mapping {
+    use super::*;
+    use qualirs::detectors::implementation::manual_option_result_mapping::ManualOptionResultMappingDetector;
+
+    static DETECTOR: ManualOptionResultMappingDetector = ManualOptionResultMappingDetector;
+
+    #[test]
+    fn detects_simple_option_map() {
+        let code = r#"
+fn map_value(value: Option<i32>) -> Option<i32> {
+    match value {
+        Some(value) => Some(value + 1),
+        None => None,
+    }
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Manual Option/Result Mapping", 1);
+    }
+
+    #[test]
+    fn detects_simple_result_map() {
+        let code = r#"
+fn map_value(value: Result<i32, Error>) -> Result<i32, Error> {
+    match value {
+        Ok(value) => Ok(value + 1),
+        Err(error) => Err(error),
+    }
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Manual Option/Result Mapping", 1);
+    }
+
+    #[test]
+    fn clean_destructuring_match_that_builds_many_options() {
+        let code = r#"
+fn columns(identity: Option<Identity>) -> (Option<String>, Option<String>) {
+    match identity {
+        Some(identity) => (Some(identity.issuer), Some(identity.subject)),
+        None => (None, None),
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_result_match_with_nested_result_handling() {
+        let code = r#"
+fn scanner(result: Result<Compiled, Error>) -> Scanner {
+    match result {
+        Ok(compiled) => Scanner::loaded(compiled),
+        Err(error) => match fallback() {
+            Ok(compiled) => Scanner::loaded(compiled),
+            Err(fallback_error) => Scanner::unavailable(error, fallback_error),
+        },
+    }
 }
 "#;
         assert_clean(&DETECTOR, code);
@@ -747,12 +1268,12 @@ mod arc_mutex_overuse {
     #[test]
     fn detects_many_arc_mutex() {
         // Threshold is 3 by default.
-        // Our heuristic counts Arc, Mutex, and RwLock segments.
-        // Arc<Mutex<i32>> counts twice (once as Arc, once as Mutex via recursive visit).
         let code = "\
 struct State {
     a: Arc<Mutex<i32>>,
     b: Arc<Mutex<i32>>,
+    c: Arc<RwLock<i32>>,
+    d: Arc<tokio::sync::Mutex<i32>>,
 }
 ";
         assert_smell_count(&DETECTOR, code, "Arc Mutex Overuse", 1);
@@ -771,6 +1292,31 @@ struct State {
     #[test]
     fn clean_no_arc_mutex() {
         let code = "struct State { value: i32 }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_many_arc_trait_dependencies() {
+        let code = "\
+struct Services {
+    store: Arc<dyn Store>,
+    cache: Arc<dyn Cache>,
+    clock: Arc<dyn Clock>,
+    ids: Arc<dyn IdGenerator>,
+    mailer: Arc<dyn Mailer>,
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_standalone_locks_without_arc() {
+        let code = "\
+struct State {
+    operation_lock: Mutex<()>,
+    buckets: RwLock<HashMap<String, Bucket>>,
+}
+";
         assert_clean(&DETECTOR, code);
     }
 }
@@ -1235,6 +1781,32 @@ pub struct State {
 pub struct Pair {
     pub a: i32,
     pub b: i32,
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_phantom_data_seed_struct() {
+        let code = "\
+use std::marker::PhantomData;
+
+pub struct AdjacentlyTaggedEnumVariantSeed<F> {
+    pub enum_name: &'static str,
+    pub variants: &'static [&'static str],
+    pub fields_enum: PhantomData<F>,
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_variant_data_carrier() {
+        let code = "\
+pub struct AdjacentlyTaggedEnumVariant {
+    pub enum_name: &'static str,
+    pub variant_index: u32,
+    pub variant_name: &'static str,
 }
 ";
         assert_clean(&DETECTOR, code);
@@ -1915,6 +2487,31 @@ fn update_user(name: String, age: i32, email: String) {}
 ";
         assert_clean(&DETECTOR, code);
     }
+
+    #[test]
+    fn clean_trait_required_method_signatures() {
+        let code = "\
+trait Deserialize {
+    fn deserialize_enum(self, name: &str, variants: &'static [&'static str], visitor: Visitor);
+}
+
+struct U8;
+impl Deserialize for U8 {
+    fn deserialize_enum(self, name: &str, variants: &'static [&'static str], visitor: Visitor) {}
+}
+
+struct U16;
+impl Deserialize for U16 {
+    fn deserialize_enum(self, name: &str, variants: &'static [&'static str], visitor: Visitor) {}
+}
+
+struct U32;
+impl Deserialize for U32 {
+    fn deserialize_enum(self, name: &str, variants: &'static [&'static str], visitor: Visitor) {}
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
 }
 
 mod multiple_impl_blocks {
@@ -2042,6 +2639,48 @@ mod deeply_nested_type {
         let code = "struct S { data: Option<Result<String, std::io::Error>> }";
         assert_clean(&DETECTOR, code);
     }
+
+    #[test]
+    fn clean_common_result_option_vec_return() {
+        let code = "trait Store { fn get(&self) -> Result<Option<Vec<u8>>, Error>; }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_references_do_not_inflate_depth() {
+        let code = "fn parse(value: &&Option<Result<String, Error>>) {}";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_tuple_of_shallow_nested_types() {
+        let code = "fn row(values: (&Option<Result<String, Error>>, &Option<Vec<String>>)) {}";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_cfg_test_module_nested_types() {
+        let code = r#"
+#[cfg(test)]
+mod tests {
+    struct FakeStore {
+        values: Arc<Mutex<HashMap<String, Vec<u8>>>>,
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_fuzz_target_path() {
+        let code = "struct DomainInput { data: Arc<Mutex<HashMap<String, Vec<u8>>>> }";
+        let file = SourceFile::from_source(
+            PathBuf::from("fuzz/fuzz_targets/domain_inputs.rs"),
+            code.to_string(),
+        )
+        .unwrap();
+        assert!(DETECTOR.detect(&file).is_empty());
+    }
 }
 
 mod interior_mutability_abuse {
@@ -2146,6 +2785,28 @@ pub struct Handler;
 ";
         assert_clean(&DETECTOR, code);
     }
+
+    #[test]
+    fn clean_dyn_compatible_port_trait() {
+        let code = "\
+#[async_trait]
+pub trait Handler: Send + Sync {
+    async fn handle(&self);
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_async_trait_impl_duplicate() {
+        let code = "\
+#[async_trait]
+impl Handler for Service {
+    async fn handle(&self) {}
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
 }
 
 mod unnecessary_allocation_in_loop {
@@ -2154,7 +2815,21 @@ mod unnecessary_allocation_in_loop {
     static DETECTOR: UnnecessaryAllocationInLoopDetector = UnnecessaryAllocationInLoopDetector;
 
     #[test]
-    fn detects_clear_loop_allocations() {
+    fn detects_clear_invariant_loop_allocations() {
+        let code = r#"
+fn build(items: &[&str], prefix: &str) {
+    for item in items {
+        let a = String::from("fixed");
+        let b = prefix.to_owned();
+        let c = format!("prefix: {prefix}");
+    }
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Unnecessary Allocation in Loop", 3);
+    }
+
+    #[test]
+    fn clean_loop_item_dependent_allocations() {
         let code = r#"
 fn build(items: &[&str]) {
     for item in items {
@@ -2164,7 +2839,7 @@ fn build(items: &[&str]) {
     }
 }
 "#;
-        assert_smell_count(&DETECTOR, code, "Unnecessary Allocation in Loop", 3);
+        assert_clean(&DETECTOR, code);
     }
 
     #[test]
@@ -2187,6 +2862,78 @@ fn report(items: &[i32]) {
 fn report(items: &[i32]) {
     for item in items {
         consume(&format!("item: {item}"));
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_error_formatting_inside_loop() {
+        let code = r#"
+fn validate(items: &[Item]) -> Result<(), ApplicationError> {
+    for item in items {
+        if item.is_invalid() {
+            return Err(ApplicationError::Conflict(format!("invalid item {}", item.id)));
+        }
+        item.check().map_err(|error| format!("invalid item: {error}"))?;
+    }
+    Ok(())
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_match_arm_error_formatting_inside_loop() {
+        let code = r#"
+fn validate(items: &[Item]) {
+    for item in items {
+        match item.parse() {
+            Ok(value) => consume(value),
+            Err(error) => record(format!("invalid item: {error}")),
+        }
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_diagnostic_evidence_collection() {
+        let code = r#"
+fn scan(items: &[Rule]) {
+    for item in items {
+        let mut evidence = vec![format!("rule={}", item.name)];
+        evidence.push(format!("tags={}", item.tags));
+        evidence.extend(item.meta.iter().map(|meta| format!("meta={meta}")));
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_inline_cfg_test_module() {
+        let code = r#"
+#[cfg(test)]
+mod tests {
+    fn fixture() {
+        for index in 0..10 {
+            let name = format!("fixture_{index}");
+        }
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_owned_origin_metadata_inside_loop() {
+        let code = r#"
+fn compile(files: &[RuleFile]) {
+    for file in files {
+        compiler.add_source(SourceCode::from(file.contents).with_origin(format!("bundled:{}", file.path)));
     }
 }
 "#;
@@ -2330,6 +3077,563 @@ impl Default for State {
 }
 ";
         assert_smell_count(&DETECTOR, code, "Derivable Impl", 1);
+    }
+
+    #[test]
+    fn clean_generic_clone_that_avoids_derive_bounds() {
+        let code = "\
+use std::marker::PhantomData;
+
+struct StringDeserializer<E> {
+    value: String,
+    marker: PhantomData<E>,
+}
+
+impl<E> Clone for StringDeserializer<E> {
+    fn clone(&self) -> Self {
+        StringDeserializer {
+            value: self.value.clone(),
+            marker: PhantomData,
+        }
+    }
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_cfg_sensitive_debug_impl() {
+        let code = "\
+struct Error {
+    err: String,
+}
+
+impl Debug for Error {
+    fn fmt(&self, formatter: &mut Formatter) -> Result {
+        let mut debug = formatter.debug_tuple(\"Error\");
+        #[cfg(feature = \"std\")]
+        debug.field(&self.err);
+        debug.finish()
+    }
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod needless_explicit_lifetime {
+    use super::*;
+    use qualirs::detectors::implementation::needless_explicit_lifetime::NeedlessExplicitLifetimeDetector;
+    static DETECTOR: NeedlessExplicitLifetimeDetector = NeedlessExplicitLifetimeDetector;
+
+    #[test]
+    fn detects_lifetime_elidable_from_single_reference_input() {
+        let code = "fn name<'a>(value: &'a str) -> &'a str { value }";
+        assert_smell_count(&DETECTOR, code, "Needless Explicit Lifetime", 1);
+    }
+
+    #[test]
+    fn clean_lifetime_used_in_where_bound() {
+        let code = "\
+fn missing_field<'de, V, E>(field: &'static str) -> Result<V, E>
+where
+    V: Deserialize<'de>,
+    E: Error,
+{
+    todo!()
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod missing_collection_preallocation {
+    use super::*;
+    use qualirs::detectors::implementation::missing_collection_preallocation::MissingCollectionPreallocationDetector;
+    static DETECTOR: MissingCollectionPreallocationDetector =
+        MissingCollectionPreallocationDetector;
+
+    #[test]
+    fn detects_empty_vec_grown_in_loop() {
+        let code = r#"
+fn build(items: &[u32]) -> Vec<u32> {
+    let mut out = Vec::new();
+    for item in items {
+        out.push(*item);
+    }
+    out
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Missing Collection Preallocation", 1);
+    }
+
+    #[test]
+    fn clean_when_capacity_is_reserved() {
+        let code = r#"
+fn build(items: &[u32]) -> Vec<u32> {
+    let mut out = Vec::new();
+    out.reserve(items.len());
+    for item in items {
+        out.push(*item);
+    }
+    out
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_when_loop_size_is_not_obvious() {
+        let code = r#"
+fn build(reader: &mut Reader) -> Vec<u32> {
+    let mut out = Vec::new();
+    while let Some(item) = reader.next() {
+        out.push(item);
+    }
+    out
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_reused_string_buffer() {
+        let code = r#"
+fn ascii_strings(contents: &[u8]) -> String {
+    let mut current = String::new();
+    for byte in contents {
+        current.push(*byte as char);
+        if *byte == 0 {
+            current.clear();
+        }
+    }
+    current
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod repeated_string_conversion {
+    use super::*;
+    use qualirs::detectors::implementation::repeated_string_conversion::RepeatedStringConversionDetector;
+    static DETECTOR: RepeatedStringConversionDetector = RepeatedStringConversionDetector;
+
+    #[test]
+    fn detects_invariant_conversion_in_iterator_chain() {
+        let code = r#"
+fn labels(items: &[u32], prefix: &str) -> Vec<String> {
+    items.iter().map(|item| prefix.to_string()).collect()
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Repeated String Conversion in Hot Path", 1);
+    }
+
+    #[test]
+    fn clean_loop_item_conversion_in_iterator_chain() {
+        let code = r#"
+fn labels(items: &[u32]) -> Vec<String> {
+    items.iter().map(|item| item.to_string()).collect()
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_loop_local_conversion() {
+        let code = r#"
+fn labels(items: &[Item]) -> Vec<String> {
+    let mut out = Vec::new();
+    for item in items {
+        let label = item.label();
+        out.push(label.to_string());
+    }
+    out
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_error_mapping_conversion() {
+        let code = r#"
+fn convert(result: Result<u32, Error>) -> Result<u32, String> {
+    result.map_err(|error| error.to_string())
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_error_conversion_inside_loop() {
+        let code = r#"
+fn convert(items: &[Item]) -> Vec<String> {
+    let mut errors = Vec::new();
+    for item in items {
+        match item.parse() {
+            Ok(value) => consume(value),
+            Err(error) => errors.push(error.to_string()),
+        }
+
+        item.check().map_err(|error| error.to_string()).ok();
+    }
+    errors
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_owned_struct_field_conversion() {
+        let code = r#"
+struct Activity {
+    tenant_slug: String,
+}
+
+fn recent(projects: &[Project], tenant: &Tenant) -> Vec<Activity> {
+    let mut out = Vec::new();
+    for project in projects {
+        consume(project);
+        out.push(Activity {
+            tenant_slug: tenant.slug.as_str().to_string(),
+        });
+    }
+    out
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod needless_intermediate_string_formatting {
+    use super::*;
+    use qualirs::detectors::implementation::needless_intermediate_string_formatting::NeedlessIntermediateStringFormattingDetector;
+    static DETECTOR: NeedlessIntermediateStringFormattingDetector =
+        NeedlessIntermediateStringFormattingDetector;
+
+    #[test]
+    fn detects_push_str_format_temporary() {
+        let code = r#"
+fn render(id: u64, out: &mut String) {
+    out.push_str(&format!("id={id}"));
+}
+"#;
+        assert_smell_count(
+            &DETECTOR,
+            code,
+            "Needless Intermediate String Formatting",
+            1,
+        );
+    }
+
+    #[test]
+    fn clean_direct_write() {
+        let code = r#"
+fn render(id: u64, out: &mut String) {
+    let _ = write!(out, "id={id}");
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod vec_contains_in_loop {
+    use super::*;
+    use qualirs::detectors::implementation::vec_contains_in_loop::VecContainsInLoopDetector;
+    static DETECTOR: VecContainsInLoopDetector = VecContainsInLoopDetector;
+
+    #[test]
+    fn detects_vec_contains_inside_loop() {
+        let code = r#"
+fn count(ids: Vec<u64>, items: &[u64]) -> usize {
+    let mut count = 0;
+    for item in items {
+        if ids.contains(item) {
+            count += 1;
+        }
+    }
+    count
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Vec Contains in Loop", 1);
+    }
+
+    #[test]
+    fn clean_slice_contains_inside_loop() {
+        let code = r#"
+fn count(ids: &[u64], items: &[u64]) -> usize {
+    let mut count = 0;
+    for item in items {
+        if ids.contains(item) {
+            count += 1;
+        }
+    }
+    count
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod sort_before_min_max {
+    use super::*;
+    use qualirs::detectors::implementation::sort_before_min_max::SortBeforeMinMaxDetector;
+    static DETECTOR: SortBeforeMinMaxDetector = SortBeforeMinMaxDetector;
+
+    #[test]
+    fn detects_sort_then_first() {
+        let code = r#"
+fn smallest(mut values: Vec<u32>) -> Option<u32> {
+    values.sort();
+    values.first().copied()
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Sort Before Min or Max", 1);
+    }
+
+    #[test]
+    fn clean_when_sorted_order_is_used() {
+        let code = r#"
+fn ordered(mut values: Vec<u32>) -> Vec<u32> {
+    values.sort();
+    values.iter().copied().collect()
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod full_sort_for_single_element {
+    use super::*;
+    use qualirs::detectors::implementation::full_sort_for_single_element::FullSortForSingleElementDetector;
+    static DETECTOR: FullSortForSingleElementDetector = FullSortForSingleElementDetector;
+
+    #[test]
+    fn detects_sort_then_median_index() {
+        let code = r#"
+fn median(mut values: Vec<u32>) -> u32 {
+    values.sort_unstable();
+    values[values.len() / 2]
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Full Sort for Single Element", 1);
+    }
+
+    #[test]
+    fn clean_sort_then_first_index() {
+        let code = r#"
+fn first_sorted(mut values: Vec<u32>) -> u32 {
+    values.sort();
+    values[0]
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod clone_before_move_into_collection {
+    use super::*;
+    use qualirs::detectors::implementation::clone_before_move_into_collection::CloneBeforeMoveIntoCollectionDetector;
+    static DETECTOR: CloneBeforeMoveIntoCollectionDetector = CloneBeforeMoveIntoCollectionDetector;
+
+    #[test]
+    fn detects_clone_pushed_without_later_use() {
+        let code = r#"
+fn store(value: String, out: &mut Vec<String>) {
+    out.push(value.clone());
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Clone Before Move Into Collection", 1);
+    }
+
+    #[test]
+    fn clean_when_value_is_used_later() {
+        let code = r#"
+fn store(value: String, out: &mut Vec<String>) {
+    out.push(value.clone());
+    println!("{value}");
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_nested_push_when_outer_value_is_used_later() {
+        let code = r#"
+fn store(value: String, out: &mut Vec<String>, enabled: bool) {
+    if enabled {
+        out.push(value.clone());
+    }
+    consume(value);
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod inefficient_iterator_step {
+    use super::*;
+    use qualirs::detectors::implementation::inefficient_iterator_step::InefficientIteratorStepDetector;
+    static DETECTOR: InefficientIteratorStepDetector = InefficientIteratorStepDetector;
+
+    #[test]
+    fn detects_nth_zero_and_skip_next() {
+        let code = r#"
+fn pick(mut iter: impl Iterator<Item = u32>, n: usize) {
+    let _ = iter.nth(0);
+    let _ = iter.skip(n).next();
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Inefficient Iterator Step", 2);
+    }
+
+    #[test]
+    fn clean_direct_next_and_nth() {
+        let code = r#"
+fn pick(mut iter: impl Iterator<Item = u32>, n: usize) {
+    let _ = iter.next();
+    let _ = iter.nth(n);
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod chars_count_length_check {
+    use super::*;
+    use qualirs::detectors::implementation::chars_count_length_check::CharsCountLengthCheckDetector;
+    static DETECTOR: CharsCountLengthCheckDetector = CharsCountLengthCheckDetector;
+
+    #[test]
+    fn detects_chars_count_empty_check() {
+        let code = r#"
+fn empty(s: &str) -> bool {
+    s.chars().count() == 0
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Chars Count Length Check", 1);
+    }
+
+    #[test]
+    fn clean_plain_count_value() {
+        let code = r#"
+fn scalar_count(s: &str) -> usize {
+    s.chars().count()
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod repeated_expensive_construction {
+    use super::*;
+    use qualirs::detectors::implementation::repeated_expensive_construction::RepeatedExpensiveConstructionDetector;
+    static DETECTOR: RepeatedExpensiveConstructionDetector = RepeatedExpensiveConstructionDetector;
+
+    #[test]
+    fn detects_invariant_url_parse_inside_loop() {
+        let code = r#"
+fn build(items: &[u32]) {
+    for item in items {
+        let url = Url::parse("https://example.com").unwrap();
+        println!("{url:?} {item}");
+    }
+}
+"#;
+        assert_smell_count(
+            &DETECTOR,
+            code,
+            "Repeated Expensive Construction in Loop",
+            1,
+        );
+    }
+
+    #[test]
+    fn clean_loop_dependent_url_parse() {
+        let code = r#"
+fn parse_all(items: &[&str]) {
+    for item in items {
+        let url = Url::parse(item).unwrap();
+        println!("{url:?}");
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_loop_local_url_parse() {
+        let code = r#"
+fn parse_all(items: &[Item]) {
+    for item in items {
+        let raw = item.url();
+        let url = Url::parse(raw).unwrap();
+        println!("{url:?}");
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod needless_dynamic_dispatch {
+    use super::*;
+    use qualirs::detectors::implementation::needless_dynamic_dispatch::NeedlessDynamicDispatchDetector;
+    static DETECTOR: NeedlessDynamicDispatchDetector = NeedlessDynamicDispatchDetector;
+
+    #[test]
+    fn detects_local_box_dyn_from_concrete_value() {
+        let code = r#"
+trait Handler {}
+struct Local;
+impl Handler for Local {}
+
+fn run() {
+    let handler: Box<dyn Handler> = Box::new(Local);
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Needless Dynamic Dispatch", 1);
+    }
+
+    #[test]
+    fn clean_heterogeneous_dyn_collection() {
+        let code = r#"
+trait Handler {}
+
+fn run() {
+    let handlers: Vec<Box<dyn Handler>> = Vec::new();
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod local_lock_in_single_threaded_scope {
+    use super::*;
+    use qualirs::detectors::implementation::local_lock_in_single_threaded_scope::LocalLockInSingleThreadedScopeDetector;
+    static DETECTOR: LocalLockInSingleThreadedScopeDetector =
+        LocalLockInSingleThreadedScopeDetector;
+
+    #[test]
+    fn detects_local_mutex_lock() {
+        let code = r#"
+fn bump() {
+    let lock = Mutex::new(0);
+    *lock.lock().unwrap() += 1;
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Local Lock in Single-Threaded Scope", 1);
+    }
+
+    #[test]
+    fn clean_lock_moved_into_arc() {
+        let code = r#"
+fn share() {
+    let lock = Mutex::new(0);
+    let shared = Arc::new(lock);
+}
+"#;
+        assert_clean(&DETECTOR, code);
     }
 }
 

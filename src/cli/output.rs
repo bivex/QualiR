@@ -137,7 +137,7 @@ fn print_llm_smells(report: &AnalysisReport) {
         smells.sort_by(|a, b| {
             b.severity
                 .cmp(&a.severity)
-                .then_with(|| a.location.to_string().cmp(&b.location.to_string()))
+                .then_with(|| a.location.cmp(&b.location))
                 .then_with(|| a.name.cmp(&b.name))
         });
 
@@ -147,6 +147,7 @@ fn print_llm_smells(report: &AnalysisReport) {
             println!();
             println!("```text");
             println!("Severity: {}", smell.severity);
+            println!("Code: {}", smell.code);
             println!("Category: {}", smell.category);
             println!("Smell: {}", smell.name);
             println!("Location: {}", smell.location);
@@ -189,7 +190,7 @@ fn print_compact_smells(report: &AnalysisReport) {
         smells.sort_by(|a, b| {
             b.severity
                 .cmp(&a.severity)
-                .then_with(|| a.location.to_string().cmp(&b.location.to_string()))
+                .then_with(|| a.location.cmp(&b.location))
                 .then_with(|| a.name.cmp(&b.name))
         });
 
@@ -201,8 +202,9 @@ fn print_compact_smells(report: &AnalysisReport) {
 
         for smell in smells {
             println!(
-                "  {} {} {}",
+                "  {} {} {} {}",
                 compact_severity_label(&smell.severity),
+                smell.code.cyan().bold(),
                 smell.name.bold(),
                 smell.location.to_string().dimmed()
             );
@@ -234,7 +236,7 @@ fn print_smell_table(report: &AnalysisReport) {
         table.add_row(vec![
             sev_cell,
             cat_cell,
-            Cell::new(&smell.name),
+            Cell::new(format!("{} {}", smell.code, smell.name)),
             Cell::new(smell.location.to_string()),
             Cell::new(format!(
                 "{}\n{}",

@@ -58,27 +58,48 @@ struct ArcMutexVisitor {
 
 impl<'ast> Visit<'ast> for ArcMutexVisitor {
     fn visit_type(&mut self, node: &'ast syn::Type) {
-        if let syn::Type::Path(tp) = node {
-            let segments: Vec<String> = tp
-                .path
-                .segments
-                .iter()
-                .map(|s| s.ident.to_string())
-                .collect();
-
-            if is_arc_mutex(&segments) {
-                self.arc_mutex_count += 1;
-                if self.first_line.is_none() {
-                    self.first_line = Some(tp.path.span().start().line);
-                }
+        if is_arc_lock_type(node) {
+            self.arc_mutex_count += 1;
+            if self.first_line.is_none()
+                && let syn::Type::Path(tp) = node
+            {
+                self.first_line = Some(tp.path.span().start().line);
             }
         }
         syn::visit::visit_type(self, node);
     }
 }
 
-fn is_arc_mutex(segments: &[String]) -> bool {
-    segments
-        .iter()
-        .any(|s| s == "Arc" || s == "Mutex" || s == "RwLock")
+fn is_arc_lock_type(ty: &syn::Type) -> bool {
+    let syn::Type::Path(tp) = ty else {
+        return false;
+    };
+    let Some(segment) = tp.path.segments.last() else {
+        return false;
+    };
+    if segment.ident != "Arc" {
+        return false;
+    }
+
+    let syn::PathArguments::AngleBracketed(args) = &segment.arguments else {
+        return false;
+    };
+
+    args.args.iter().any(|arg| {
+        matches!(
+            arg,
+            syn::GenericArgument::Type(inner) if type_path_tail_is(inner, &["Mutex", "RwLock"])
+        )
+    })
+}
+
+fn type_path_tail_is(ty: &syn::Type, names: &[&str]) -> bool {
+    let syn::Type::Path(tp) = ty else {
+        return false;
+    };
+
+    tp.path
+        .segments
+        .last()
+        .is_some_and(|segment| names.iter().any(|name| segment.ident == name))
 }

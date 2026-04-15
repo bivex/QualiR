@@ -7,34 +7,89 @@ use clap::{Parser, Subcommand, ValueEnum};
 #[command(name = "qualirs", version, about)]
 pub struct Args {
     #[command(subcommand)]
-    pub command: Option<Command>,
-
-    /// Path to the Rust project or file to analyze
-    #[arg(default_value = ".")]
-    pub path: PathBuf,
-
-    /// Configuration file path (default: qualirs.toml in project root)
-    #[arg(short, long)]
-    pub config: Option<PathBuf>,
-
-    /// Minimum severity to report: info, warning, critical
-    #[arg(short = 'm', long, default_value = "info")]
-    pub min_severity: String,
-
-    /// Show only smells of a specific category
-    #[arg(short = 't', long)]
-    pub category: Option<String>,
+    pub(crate) command: Option<Command>,
 
     #[command(flatten)]
-    pub output_options: OutputOptions,
+    pub(crate) source: SourceOptions,
+
+    #[command(flatten)]
+    pub(crate) filters: FilterOptions,
+
+    #[command(flatten)]
+    pub(crate) output_options: OutputOptions,
 
     /// List available detectors and exit
     #[arg(long)]
-    pub list_detectors: bool,
+    pub(crate) list_detectors: bool,
 }
 
 #[derive(clap::Args, Debug)]
-pub struct OutputOptions {
+pub(crate) struct SourceOptions {
+    /// Path to the Rust project or file to analyze (defaults to current directory)
+    #[arg(conflicts_with_all = ["git", "crate_name"])]
+    pub(crate) path: Option<PathBuf>,
+
+    /// Git repository URL to clone and analyze
+    #[arg(long, value_name = "URL", conflicts_with = "crate_name")]
+    pub(crate) git: Option<String>,
+
+    /// Git branch to check out when using --git
+    #[arg(
+        long,
+        value_name = "BRANCH",
+        requires = "git",
+        conflicts_with_all = ["tag", "crate_name"]
+    )]
+    pub(crate) branch: Option<String>,
+
+    /// Git tag to check out when using --git
+    #[arg(
+        long,
+        value_name = "TAG",
+        requires = "git",
+        conflicts_with_all = ["branch", "crate_name"]
+    )]
+    pub(crate) tag: Option<String>,
+
+    /// crates.io crate name to download and analyze
+    #[arg(long = "crate", value_name = "CRATE", conflicts_with = "git")]
+    pub(crate) crate_name: Option<String>,
+
+    /// crates.io crate version to download when using --crate
+    #[arg(
+        long,
+        value_name = "VERSION",
+        requires = "crate_name",
+        conflicts_with = "git"
+    )]
+    pub(crate) crate_version: Option<String>,
+
+    /// Directory to create temporary git and crate analysis folders in
+    #[arg(long, value_name = "DIR")]
+    pub(crate) temp_dir: Option<PathBuf>,
+
+    /// Preserve temporary git and crate analysis folders after the run
+    #[arg(long)]
+    pub(crate) keep_temp: bool,
+}
+
+#[derive(clap::Args, Debug)]
+pub(crate) struct FilterOptions {
+    /// Configuration file path (default: qualirs.toml in project root)
+    #[arg(short, long)]
+    pub(crate) config: Option<PathBuf>,
+
+    /// Minimum severity to report: info, warning, critical
+    #[arg(short = 'm', long, default_value = "info")]
+    pub(crate) min_severity: String,
+
+    /// Show only smells of a specific category
+    #[arg(short = 't', long)]
+    pub(crate) category: Option<String>,
+}
+
+#[derive(clap::Args, Debug)]
+pub(crate) struct OutputOptions {
     /// Quiet mode: only show summary counts
     #[arg(short, long)]
     pub(crate) quiet: bool,
@@ -69,12 +124,12 @@ pub struct OutputOptions {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
-pub enum OutputFormat {
+pub(crate) enum OutputFormat {
     Json,
 }
 
 #[derive(Subcommand, Debug)]
-pub enum Command {
+pub(crate) enum Command {
     /// Generate a default qualirs.toml configuration file
     InitConfig {
         /// Config file to create

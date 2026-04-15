@@ -19,12 +19,18 @@ impl Detector for GodModuleDetector {
             return smells;
         }
 
-        let item_count = file.ast.items.len();
+        let item_count = file
+            .ast
+            .items
+            .iter()
+            .filter(|item| count_item(item))
+            .count();
         let is_module_registry = item_count > 0
             && file
                 .ast
                 .items
                 .iter()
+                .filter(|item| count_item(item))
                 .all(|item| matches!(item, syn::Item::Mod(_)));
 
         if file.line_count > thresholds.arch.god_module_loc {
@@ -67,4 +73,23 @@ impl Detector for GodModuleDetector {
 
         smells
     }
+}
+
+fn count_item(item: &syn::Item) -> bool {
+    !matches!(item, syn::Item::Use(_)) && !is_test_item(item)
+}
+
+fn is_test_item(item: &syn::Item) -> bool {
+    let syn::Item::Mod(module) = item else {
+        return false;
+    };
+
+    module
+        .attrs
+        .iter()
+        .any(|attr| attr.path().is_ident("cfg") && attr.meta.require_list().is_ok_and(is_test_cfg))
+}
+
+fn is_test_cfg(list: &syn::MetaList) -> bool {
+    list.tokens.to_string().contains("test")
 }

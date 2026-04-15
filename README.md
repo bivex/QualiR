@@ -9,6 +9,7 @@ QualiRS parses your Rust source code with AST analysis and detects structural co
 - 83 built-in smell detectors across 7 categories
 - Parallel analysis via rayon (all CPU cores)
 - Configurable thresholds via `qualirs.toml`
+- Stable `Q0001`-style finding codes with config-based ignores
 - False-positive policy controls for tests, DTOs, templates, and config structs
 - Compact terminal output by default, with table, LLM, quiet, and JSON modes
 - CI-friendly: exits with code 1 on critical smells
@@ -25,6 +26,26 @@ cargo run --release -- .
 
 # Analyze a specific path
 qualirs ~/projects/my-crate
+
+# Analyze a git repository
+qualirs --git https://github.com/bivex/QualiR
+qualirs --git git@github.com:bivex/QualiR.git
+
+# Use a specific parent directory for temporary git/crate sources
+qualirs --git https://github.com/bivex/QualiR --temp-dir /var/tmp/qualirs
+
+# Keep temporary git/crate sources for inspection after analysis
+qualirs --crate serde --keep-temp --temp-dir /var/tmp/qualirs
+
+# Analyze a specific git branch or tag
+qualirs --git https://github.com/bivex/QualiR --branch main
+qualirs --git git@github.com:bivex/QualiR.git --tag v1.0.0
+
+# Analyze the latest published crates.io source for a crate
+qualirs --crate serde
+
+# Analyze a specific crates.io crate version
+qualirs --crate serde --crate-version 1.0.228
 
 # List all detectors
 qualirs --list-detectors
@@ -48,13 +69,20 @@ qualirs --format json --output qualirs-report.json .
 qualirs [OPTIONS] [PATH] [COMMAND]
 
 Arguments:
-  [PATH]  Path to the Rust project or file to analyze [default: .]
+  [PATH]  Path to the Rust project or file to analyze (defaults to current directory)
 
 Commands:
   init-config  Generate a default qualirs.toml configuration file
   help         Print this message or the help of the given subcommand(s)
 
 Options:
+      --git <URL>                    Git repository URL to clone and analyze
+      --branch <BRANCH>              Git branch to check out when using --git
+      --tag <TAG>                    Git tag to check out when using --git
+      --crate <CRATE>                crates.io crate name to download and analyze
+      --crate-version <VERSION>      crates.io crate version to download when using --crate
+      --temp-dir <DIR>               Directory to create temporary git and crate analysis folders in
+      --keep-temp                    Preserve temporary git and crate analysis folders after the run
   -c, --config <CONFIG>              Configuration file path (default: qualirs.toml in project root)
   -m, --min-severity <MIN_SEVERITY>  Minimum severity to report: info, warning, critical [default: info]
   -t, --category <CATEGORY>          Show only smells of a specific category
@@ -89,7 +117,7 @@ Run `qualirs --list-detectors` for the complete detector inventory. The current 
 | Architecture | 13 | God Module, Layer Violation, Public API Leak, Duplicate Dependency Versions |
 | Design | 16 | Large Trait, Anemic Struct, Data Clumps, God Struct, Large Error Enum |
 | Implementation | 14 | Long Function, Magic Numbers, Deep If/Else Nesting, Duplicate Match Arms |
-| Performance | 10 | Excessive Clone, Repeated Regex Construction, Clone on Copy |
+| Performance | 23 | Excessive Clone, Missing Collection Preallocation, Repeated Regex Construction, Inline Candidate |
 | Idiomaticity | 11 | Excessive Unwrap, Unused Result Ignored, Manual Find/Any Loop, Derivable Impl |
 | Concurrency | 9 | Blocking in Async, Spawn Without Join, Holding Lock Across Await |
 | Unsafe | 10 | Unsafe Without Comment, FFI Without Wrapper, Unsafe Fn Missing Safety Docs |
@@ -115,6 +143,9 @@ exclude_paths = [
     "node_modules",
 ]
 min_severity = "info"
+ignore_findings = [
+    # "Q0001", # God Module
+]
 
 [thresholds.arch]
 god_module_loc = 1000
@@ -161,7 +192,7 @@ unsafe_without_comment = true
 
 [policy]
 skip_tests = true
-test_path_markers = ["tests", "test", "tests.rs", "_tests.rs"]
+test_path_markers = ["tests", "test", "tests.rs", "_tests.rs", "fuzz", "fuzz_targets"]
 skip_data_carrier_structs = true
 skip_template_structs = true
 data_carrier_struct_suffixes = [
@@ -196,6 +227,7 @@ data_carrier_struct_suffixes = [
     "Result",
     "Settings",
     "SettingsFile",
+    "Session",
     "Snapshot",
     "Stats",
     "Summary",
@@ -206,6 +238,8 @@ data_carrier_struct_suffixes = [
 ```
 
 Policy settings control broad false-positive suppression. Set `skip_tests = false` to analyze tests with the same rules as production code. Set `skip_data_carrier_structs = false` or edit `data_carrier_struct_suffixes` if DTO/config/view structs should be checked by design detectors.
+
+Each detector emits a stable `QNNNN` code in terminal and JSON output. Add codes to `ignore_findings` to suppress every matching finding, for example `ignore_findings = ["Q0001", "Q0011"]`. Run `qualirs --list-detectors` to see the full code list.
 
 ## Severity Levels
 
