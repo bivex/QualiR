@@ -478,6 +478,47 @@ mod long_method_chain {
             smells
         );
     }
+
+    #[test]
+    fn clean_async_result_iterator_pipeline() {
+        let code = r#"
+async fn tenants(state: State) -> Result<Vec<TenantView>, Error> {
+    Ok(state
+        .app
+        .list_tenants()
+        .await?
+        .into_iter()
+        .map(tenant_view)
+        .collect())
+}
+"#;
+        let file = SourceFile::from_source(PathBuf::from("main.rs"), code.to_string()).unwrap();
+        assert!(
+            DETECTOR.detect(&file).is_empty(),
+            "async/try syntax should not inflate method-chain depth"
+        );
+    }
+
+    #[test]
+    fn clean_router_builder_chain() {
+        let code = r#"
+fn routes(state: AppState, layer: Layer) -> Router<AppState> {
+    Router::new()
+        .route("/", get(index))
+        .route("/admin", get(admin_index).post(admin_submit))
+        .merge(package_routes())
+        .method_not_allowed_fallback(method_not_allowed)
+        .fallback(not_found)
+        .layer(layer)
+        .with_state(state)
+}
+"#;
+        let file = SourceFile::from_source(PathBuf::from("main.rs"), code.to_string()).unwrap();
+        assert!(
+            DETECTOR.detect(&file).is_empty(),
+            "fluent builder APIs should not be reported as long method chains"
+        );
+    }
 }
 
 mod unused_result {
@@ -634,6 +675,79 @@ fn total(a: Price, b: Price, c: Price) -> u32 {
 }
 "#;
         assert_smell_count(&DETECTOR, code, "Inline Candidate", 1);
+    }
+
+    #[test]
+    fn detects_tiny_repeated_associated_function_for_same_type() {
+        let code = r#"
+struct Token(u32);
+
+impl Token {
+    fn generated() -> Self {
+        Self(1)
+    }
+}
+
+fn build() -> (Token, Token, Token) {
+    (Token::generated(), Token::generated(), Token::generated())
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Inline Candidate", 1);
+    }
+
+    #[test]
+    fn clean_unrelated_new_constructors() {
+        let code = r#"
+struct Local;
+
+impl Local {
+    fn new() -> Self {
+        Self
+    }
+}
+
+struct Other;
+
+impl Other {
+    fn new() -> Self {
+        Self
+    }
+}
+
+fn build() {
+    let _local = Local::new();
+    let _other = Other::new();
+    let _items = Vec::<u8>::new();
+    let _text = String::new();
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_ambiguous_same_named_methods() {
+        let code = r#"
+struct EmailConfig;
+
+impl EmailConfig {
+    fn validate(&self) -> bool {
+        true
+    }
+}
+
+struct WebConfig;
+
+impl WebConfig {
+    fn validate(&self) -> bool {
+        true
+    }
+}
+
+fn validate_all(email: EmailConfig, web: WebConfig) -> bool {
+    email.validate() && web.validate() && email.validate() && web.validate()
+}
+"#;
+        assert_clean(&DETECTOR, code);
     }
 
     #[test]
@@ -966,12 +1080,12 @@ mod arc_mutex_overuse {
     #[test]
     fn detects_many_arc_mutex() {
         // Threshold is 3 by default.
-        // Our heuristic counts Arc, Mutex, and RwLock segments.
-        // Arc<Mutex<i32>> counts twice (once as Arc, once as Mutex via recursive visit).
         let code = "\
 struct State {
     a: Arc<Mutex<i32>>,
     b: Arc<Mutex<i32>>,
+    c: Arc<RwLock<i32>>,
+    d: Arc<tokio::sync::Mutex<i32>>,
 }
 ";
         assert_smell_count(&DETECTOR, code, "Arc Mutex Overuse", 1);
@@ -990,6 +1104,31 @@ struct State {
     #[test]
     fn clean_no_arc_mutex() {
         let code = "struct State { value: i32 }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_many_arc_trait_dependencies() {
+        let code = "\
+struct Services {
+    store: Arc<dyn Store>,
+    cache: Arc<dyn Cache>,
+    clock: Arc<dyn Clock>,
+    ids: Arc<dyn IdGenerator>,
+    mailer: Arc<dyn Mailer>,
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_standalone_locks_without_arc() {
+        let code = "\
+struct State {
+    operation_lock: Mutex<()>,
+    buckets: RwLock<HashMap<String, Bucket>>,
+}
+";
         assert_clean(&DETECTOR, code);
     }
 }
@@ -2259,6 +2398,31 @@ mod deeply_nested_type {
     #[test]
     fn clean_option_result() {
         let code = "struct S { data: Option<Result<String, std::io::Error>> }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_references_do_not_inflate_depth() {
+        let code = "fn parse(value: &&Option<Result<String, Error>>) {}";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_tuple_of_shallow_nested_types() {
+        let code = "fn row(values: (&Option<Result<String, Error>>, &Option<Vec<String>>)) {}";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_cfg_test_module_nested_types() {
+        let code = r#"
+#[cfg(test)]
+mod tests {
+    struct FakeStore {
+        values: Arc<Mutex<HashMap<String, Vec<u8>>>>,
+    }
+}
+"#;
         assert_clean(&DETECTOR, code);
     }
 }

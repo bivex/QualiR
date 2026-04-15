@@ -280,6 +280,8 @@ impl Engine {
 
     /// Analyze all Rust files under `path` and return detected smells.
     pub fn analyze(&self, path: &Path) -> AnalysisReport {
+        crate::detectors::policy::configure(&self.config.policy);
+
         let walker = RustFileWalker::new(path, &self.config.exclude_paths);
         let files = walker.collect_files();
 

@@ -33,10 +33,20 @@ impl Detector for InlineCandidateDetector {
         let mut counter = CallCounter::default();
         counter.visit_file(&file.ast);
 
+        let method_candidate_counts = method_candidate_counts(&collector.candidates);
+
         collector
             .candidates
             .into_iter()
             .filter_map(|candidate| {
+                if method_candidate_counts
+                    .get(&candidate.name)
+                    .is_some_and(|count| *count > 1)
+                    && matches!(candidate.call_kind, CallKind::Method)
+                {
+                    return None;
+                }
+
                 let call_sites = counter.call_sites(&candidate);
                 (call_sites >= MIN_CALL_SITES).then(|| {
                     Smell::new(
@@ -60,6 +70,16 @@ impl Detector for InlineCandidateDetector {
     }
 }
 
+fn method_candidate_counts(candidates: &[InlineCandidate]) -> HashMap<String, usize> {
+    let mut counts = HashMap::new();
+    for candidate in candidates {
+        if matches!(candidate.call_kind, CallKind::Method) {
+            *counts.entry(candidate.name.clone()).or_default() += 1;
+        }
+    }
+    counts
+}
+
 struct InlineCandidate {
     name: String,
     display_name: String,
@@ -67,10 +87,11 @@ struct InlineCandidate {
     call_kind: CallKind,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 enum CallKind {
     Function,
     Method,
+    AssociatedFunction { type_name: String },
 }
 
 struct CandidateCollector {
@@ -101,10 +122,11 @@ impl<'ast> Visit<'ast> for CandidateCollector {
             return;
         }
 
+        let impl_type_name = impl_self_type_name(&node.self_ty);
         for item in &node.items {
             if let syn::ImplItem::Fn(method) = item
                 && !has_test_cfg(&method.attrs)
-                && let Some(candidate) = candidate_from_impl_fn(method)
+                && let Some(candidate) = candidate_from_impl_fn(method, impl_type_name.as_deref())
             {
                 self.candidates.push(candidate);
             }
@@ -118,17 +140,24 @@ impl<'ast> Visit<'ast> for CandidateCollector {
 struct CallCounter {
     function_calls: HashMap<String, usize>,
     method_calls: HashMap<String, usize>,
+    associated_calls: HashMap<(String, String), usize>,
+    impl_type_stack: Vec<String>,
 }
 
 impl CallCounter {
     fn call_sites(&self, candidate: &InlineCandidate) -> usize {
-        match candidate.call_kind {
+        match &candidate.call_kind {
             CallKind::Function => self
                 .function_calls
                 .get(&candidate.name)
                 .copied()
                 .unwrap_or(0),
             CallKind::Method => self.method_calls.get(&candidate.name).copied().unwrap_or(0),
+            CallKind::AssociatedFunction { type_name } => self
+                .associated_calls
+                .get(&(type_name.clone(), candidate.name.clone()))
+                .copied()
+                .unwrap_or(0),
         }
     }
 }
@@ -155,14 +184,32 @@ impl<'ast> Visit<'ast> for CallCounter {
         visit_impl_item_fn(self, node);
     }
 
+    fn visit_item_impl(&mut self, node: &'ast syn::ItemImpl) {
+        if has_test_cfg(&node.attrs) {
+            return;
+        }
+
+        let original_len = self.impl_type_stack.len();
+        if let Some(type_name) = impl_self_type_name(&node.self_ty) {
+            self.impl_type_stack.push(type_name);
+        }
+
+        visit_item_impl(self, node);
+        self.impl_type_stack.truncate(original_len);
+    }
+
     fn visit_expr_call(&mut self, node: &'ast syn::ExprCall) {
         if let syn::Expr::Path(path) = &*node.func
-            && let Some(segment) = path.path.segments.last()
+            && let Some(target) = call_target(&path.path, self.impl_type_stack.last())
         {
-            *self
-                .function_calls
-                .entry(segment.ident.to_string())
-                .or_default() += 1;
+            match target {
+                CallTarget::Function(name) => {
+                    *self.function_calls.entry(name).or_default() += 1;
+                }
+                CallTarget::AssociatedFunction { type_name, name } => {
+                    *self.associated_calls.entry((type_name, name)).or_default() += 1;
+                }
+            }
         }
 
         syn::visit::visit_expr_call(self, node);
@@ -187,18 +234,68 @@ fn candidate_from_item_fn(func: &syn::ItemFn) -> Option<InlineCandidate> {
     })
 }
 
-fn candidate_from_impl_fn(func: &syn::ImplItemFn) -> Option<InlineCandidate> {
+fn candidate_from_impl_fn(
+    func: &syn::ImplItemFn,
+    impl_type_name: Option<&str>,
+) -> Option<InlineCandidate> {
     let name = func.sig.ident.to_string();
     is_inline_candidate(&func.attrs, &func.sig, &func.block).then(|| InlineCandidate {
-        display_name: name.clone(),
-        name,
-        line: func.sig.ident.span().start().line,
+        display_name: impl_type_name
+            .filter(|_| !has_receiver(&func.sig))
+            .map_or_else(|| name.clone(), |type_name| format!("{type_name}::{name}")),
         call_kind: if has_receiver(&func.sig) {
             CallKind::Method
+        } else if let Some(type_name) = impl_type_name {
+            CallKind::AssociatedFunction {
+                type_name: type_name.to_string(),
+            }
         } else {
             CallKind::Function
         },
+        name,
+        line: func.sig.ident.span().start().line,
     })
+}
+
+enum CallTarget {
+    Function(String),
+    AssociatedFunction { type_name: String, name: String },
+}
+
+fn call_target(path: &syn::Path, impl_type_name: Option<&String>) -> Option<CallTarget> {
+    let name = path.segments.last()?.ident.to_string();
+    let qualifier = path
+        .segments
+        .iter()
+        .rev()
+        .nth(1)
+        .map(|segment| segment.ident.to_string());
+
+    match qualifier.as_deref() {
+        Some("Self") => impl_type_name.map(|type_name| CallTarget::AssociatedFunction {
+            type_name: type_name.clone(),
+            name,
+        }),
+        Some(qualifier) if is_likely_type_name(qualifier) => Some(CallTarget::AssociatedFunction {
+            type_name: qualifier.to_string(),
+            name,
+        }),
+        _ => Some(CallTarget::Function(name)),
+    }
+}
+
+fn impl_self_type_name(ty: &syn::Type) -> Option<String> {
+    let syn::Type::Path(tp) = ty else {
+        return None;
+    };
+    tp.path
+        .segments
+        .last()
+        .map(|segment| segment.ident.to_string())
+}
+
+fn is_likely_type_name(name: &str) -> bool {
+    name.chars().next().is_some_and(char::is_uppercase)
 }
 
 fn is_inline_candidate(attrs: &[syn::Attribute], sig: &syn::Signature, block: &syn::Block) -> bool {

@@ -74,7 +74,36 @@ impl ChainVisitor {
         let s = ident.to_string();
         matches!(
             s.as_str(),
-            "arg" | "args" | "env" | "envs" | "on" | "with" | "id" | "name" | "value" | "label"
+            "arg"
+                | "args"
+                | "body"
+                | "build"
+                | "delete"
+                | "env"
+                | "envs"
+                | "fallback"
+                | "fallback_service"
+                | "get"
+                | "header"
+                | "id"
+                | "label"
+                | "layer"
+                | "merge"
+                | "method_not_allowed_fallback"
+                | "name"
+                | "nest"
+                | "on"
+                | "patch"
+                | "post"
+                | "put"
+                | "route"
+                | "route_layer"
+                | "service"
+                | "status"
+                | "uri"
+                | "value"
+                | "with"
+                | "with_state"
         )
     }
 
@@ -88,9 +117,9 @@ impl ChainVisitor {
                     1 + depth
                 }
             }
-            syn::Expr::Field(field) => 1 + Self::chain_depth(&field.base),
-            syn::Expr::Await(a) => 1 + Self::chain_depth(&a.base),
-            syn::Expr::Try(t) => 1 + Self::chain_depth(&t.expr),
+            syn::Expr::Field(field) => Self::chain_depth(&field.base),
+            syn::Expr::Await(a) => Self::chain_depth(&a.base),
+            syn::Expr::Try(t) => Self::chain_depth(&t.expr),
             _ => 0,
         }
     }
@@ -98,7 +127,12 @@ impl ChainVisitor {
 
 impl<'ast> Visit<'ast> for ChainVisitor {
     fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
-        let depth = 1 + Self::chain_depth(&node.receiver);
+        let receiver_depth = Self::chain_depth(&node.receiver);
+        let depth = if Self::is_builder_method(&node.method) {
+            receiver_depth
+        } else {
+            1 + receiver_depth
+        };
         if depth > self.threshold {
             let line = node.span().start().line;
             self.candidates.push((depth, line));
