@@ -148,6 +148,13 @@ mod tests {
                 .iter()
                 .any(|suffix| suffix == "Command")
         );
+        assert!(
+            config
+                .policy
+                .data_carrier_struct_suffixes
+                .iter()
+                .any(|suffix| suffix == "Session")
+        );
     }
 
     #[test]
@@ -181,6 +188,13 @@ skip_tests = false
                 .test_path_markers
                 .iter()
                 .any(|marker| marker == "tests")
+        );
+        assert!(
+            config
+                .policy
+                .test_path_markers
+                .iter()
+                .any(|marker| marker == "fuzz")
         );
     }
 
@@ -330,6 +344,8 @@ fn default_test_path_markers() -> Vec<String> {
         "test".into(),
         "tests.rs".into(),
         "_tests.rs".into(),
+        "fuzz".into(),
+        "fuzz_targets".into(),
     ]
 }
 
@@ -366,6 +382,7 @@ fn default_data_carrier_struct_suffixes() -> Vec<String> {
         "Result".into(),
         "Settings".into(),
         "SettingsFile".into(),
+        "Session".into(),
         "Snapshot".into(),
         "Stats".into(),
         "Summary".into(),

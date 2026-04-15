@@ -247,6 +247,23 @@ fn risky() {
     }
 
     #[test]
+    fn clean_regex_literal_expect_calls() {
+        let code = r#"
+use regex::Regex;
+use std::sync::LazyLock;
+
+fn redact(value: &str) -> String {
+    static A: LazyLock<Regex> = LazyLock::new(|| Regex::new("a").expect("valid regex"));
+    static B: LazyLock<Regex> = LazyLock::new(|| Regex::new("b").expect("valid regex"));
+    static C: LazyLock<Regex> = LazyLock::new(|| Regex::new("c").expect("valid regex"));
+    static D: LazyLock<Regex> = LazyLock::new(|| Regex::new("d").expect("valid regex"));
+    A.replace_all(value, "x").to_string()
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
     fn clean_test_file() {
         let code = "\
 fn risky() {
@@ -380,6 +397,51 @@ fn map_project(row: &Row) -> Result<Project, Error> {
     fn clean_named_local_constants() {
         let code =
             r#"fn human_bytes() { const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"]; }"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_contextual_literals_from_protocol_and_display_code() {
+        let code = r#"
+fn looks_like_executable_binary(contents: &[u8]) -> bool {
+    contents.starts_with(&[0xfe, 0xed, 0xfa, 0xce]) || contents.starts_with(&[0x1f, 0x8b])
+}
+
+fn severity_rank(severity: &str) -> u8 {
+    match severity {
+        "critical" => 5,
+        "high" => 4,
+        "medium" => 3,
+        "low" => 2,
+        _ => 0,
+    }
+}
+
+fn severity_color(severity: u8) -> u32 {
+    match severity {
+        5 => 0xe74c3c,
+        4 => 0xe67e22,
+        _ => 0x7f8c8d,
+    }
+}
+
+fn redact(captures: regex::Captures<'_>) {
+    let _scheme_or_value = &captures[3];
+}
+
+fn inspect(bytes: &[u8]) {
+    let mut header = [0_u8; 8];
+    let _window = &bytes[..bytes.len().min(8)];
+}
+
+fn sql_server_config(url: Url, mut config: Config) {
+    config.port(url.port().unwrap_or(1433));
+}
+
+fn limit(items: Vec<String>) {
+    let _visible = items.into_iter().take(96).collect::<Vec<_>>();
+}
+"#;
         assert_clean(&DETECTOR, code);
     }
 }
@@ -789,6 +851,24 @@ fn build() {
     let _other = Other::new();
     let _items = Vec::<u8>::new();
     let _text = String::new();
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_repeated_new_constructor() {
+        let code = r#"
+struct Status;
+
+impl Status {
+    fn new() -> Self {
+        Self
+    }
+}
+
+fn build() -> (Status, Status, Status, Status) {
+    (Status::new(), Status::new(), Status::new(), Status::new())
 }
 "#;
         assert_clean(&DETECTOR, code);
@@ -2472,6 +2552,12 @@ mod deeply_nested_type {
     }
 
     #[test]
+    fn clean_common_result_option_vec_return() {
+        let code = "trait Store { fn get(&self) -> Result<Option<Vec<u8>>, Error>; }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
     fn clean_references_do_not_inflate_depth() {
         let code = "fn parse(value: &&Option<Result<String, Error>>) {}";
         assert_clean(&DETECTOR, code);
@@ -2494,6 +2580,17 @@ mod tests {
 }
 "#;
         assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_fuzz_target_path() {
+        let code = "struct DomainInput { data: Arc<Mutex<HashMap<String, Vec<u8>>>> }";
+        let file = SourceFile::from_source(
+            PathBuf::from("fuzz/fuzz_targets/domain_inputs.rs"),
+            code.to_string(),
+        )
+        .unwrap();
+        assert!(DETECTOR.detect(&file).is_empty());
     }
 }
 

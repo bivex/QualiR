@@ -226,6 +226,10 @@ impl<'ast> Visit<'ast> for CallCounter {
 
 fn candidate_from_item_fn(func: &syn::ItemFn) -> Option<InlineCandidate> {
     let name = func.sig.ident.to_string();
+    if is_constructor_name(&name) {
+        return None;
+    }
+
     is_inline_candidate(&func.attrs, &func.sig, &func.block).then(|| InlineCandidate {
         display_name: name.clone(),
         name,
@@ -239,6 +243,10 @@ fn candidate_from_impl_fn(
     impl_type_name: Option<&str>,
 ) -> Option<InlineCandidate> {
     let name = func.sig.ident.to_string();
+    if is_constructor_name(&name) {
+        return None;
+    }
+
     is_inline_candidate(&func.attrs, &func.sig, &func.block).then(|| InlineCandidate {
         display_name: impl_type_name
             .filter(|_| !has_receiver(&func.sig))
@@ -255,6 +263,10 @@ fn candidate_from_impl_fn(
         name,
         line: func.sig.ident.span().start().line,
     })
+}
+
+fn is_constructor_name(name: &str) -> bool {
+    name == "new"
 }
 
 enum CallTarget {

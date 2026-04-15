@@ -1,4 +1,6 @@
-use syn::visit::{Visit, visit_expr, visit_expr_call, visit_expr_method_call, visit_field_value};
+use syn::visit::{
+    Visit, visit_expr, visit_expr_array, visit_expr_call, visit_expr_method_call, visit_field_value,
+};
 
 use crate::analysis::detector::Detector;
 use crate::detectors::implementation::perf_utils::{expr_path_tail, path_to_string};
@@ -7,7 +9,12 @@ use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
 
 /// Well-known numbers that are NOT considered magic.
-const WHITELIST: &[i64] = &[0, 1, -1, 2, 10, 100, 1000, 255, 256, 1024];
+const WHITELIST: &[i64] = &[
+    -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 32, 64, 100, 128, 255, 256, 512, 1000, 1024, 2048,
+    4096, 8192,
+];
+
+const WELL_KNOWN_PORTS: &[i64] = &[1433];
 
 /// Detects magic number literals in function bodies.
 pub struct MagicNumbersDetector;
@@ -108,6 +115,16 @@ impl<'ast> Visit<'ast> for MagicNumberVisitor {
             return;
         }
 
+        if let Some(ignored_arg) = ignored_numeric_method_arg(node) {
+            self.visit_expr(&node.receiver);
+            for (index, arg) in node.args.iter().enumerate() {
+                if index != ignored_arg {
+                    self.visit_expr(arg);
+                }
+            }
+            return;
+        }
+
         visit_expr_method_call(self, node);
     }
 
@@ -119,11 +136,23 @@ impl<'ast> Visit<'ast> for MagicNumberVisitor {
         visit_field_value(self, node);
     }
 
+    fn visit_expr_array(&mut self, node: &'ast syn::ExprArray) {
+        if is_byte_signature_array(node) {
+            return;
+        }
+
+        visit_expr_array(self, node);
+    }
+
+    fn visit_expr_index(&mut self, node: &'ast syn::ExprIndex) {
+        self.visit_expr(&node.expr);
+    }
+
     fn visit_expr(&mut self, expr: &'ast syn::Expr) {
         if let syn::Expr::Lit(lit_expr) = expr
             && let syn::Lit::Int(lit_int) = &lit_expr.lit
             && let Ok(val) = lit_int.base10_parse::<i64>()
-            && !WHITELIST.contains(&val)
+            && !is_allowed_number(val, lit_int)
         {
             self.magic_numbers.push(val);
         }
@@ -159,10 +188,66 @@ fn ignored_numeric_arg(func: &syn::Expr, arg_count: usize) -> Option<usize> {
         {
             Some(arg_count - 1)
         }
+        "hours" | "minutes" | "seconds" | "milliseconds" | "microseconds" | "nanoseconds"
+        | "days" | "weeks"
+            if arg_count >= 1 =>
+        {
+            Some(0)
+        }
+        _ => None,
+    }
+}
+
+fn ignored_numeric_method_arg(node: &syn::ExprMethodCall) -> Option<usize> {
+    match node.method.to_string().as_str() {
+        "take" | "truncate" if !node.args.is_empty() => Some(0),
+        "sample_string" if node.args.len() >= 2 => Some(1),
         _ => None,
     }
 }
 
 fn receiver_is_row_like(expr: &syn::Expr) -> bool {
     expr_path_tail(expr).is_some_and(|tail| tail == "row" || tail.ends_with("_row"))
+}
+
+fn is_allowed_number(value: i64, literal: &syn::LitInt) -> bool {
+    WHITELIST.contains(&value)
+        || WELL_KNOWN_PORTS.contains(&value)
+        || is_hex_color_literal(literal, value)
+}
+
+fn is_hex_color_literal(literal: &syn::LitInt, value: i64) -> bool {
+    if !(0..=0x00ff_ffff).contains(&value) {
+        return false;
+    }
+
+    let text = literal.to_string().replace('_', "").to_ascii_lowercase();
+    let Some(hex) = text.strip_prefix("0x") else {
+        return false;
+    };
+
+    hex.chars().take_while(char::is_ascii_hexdigit).count() == 6
+}
+
+fn is_byte_signature_array(array: &syn::ExprArray) -> bool {
+    !array.elems.is_empty() && array.elems.iter().all(is_byte_signature_literal)
+}
+
+fn is_byte_signature_literal(expr: &syn::Expr) -> bool {
+    let syn::Expr::Lit(lit_expr) = expr else {
+        return false;
+    };
+    let syn::Lit::Int(literal) = &lit_expr.lit else {
+        return false;
+    };
+    let Ok(value) = literal.base10_parse::<i64>() else {
+        return false;
+    };
+
+    (0..=255).contains(&value) && is_byteish_literal(literal)
+}
+
+fn is_byteish_literal(literal: &syn::LitInt) -> bool {
+    let text = literal.to_string().to_ascii_lowercase();
+    text.starts_with("0x") || matches!(literal.suffix(), "u8" | "i8")
 }

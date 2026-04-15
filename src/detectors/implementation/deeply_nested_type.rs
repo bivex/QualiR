@@ -1,7 +1,7 @@
 use syn::visit::{Visit, visit_item_mod};
 
 use crate::analysis::detector::Detector;
-use crate::detectors::policy::has_test_cfg;
+use crate::detectors::policy::{has_test_cfg, is_test_path};
 use crate::domain::config::Thresholds;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
@@ -20,6 +20,10 @@ impl Detector for DeeplyNestedTypeDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let thresholds = Thresholds::default();
         let mut smells = Vec::new();
+
+        if is_test_path(&file.path) {
+            return smells;
+        }
 
         let mut visitor = TypeVisitor {
             max_depth_threshold: thresholds.r#impl.type_safety.deeply_nested_type,
@@ -113,7 +117,11 @@ fn get_type_depth(ty: &syn::Type) -> usize {
                             _ => 0,
                         });
                         let inner_max = depths.max().unwrap_or(0);
-                        1 + inner_max
+                        if is_transparent_wrapper(&seg.ident) {
+                            inner_max.max(1)
+                        } else {
+                            1 + inner_max
+                        }
                     }
                     _ => 1,
                 }
@@ -132,4 +140,8 @@ fn get_type_depth(ty: &syn::Type) -> usize {
         syn::Type::Group(group) => get_type_depth(&group.elem),
         _ => 1,
     }
+}
+
+fn is_transparent_wrapper(ident: &syn::Ident) -> bool {
+    matches!(ident.to_string().as_str(), "Option" | "Result")
 }
