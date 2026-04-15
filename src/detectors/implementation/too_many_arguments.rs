@@ -1,5 +1,4 @@
 use crate::analysis::detector::Detector;
-use crate::domain::config::Thresholds;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
 
@@ -12,7 +11,7 @@ impl Detector for TooManyArgumentsDetector {
     }
 
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
-        let thresholds = Thresholds::default();
+        let thresholds = crate::domain::config::current_thresholds();
         let mut smells = Vec::new();
 
         for item in &file.ast.items {
