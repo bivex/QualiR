@@ -23,23 +23,7 @@ impl Detector for CopyDropConflictDetector {
         // Find intersection
         for copy_type in &copy_types {
             if drop_types.iter().any(|d| d.name == copy_type.name) {
-                let line = copy_type.line;
-                smells.push(Smell::new(
-                    SmellCategory::Implementation,
-                    "Copy + Drop Conflict",
-                    Severity::Critical,
-                    SourceLocation {
-                        file: file.path.clone(),
-                        line_start: line,
-                        line_end: line,
-                        column: None,
-                    },
-                    format!(
-                        "Type `{}` implements both Copy and Drop — destructor runs on every copy",
-                        copy_type.name
-                    ),
-                    "Remove Copy or remove Drop. If you need custom cleanup, the type should not be Copy.",
-                ));
+                smells.push(conflict_smell(file, copy_type));
             }
         }
 
@@ -48,31 +32,49 @@ impl Detector for CopyDropConflictDetector {
 }
 
 #[derive(PartialEq)]
-struct TypeInfo {
-    name: String,
+struct TypeInfo<'ast> {
+    name: &'ast syn::Ident,
     line: usize,
 }
 
-fn collect_drop_types(ast: &syn::File) -> Vec<TypeInfo> {
+fn conflict_smell(file: &SourceFile, copy_type: &TypeInfo<'_>) -> Smell {
+    let line = copy_type.line;
+    Smell::new(
+        SmellCategory::Idiomaticity,
+        "Copy + Drop Conflict",
+        Severity::Critical,
+        SourceLocation {
+            file: file.path.clone(),
+            line_start: line,
+            line_end: line,
+            column: None,
+        },
+        format!(
+            "Type `{}` implements both Copy and Drop — destructor runs on every copy",
+            copy_type.name
+        ),
+        "Remove Copy or remove Drop. If you need custom cleanup, the type should not be Copy.",
+    )
+}
+
+fn collect_drop_types(ast: &syn::File) -> Vec<TypeInfo<'_>> {
     let mut drop_types = Vec::new();
     for item in &ast.items {
-        if let syn::Item::Impl(imp) = item {
-            if let Some((_, trait_path, _)) = &imp.trait_ {
-                if is_trait(trait_path, "Drop") {
-                    if let Some(name) = extract_impl_target_name(&imp.self_ty) {
-                        drop_types.push(TypeInfo {
-                            name,
-                            line: imp.impl_token.span.start().line,
-                        });
-                    }
-                }
-            }
+        if let syn::Item::Impl(imp) = item
+            && let Some((_, trait_path, _)) = &imp.trait_
+            && is_trait(trait_path, "Drop")
+            && let Some(name) = extract_impl_target_name(&imp.self_ty)
+        {
+            drop_types.push(TypeInfo {
+                name,
+                line: imp.impl_token.span.start().line,
+            });
         }
     }
     drop_types
 }
 
-fn collect_copy_types(ast: &syn::File) -> Vec<TypeInfo> {
+fn collect_copy_types(ast: &syn::File) -> Vec<TypeInfo<'_>> {
     let mut copy_types = Vec::new();
 
     for item in &ast.items {
@@ -80,7 +82,7 @@ fn collect_copy_types(ast: &syn::File) -> Vec<TypeInfo> {
             syn::Item::Struct(s) => {
                 if has_derive_copy(&s.attrs) {
                     copy_types.push(TypeInfo {
-                        name: s.ident.to_string(),
+                        name: &s.ident,
                         line: s.struct_token.span.start().line,
                     });
                 }
@@ -88,7 +90,7 @@ fn collect_copy_types(ast: &syn::File) -> Vec<TypeInfo> {
             syn::Item::Enum(e) => {
                 if has_derive_copy(&e.attrs) {
                     copy_types.push(TypeInfo {
-                        name: e.ident.to_string(),
+                        name: &e.ident,
                         line: e.enum_token.span.start().line,
                     });
                 }
@@ -111,15 +113,16 @@ fn has_derive_copy(attrs: &[syn::Attribute]) -> bool {
         if !attr.path().is_ident("derive") {
             return false;
         }
-        let list = match attr.meta.require_list() {
-            Ok(l) => l,
-            Err(_) => return false,
-        };
-        // Simple string check — Copy will appear as an ident in the derive list
-        let tokens_str = list.tokens.to_string();
-        // Parse each token: "Copy , Clone" or "Copy, Clone" etc.
-        tokens_str.split(|c: char| !c.is_alphanumeric() && c != '_')
-            .any(|token| token == "Copy")
+
+        let mut found = false;
+        attr.parse_nested_meta(|meta| {
+            if is_trait(&meta.path, "Copy") {
+                found = true;
+            }
+            Ok(())
+        })
+        .is_ok()
+            && found
     })
 }
 
@@ -130,9 +133,9 @@ fn is_trait(path: &syn::Path, name: &str) -> bool {
         .unwrap_or(false)
 }
 
-fn extract_impl_target_name(ty: &syn::Type) -> Option<String> {
+fn extract_impl_target_name(ty: &syn::Type) -> Option<&syn::Ident> {
     if let syn::Type::Path(tp) = ty {
-        tp.path.segments.first().map(|s| s.ident.to_string())
+        tp.path.segments.first().map(|s| &s.ident)
     } else {
         None
     }

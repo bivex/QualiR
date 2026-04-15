@@ -28,21 +28,12 @@ impl Detector for DeepIfElseDetector {
                 if visitor.max_depth > thresholds.r#impl.control_flow.deep_if_else {
                     let line = fn_item.sig.fn_token.span.start().line;
 
-                    smells.push(Smell::new(
-                        SmellCategory::Implementation,
-                        "Deep If/Else Nesting",
-                        Severity::Warning,
-                        SourceLocation {
-                            file: file.path.clone(),
-                            line_start: line,
-                            line_end: line,
-                            column: None,
-                        },
-                        format!(
-                            "Function `{}` has if/else nesting depth of {} (threshold: {})",
-                            fn_item.sig.ident, visitor.max_depth, thresholds.r#impl.control_flow.deep_if_else
-                        ),
-                        "Use early returns, guard clauses, or extract nested conditions into helper functions.",
+                    smells.push(if_depth_smell(
+                        file,
+                        &fn_item.sig.ident,
+                        visitor.max_depth,
+                        thresholds.r#impl.control_flow.deep_if_else,
+                        line,
                     ));
                 }
             }
@@ -50,6 +41,28 @@ impl Detector for DeepIfElseDetector {
 
         smells
     }
+}
+
+fn if_depth_smell(
+    file: &SourceFile,
+    ident: &syn::Ident,
+    depth: usize,
+    threshold: usize,
+    line: usize,
+) -> Smell {
+    Smell::new(
+        SmellCategory::Implementation,
+        "Deep If/Else Nesting",
+        Severity::Warning,
+        SourceLocation {
+            file: file.path.clone(),
+            line_start: line,
+            line_end: line,
+            column: None,
+        },
+        format!("Function `{ident}` has if/else nesting depth of {depth} (threshold: {threshold})"),
+        "Use early returns, guard clauses, or extract nested conditions into helper functions.",
+    )
 }
 
 struct IfDepthVisitor {

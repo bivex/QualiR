@@ -67,15 +67,33 @@ fn clean_function(x: i32) -> i32 {
     assert!(report.total_files >= 2, "Should find at least 2 files");
 
     // Should detect smells
-    assert!(report.total_smells() > 0, "Should detect at least some smells");
+    assert!(
+        report.total_smells() > 0,
+        "Should detect at least some smells"
+    );
 
     // Check specific detectors fired
     let smell_names: Vec<&str> = report.smells.iter().map(|s| s.name.as_str()).collect();
-    assert!(smell_names.contains(&"Too Many Arguments"), "Should detect too many arguments");
-    assert!(smell_names.contains(&"Excessive Unwrap"), "Should detect excessive unwrap");
-    assert!(smell_names.contains(&"Deep If/Else Nesting"), "Should detect deep if/else");
-    assert!(smell_names.contains(&"Magic Numbers"), "Should detect magic numbers");
-    assert!(smell_names.contains(&"Unsafe Block Overuse"), "Should detect unsafe overuse");
+    assert!(
+        smell_names.contains(&"Too Many Arguments"),
+        "Should detect too many arguments"
+    );
+    assert!(
+        smell_names.contains(&"Excessive Unwrap"),
+        "Should detect excessive unwrap"
+    );
+    assert!(
+        smell_names.contains(&"Deep If/Else Nesting"),
+        "Should detect deep if/else"
+    );
+    assert!(
+        smell_names.contains(&"Magic Numbers"),
+        "Should detect magic numbers"
+    );
+    assert!(
+        smell_names.contains(&"Unsafe Block Overuse"),
+        "Should detect unsafe overuse"
+    );
 }
 
 #[test]
@@ -89,7 +107,7 @@ fn risky() {
     let _ = Some(4).unwrap();
 }
 "#;
-    std::fs::write(dir.path().join("test.rs"), code).expect("write test.rs");
+    std::fs::write(dir.path().join("prod.rs"), code).expect("write prod.rs");
 
     // With min_severity = Warning, should still find excessive unwrap (Warning)
     let mut config = Config::default();
@@ -105,7 +123,49 @@ fn risky() {
     let mut engine2 = Engine::new(config2);
     engine2.register_defaults();
     let report2 = engine2.analyze(dir.path());
-    assert_eq!(report2.total_smells(), 0, "Should find nothing at Critical severity");
+    assert_eq!(
+        report2.total_smells(),
+        0,
+        "Should find nothing at Critical severity"
+    );
+}
+
+#[test]
+fn policy_skip_tests_controls_test_file_analysis() {
+    let dir = tempfile::tempdir().expect("create temp dir");
+    let tests_dir = dir.path().join("tests");
+    std::fs::create_dir(&tests_dir).expect("create tests dir");
+    let code = r#"
+fn risky_test_helper() {
+    let _ = Some(1).unwrap();
+    let _ = Some(2).unwrap();
+    let _ = Some(3).unwrap();
+    let _ = Some(4).unwrap();
+}
+"#;
+    std::fs::write(tests_dir.join("risky.rs"), code).expect("write risky test file");
+
+    let mut engine = Engine::new(Config::default());
+    engine.register_defaults();
+    let skipped_report = engine.analyze(dir.path());
+    assert_eq!(
+        skipped_report.total_smells(),
+        0,
+        "default policy should skip test files"
+    );
+
+    let mut config = Config::default();
+    config.policy.skip_tests = false;
+    let mut engine = Engine::new(config);
+    engine.register_defaults();
+    let analyzed_report = engine.analyze(dir.path());
+    assert!(
+        analyzed_report
+            .smells
+            .iter()
+            .any(|smell| smell.name == "Excessive Unwrap"),
+        "disabling skip_tests should analyze test files"
+    );
 }
 
 #[test]
@@ -118,10 +178,12 @@ fn parse_errors_are_collected() {
     engine.register_defaults();
 
     let report = engine.analyze(dir.path());
-    assert_eq!(report.parse_errors.len(), 1, "Should report one parse error");
+    assert_eq!(
+        report.parse_errors.len(),
+        1,
+        "Should report one parse error"
+    );
 }
-
-
 
 #[test]
 fn source_file_from_source_works() {

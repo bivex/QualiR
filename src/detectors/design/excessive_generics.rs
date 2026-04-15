@@ -90,7 +90,10 @@ fn report_excessive_generics(
             line_end: line,
             column: None,
         },
-        format!("{context} has {count} generic parameters (threshold: {})", thresholds.design.excessive_generics),
+        format!(
+            "{context} has {count} generic parameters (threshold: {})",
+            thresholds.design.excessive_generics
+        ),
         "Reduce generic parameters. Consider concrete types or trait objects for complex cases.",
     ));
 }

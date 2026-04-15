@@ -18,7 +18,9 @@ impl Detector for FeatureConcentrationDetector {
         let mut smells = Vec::new();
 
         let mut crates = std::collections::HashSet::new();
-        let mut visitor = UseCrateVisitor { crates: &mut crates };
+        let mut visitor = UseCrateVisitor {
+            crates: &mut crates,
+        };
         visitor.visit_file(&file.ast);
 
         if crates.len() > thresholds.arch.feature_concentration {
@@ -34,7 +36,8 @@ impl Detector for FeatureConcentrationDetector {
                 },
                 format!(
                     "File imports from {} different crates (threshold: {})",
-                    crates.len(), thresholds.arch.feature_concentration
+                    crates.len(),
+                    thresholds.arch.feature_concentration
                 ),
                 "Split responsibilities across multiple modules to reduce coupling.",
             ));

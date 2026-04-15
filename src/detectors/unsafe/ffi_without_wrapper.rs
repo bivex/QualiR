@@ -60,7 +60,10 @@ impl Detector for FfiWithoutWrapperDetector {
                         line_end: *line,
                         column: None,
                     },
-                    format!("FFI function `{}` has no safe Rust wrapper in this file", name),
+                    format!(
+                        "FFI function `{}` has no safe Rust wrapper in this file",
+                        name
+                    ),
                     "Create a safe wrapper function that validates inputs and handles errors.",
                 ));
             }

@@ -14,15 +14,20 @@ pub struct DesignThresholds {
     pub deep_trait_bounds: usize,
     pub wide_hierarchy: usize,
     pub fat_impl_methods: usize,
+    pub god_struct_fields: usize,
     pub primitive_obsession_fields: usize,
     pub data_clumps_args: usize,
     pub data_clumps_occurrences: usize,
+    pub stringly_typed_fields: usize,
+    pub large_error_enum_variants: usize,
 }
 
 /// Thresholds for control-flow complexity smells.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub(crate) struct ControlFlowThresholds {
     pub long_function_loc: usize,
+    pub long_closure_loc: usize,
+    pub deep_closure_nesting: usize,
     pub cyclomatic_complexity: usize,
     pub too_many_arguments: usize,
     pub deep_match_nesting: usize,
@@ -44,8 +49,10 @@ pub(crate) struct TypeSafetyThresholds {
 /// Combined implementation thresholds composed of focused sub-groups.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct ImplThresholds {
-    #[serde(default, flatten)] pub(crate) control_flow: ControlFlowThresholds,
-    #[serde(default, flatten)] pub(crate) type_safety: TypeSafetyThresholds,
+    #[serde(default, flatten)]
+    pub(crate) control_flow: ControlFlowThresholds,
+    #[serde(default, flatten)]
+    pub(crate) type_safety: TypeSafetyThresholds,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
@@ -59,14 +66,35 @@ pub struct UnsafeThresholds {
     pub unsafe_without_comment: bool,
 }
 
+/// Policy toggles for suppressing findings that are intentionally noisy in
+/// common Rust layouts.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PolicyConfig {
+    #[serde(default = "default_true")]
+    pub skip_tests: bool,
+    #[serde(default = "default_test_path_markers")]
+    pub test_path_markers: Vec<String>,
+    #[serde(default = "default_true")]
+    pub skip_data_carrier_structs: bool,
+    #[serde(default = "default_true")]
+    pub skip_template_structs: bool,
+    #[serde(default = "default_data_carrier_struct_suffixes")]
+    pub data_carrier_struct_suffixes: Vec<String>,
+}
+
 /// Thresholds that control when a smell is reported.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Thresholds {
-    #[serde(default)] pub arch: ArchThresholds,
-    #[serde(default)] pub design: DesignThresholds,
-    #[serde(default)] pub r#impl: ImplThresholds,
-    #[serde(default)] pub concurrency: ConcurrencyThresholds,
-    #[serde(default)] pub r#unsafe: UnsafeThresholds,
+    #[serde(default)]
+    pub arch: ArchThresholds,
+    #[serde(default)]
+    pub design: DesignThresholds,
+    #[serde(default)]
+    pub r#impl: ImplThresholds,
+    #[serde(default)]
+    pub concurrency: ConcurrencyThresholds,
+    #[serde(default)]
+    pub r#unsafe: UnsafeThresholds,
 }
 
 #[cfg(test)]
@@ -79,13 +107,26 @@ mod tests {
         assert_eq!(config.thresholds.r#impl.control_flow.long_function_loc, 50);
         assert_eq!(config.thresholds.r#impl.control_flow.too_many_arguments, 6);
         assert_eq!(config.thresholds.r#impl.control_flow.excessive_unwrap, 3);
-        assert_eq!(config.thresholds.r#impl.control_flow.cyclomatic_complexity, 15);
+        assert_eq!(
+            config.thresholds.r#impl.control_flow.cyclomatic_complexity,
+            15
+        );
         assert_eq!(config.thresholds.r#impl.control_flow.deep_match_nesting, 3);
         assert_eq!(config.thresholds.r#impl.control_flow.deep_if_else, 4);
-        assert_eq!(config.thresholds.r#impl.control_flow.large_enum_variants, 20);
+        assert_eq!(
+            config.thresholds.r#impl.control_flow.large_enum_variants,
+            20
+        );
         assert_eq!(config.thresholds.r#impl.control_flow.lifetime_explosion, 4);
         assert_eq!(config.thresholds.r#impl.type_safety.deeply_nested_type, 3);
-        assert_eq!(config.thresholds.r#impl.type_safety.interior_mutability_abuse, 5);
+        assert_eq!(
+            config
+                .thresholds
+                .r#impl
+                .type_safety
+                .interior_mutability_abuse,
+            5
+        );
 
         // Arch
         assert_eq!(config.thresholds.arch.hidden_global_state, 3);
@@ -95,6 +136,89 @@ mod tests {
         assert_eq!(config.thresholds.design.primitive_obsession_fields, 4);
         assert_eq!(config.thresholds.design.data_clumps_args, 3);
         assert_eq!(config.thresholds.design.data_clumps_occurrences, 3);
+
+        // Policy
+        assert!(config.policy.skip_tests);
+        assert!(config.policy.skip_data_carrier_structs);
+        assert!(config.policy.skip_template_structs);
+        assert!(
+            config
+                .policy
+                .data_carrier_struct_suffixes
+                .iter()
+                .any(|suffix| suffix == "Command")
+        );
+    }
+
+    #[test]
+    fn default_toml_round_trips() {
+        let toml = Config::default_toml().expect("serialize default config");
+        let config: Config = toml::from_str(&toml).expect("parse default config");
+
+        assert!(toml.contains("min_severity = \"info\""));
+        assert_eq!(config.min_severity, crate::domain::smell::Severity::Info);
+        assert_eq!(config.thresholds.arch.god_module_loc, 1000);
+        assert!(config.exclude_paths.iter().any(|path| path == "target"));
+        assert!(toml.contains("[policy]"));
+        assert!(toml.contains("skip_tests = true"));
+    }
+
+    #[test]
+    fn policy_config_accepts_partial_toml() {
+        let config: Config = toml::from_str(
+            r#"
+[policy]
+skip_tests = false
+"#,
+        )
+        .expect("parse partial policy config");
+
+        assert!(!config.policy.skip_tests);
+        assert!(config.policy.skip_data_carrier_structs);
+        assert!(
+            config
+                .policy
+                .test_path_markers
+                .iter()
+                .any(|marker| marker == "tests")
+        );
+    }
+
+    #[test]
+    fn config_accepts_legacy_title_case_severity() {
+        let toml = Config::default_toml()
+            .expect("serialize default config")
+            .replace("min_severity = \"info\"", "min_severity = \"Info\"");
+        let config: Config = toml::from_str(&toml).expect("parse default config");
+
+        assert_eq!(config.min_severity, crate::domain::smell::Severity::Info);
+    }
+
+    #[test]
+    fn write_default_file_refuses_to_overwrite_without_force() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let path = dir.path().join("qualirs.toml");
+        std::fs::write(&path, "existing = true\n").expect("write existing config");
+
+        let err = Config::write_default_file(&path, false).expect_err("should refuse overwrite");
+        assert!(err.to_string().contains("already exists"));
+        assert_eq!(
+            std::fs::read_to_string(&path).expect("read existing config"),
+            "existing = true\n"
+        );
+    }
+
+    #[test]
+    fn write_default_file_can_force_overwrite() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let path = dir.path().join("qualirs.toml");
+        std::fs::write(&path, "existing = true\n").expect("write existing config");
+
+        Config::write_default_file(&path, true).expect("force write default config");
+        let config = Config::load_from_file(&path).expect("load written config");
+
+        assert_eq!(config.min_severity, crate::domain::smell::Severity::Info);
+        assert_eq!(config.thresholds.r#impl.control_flow.long_function_loc, 50);
     }
 }
 
@@ -114,13 +238,18 @@ impl Default for Thresholds {
                 deep_trait_bounds: 4,
                 wide_hierarchy: 10,
                 fat_impl_methods: 20,
+                god_struct_fields: 20,
                 primitive_obsession_fields: 4,
                 data_clumps_args: 3,
                 data_clumps_occurrences: 3,
+                stringly_typed_fields: 3,
+                large_error_enum_variants: 12,
             },
             r#impl: ImplThresholds {
                 control_flow: ControlFlowThresholds {
                     long_function_loc: 50,
+                    long_closure_loc: 25,
+                    deep_closure_nesting: 3,
                     cyclomatic_complexity: 15,
                     too_many_arguments: 6,
                     deep_match_nesting: 3,
@@ -150,8 +279,13 @@ impl Default for Thresholds {
 /// Root configuration loaded from qualirs.toml or defaults.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Config {
+    #[serde(default)]
     pub thresholds: Thresholds,
+    #[serde(default)]
+    pub policy: PolicyConfig,
+    #[serde(default = "default_exclude_paths")]
     pub exclude_paths: Vec<String>,
+    #[serde(default = "default_min_severity")]
     pub min_severity: crate::domain::smell::Severity,
 }
 
@@ -159,17 +293,112 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             thresholds: Thresholds::default(),
-            exclude_paths: vec![
-                "target".into(),
-                ".git".into(),
-                "node_modules".into(),
-            ],
-            min_severity: crate::domain::smell::Severity::Info,
+            policy: PolicyConfig::default(),
+            exclude_paths: default_exclude_paths(),
+            min_severity: default_min_severity(),
         }
     }
 }
 
+fn default_exclude_paths() -> Vec<String> {
+    vec!["target".into(), ".git".into(), "node_modules".into()]
+}
+
+fn default_min_severity() -> crate::domain::smell::Severity {
+    crate::domain::smell::Severity::Info
+}
+
+impl Default for PolicyConfig {
+    fn default() -> Self {
+        Self {
+            skip_tests: true,
+            test_path_markers: default_test_path_markers(),
+            skip_data_carrier_structs: true,
+            skip_template_structs: true,
+            data_carrier_struct_suffixes: default_data_carrier_struct_suffixes(),
+        }
+    }
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_test_path_markers() -> Vec<String> {
+    vec![
+        "tests".into(),
+        "test".into(),
+        "tests.rs".into(),
+        "_tests.rs".into(),
+    ]
+}
+
+fn default_data_carrier_struct_suffixes() -> Vec<String> {
+    vec![
+        "Activity".into(),
+        "Command".into(),
+        "Config".into(),
+        "ConfigFile".into(),
+        "Descriptor".into(),
+        "Details".into(),
+        "Dto".into(),
+        "DTO".into(),
+        "Entry".into(),
+        "Event".into(),
+        "Failure".into(),
+        "Finding".into(),
+        "FormData".into(),
+        "Grant".into(),
+        "Hit".into(),
+        "Inspection".into(),
+        "Item".into(),
+        "Link".into(),
+        "Metrics".into(),
+        "Notification".into(),
+        "Options".into(),
+        "Outcome".into(),
+        "Overview".into(),
+        "Page".into(),
+        "Query".into(),
+        "Report".into(),
+        "Request".into(),
+        "Response".into(),
+        "Result".into(),
+        "Settings".into(),
+        "SettingsFile".into(),
+        "Snapshot".into(),
+        "Stats".into(),
+        "Summary".into(),
+        "Template".into(),
+        "View".into(),
+        "Vulnerability".into(),
+    ]
+}
+
 impl Config {
+    pub fn default_toml() -> anyhow::Result<String> {
+        toml::to_string_pretty(&Self::default()).map_err(Into::into)
+    }
+
+    pub fn write_default_file(path: &std::path::Path, force: bool) -> anyhow::Result<()> {
+        if path.exists() && !force {
+            anyhow::bail!(
+                "{} already exists. Use --force to overwrite it.",
+                path.display()
+            );
+        }
+
+        if let Some(parent) = path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+        {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        std::fs::write(path, Self::default_toml()?)?;
+        Ok(())
+    }
+
     pub fn load_from_file(path: &std::path::Path) -> anyhow::Result<Self> {
         let content = std::fs::read_to_string(path)?;
         let config: Config = toml::from_str(&content)?;

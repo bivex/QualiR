@@ -1,7 +1,8 @@
 use colored::*;
-use comfy_table::{presets::UTF8_FULL, Cell, Color as TableColor, Table};
+use comfy_table::{Cell, Color as TableColor, Table, presets::UTF8_FULL};
 
 use crate::analysis::engine::AnalysisReport;
+use crate::cli::llm_snippet::{print_fenced_code, source_snippet};
 use crate::domain::smell::{Severity, SmellCategory};
 
 /// Print the full analysis report to stdout.
@@ -20,6 +21,61 @@ pub fn print_report(report: &AnalysisReport) {
     }
 
     print_footer(report);
+}
+
+/// Print findings as a compact categorized list.
+pub fn print_compact_report(report: &AnalysisReport) {
+    print_header();
+    print_summary(report);
+
+    if !report.smells.is_empty() {
+        println!();
+        print_compact_smells(report);
+    }
+
+    if !report.parse_errors.is_empty() {
+        println!();
+        print_parse_errors(report);
+    }
+
+    print_footer(report);
+}
+
+/// Print findings as paste-friendly Markdown for coding assistants.
+pub fn print_llm_report(report: &AnalysisReport) {
+    println!("# QualiRS Findings");
+    println!();
+    println!(
+        "Fix the following Rust code smells. Preserve existing behavior and keep changes focused."
+    );
+    println!();
+    println!("- Files analyzed: {}", report.total_files);
+    println!("- Findings: {}", report.total_smells());
+    println!(
+        "- Severity counts: critical={}, warning={}, info={}",
+        report.count_by_severity(Severity::Critical),
+        report.count_by_severity(Severity::Warning),
+        report.count_by_severity(Severity::Info),
+    );
+
+    if report.smells.is_empty() {
+        println!();
+        println!("No findings.");
+    } else {
+        println!();
+        print_llm_smells(report);
+    }
+
+    if !report.parse_errors.is_empty() {
+        println!();
+        println!("## Parse Errors");
+        for error in &report.parse_errors {
+            println!();
+            println!("```text");
+            println!("{error}");
+            println!("```");
+        }
+    }
 }
 
 fn print_header() {
@@ -56,6 +112,107 @@ fn print_summary(report: &AnalysisReport) {
     }
 }
 
+fn print_llm_smells(report: &AnalysisReport) {
+    let categories = [
+        SmellCategory::Architecture,
+        SmellCategory::Design,
+        SmellCategory::Implementation,
+        SmellCategory::Performance,
+        SmellCategory::Idiomaticity,
+        SmellCategory::Concurrency,
+        SmellCategory::Unsafe,
+    ];
+
+    for category in categories {
+        let mut smells: Vec<_> = report
+            .smells
+            .iter()
+            .filter(|smell| smell.category == category)
+            .collect();
+
+        if smells.is_empty() {
+            continue;
+        }
+
+        smells.sort_by(|a, b| {
+            b.severity
+                .cmp(&a.severity)
+                .then_with(|| a.location.to_string().cmp(&b.location.to_string()))
+                .then_with(|| a.name.cmp(&b.name))
+        });
+
+        println!("## {category}");
+
+        for smell in smells {
+            println!();
+            println!("```text");
+            println!("Severity: {}", smell.severity);
+            println!("Category: {}", smell.category);
+            println!("Smell: {}", smell.name);
+            println!("Location: {}", smell.location);
+            println!("Message: {}", smell.message);
+            println!("Suggestion: {}", smell.suggestion);
+            println!("```");
+
+            if let Some(snippet) = source_snippet(&smell.location) {
+                println!();
+                print_fenced_code("rust", &snippet);
+            }
+        }
+
+        println!();
+    }
+}
+
+fn print_compact_smells(report: &AnalysisReport) {
+    let categories = [
+        SmellCategory::Architecture,
+        SmellCategory::Design,
+        SmellCategory::Implementation,
+        SmellCategory::Performance,
+        SmellCategory::Idiomaticity,
+        SmellCategory::Concurrency,
+        SmellCategory::Unsafe,
+    ];
+
+    for category in categories {
+        let mut smells: Vec<_> = report
+            .smells
+            .iter()
+            .filter(|smell| smell.category == category)
+            .collect();
+
+        if smells.is_empty() {
+            continue;
+        }
+
+        smells.sort_by(|a, b| {
+            b.severity
+                .cmp(&a.severity)
+                .then_with(|| a.location.to_string().cmp(&b.location.to_string()))
+                .then_with(|| a.name.cmp(&b.name))
+        });
+
+        println!(
+            "{} {}",
+            "▸".bright_magenta(),
+            compact_category_label(&category).bold()
+        );
+
+        for smell in smells {
+            println!(
+                "  {} {} {}",
+                compact_severity_label(&smell.severity),
+                smell.name.bold(),
+                smell.location.to_string().dimmed()
+            );
+            println!("    {}", smell.message);
+        }
+
+        println!();
+    }
+}
+
 fn print_smell_table(report: &AnalysisReport) {
     let mut table = Table::new();
     table.load_preset(UTF8_FULL);
@@ -79,11 +236,35 @@ fn print_smell_table(report: &AnalysisReport) {
             cat_cell,
             Cell::new(&smell.name),
             Cell::new(smell.location.to_string()),
-            Cell::new(format!("{}\n{}", smell.message.bold(), smell.suggestion.dimmed())),
+            Cell::new(format!(
+                "{}\n{}",
+                smell.message.bold(),
+                smell.suggestion.dimmed()
+            )),
         ]);
     }
 
     println!("{table}");
+}
+
+fn compact_severity_label(severity: &Severity) -> colored::ColoredString {
+    match severity {
+        Severity::Critical => "CRIT".red().bold(),
+        Severity::Warning => "WARN".yellow().bold(),
+        Severity::Info => "INFO".blue().bold(),
+    }
+}
+
+fn compact_category_label(category: &SmellCategory) -> colored::ColoredString {
+    match category {
+        SmellCategory::Architecture => category.to_string().magenta(),
+        SmellCategory::Design => category.to_string().cyan(),
+        SmellCategory::Implementation => category.to_string().green(),
+        SmellCategory::Performance => category.to_string().blue(),
+        SmellCategory::Idiomaticity => category.to_string().white(),
+        SmellCategory::Concurrency => category.to_string().yellow(),
+        SmellCategory::Unsafe => category.to_string().red(),
+    }
 }
 
 fn severity_cell(severity: &Severity) -> Cell {
@@ -99,6 +280,8 @@ fn category_cell(category: &SmellCategory) -> Cell {
         SmellCategory::Architecture => TableColor::Magenta,
         SmellCategory::Design => TableColor::Cyan,
         SmellCategory::Implementation => TableColor::Green,
+        SmellCategory::Performance => TableColor::Blue,
+        SmellCategory::Idiomaticity => TableColor::White,
         SmellCategory::Concurrency => TableColor::Yellow,
         SmellCategory::Unsafe => TableColor::Red,
     };
@@ -108,7 +291,9 @@ fn category_cell(category: &SmellCategory) -> Cell {
 fn print_parse_errors(report: &AnalysisReport) {
     println!(
         "{}",
-        "Parse errors (files could not be analyzed):".yellow().bold()
+        "Parse errors (files could not be analyzed):"
+            .yellow()
+            .bold()
     );
     for error in &report.parse_errors {
         println!("  {} {error}", "✗".red());
@@ -123,54 +308,9 @@ fn print_footer(report: &AnalysisReport) {
         let total = report.total_smells();
         let critical = report.count_by_severity(Severity::Critical);
         if critical > 0 {
-            println!(
-                "  Found {total} smell(s), {critical} critical — consider refactoring.",
-            );
+            println!("  Found {total} smell(s), {critical} critical — consider refactoring.",);
         } else {
             println!("  Found {total} smell(s). Review warnings above.");
-        }
-    }
-    println!();
-}
-
-/// Print the list of available detectors.
-pub fn print_detector_list() {
-    println!();
-    println!("{}", "Available detectors:".bright_cyan().bold());
-    println!("{}", "━".repeat(40).dimmed());
-
-    let detectors = [
-        ("Architecture", vec!["God Module", "Public API Explosion", "Feature Concentration", "Cyclic Crate Dependency", "Layer Violation", "Unstable Dependency"]),
-        ("Design", vec!["Large Trait", "Excessive Generics", "Anemic Struct", "Wide Hierarchy", "Trait Impl Leakage", "Feature Envy", "Broken Constructor", "Rebellious Impl", "Deref Abuse", "Manual Drop"]),
-        (
-            "Implementation",
-            vec![
-                "Long Function",
-                "Too Many Arguments",
-                "Excessive Unwrap",
-                "Deep Match Nesting",
-                "Excessive Clone",
-                "Magic Numbers",
-                "Large Enum",
-                "High Cyclomatic Complexity",
-                "Deep If/Else Nesting",
-                "Long Method Chain",
-                "Unused Result Ignored",
-                "Panic in Library",
-                "Unsafe Block Overuse",
-                "Lifetime Explosion",
-                "Copy + Drop Conflict",
-            ],
-        ),
-        ("Concurrency", vec!["Blocking in Async", "Large Future", "Arc Mutex Overuse", "Deadlock Risk", "Spawn Without Join", "Missing Send Bound"]),
-        ("Unsafe", vec!["Unsafe Without Comment", "Transmute Usage", "Raw Pointer Arithmetic", "Multi Mut Ref Unsafe", "FFI Without Wrapper"]),
-    ];
-
-    for (category, names) in &detectors {
-        println!();
-        println!("  {} {}", "▸".bright_magenta(), category.bold());
-        for name in names {
-            println!("    • {name}");
         }
     }
     println!();

@@ -1,0 +1,10 @@
+mod circular_module_dependency;
+mod duplicate_dependency_versions;
+mod feature_flag_sprawl;
+mod shared;
+mod test_only_dependency;
+
+pub use circular_module_dependency::CircularModuleDependencyDetector;
+pub use duplicate_dependency_versions::DuplicateDependencyVersionsDetector;
+pub use feature_flag_sprawl::FeatureFlagSprawlDetector;
+pub use test_only_dependency::TestOnlyDependencyInProductionDetector;

@@ -19,15 +19,26 @@ impl Detector for PublicApiExplosionDetector {
 
         // Ignore mod.rs/lib.rs boilerplate that only contains module exports or imports
         let is_boilerplate = file.ast.items.iter().all(|item| {
-            matches!(item, syn::Item::Mod(_) | syn::Item::Use(_) | syn::Item::ExternCrate(_))
+            matches!(
+                item,
+                syn::Item::Mod(_) | syn::Item::Use(_) | syn::Item::ExternCrate(_)
+            )
         });
         if is_boilerplate {
             return smells;
         }
 
-        let items: Vec<_> = file.ast.items.iter().filter(|item| {
-            !matches!(item, syn::Item::Use(_) | syn::Item::ExternCrate(_) | syn::Item::Mod(_))
-        }).collect();
+        let items: Vec<_> = file
+            .ast
+            .items
+            .iter()
+            .filter(|item| {
+                !matches!(
+                    item,
+                    syn::Item::Use(_) | syn::Item::ExternCrate(_) | syn::Item::Mod(_)
+                )
+            })
+            .collect();
 
         let total = items.len();
         if total == 0 {
@@ -59,7 +70,6 @@ impl Detector for PublicApiExplosionDetector {
         smells
     }
 }
-
 
 fn is_pub(item: &Item) -> bool {
     let vis = match item {

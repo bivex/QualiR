@@ -42,7 +42,10 @@ impl Detector for CyclicDependencyDetector {
                     line_end: file.line_count,
                     column: None,
                 },
-                format!("Module `{}` imports from itself (self-referential dependency)", module_name),
+                format!(
+                    "Module `{}` imports from itself (self-referential dependency)",
+                    module_name
+                ),
                 "Remove the self-referential import and restructure the module.",
             ));
         }
@@ -131,7 +134,7 @@ fn extract_root_ident(tree: &syn::UseTree) -> Option<String> {
         syn::UseTree::Path(p) => Some(p.ident.to_string()),
         syn::UseTree::Name(n) => Some(n.ident.to_string()),
         syn::UseTree::Rename(r) => Some(r.ident.to_string()),
-        syn::UseTree::Group(g) => g.items.first().and_then(|t| extract_root_ident(t)),
+        syn::UseTree::Group(g) => g.items.first().and_then(extract_root_ident),
         syn::UseTree::Glob(_) => None,
     }
 }

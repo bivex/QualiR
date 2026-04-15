@@ -24,8 +24,7 @@ impl Detector for UnstableDependencyDetector {
         visitor.visit_file(&file.ast);
 
         if !visitor.unstable_imports.is_empty() {
-            let ratio = visitor.unstable_imports.len() as f64
-                / file.ast.items.len().max(1) as f64;
+            let ratio = visitor.unstable_imports.len() as f64 / file.ast.items.len().max(1) as f64;
 
             if ratio > 0.4 {
                 let line = visitor.unstable_imports[0].1;

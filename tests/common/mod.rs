@@ -25,7 +25,8 @@ pub fn assert_smell_count<D: Detector>(
     let smells = detect(detector, code);
     let count = smells.iter().filter(|s| s.name == smell_name).count();
     assert_eq!(
-        count, expected,
+        count,
+        expected,
         "Expected {expected} '{smell_name}' smell(s), found {count}. Smells: {:?}",
         smells.iter().map(|s| &s.name).collect::<Vec<_>>()
     );
@@ -37,6 +38,9 @@ pub fn assert_clean<D: Detector>(detector: &D, code: &str) {
     assert!(
         smells.is_empty(),
         "Expected no smells, but found: {:?}",
-        smells.iter().map(|s| format!("{}: {}", s.name, s.message)).collect::<Vec<_>>()
+        smells
+            .iter()
+            .map(|s| format!("{}: {}", s.name, s.message))
+            .collect::<Vec<_>>()
     );
 }

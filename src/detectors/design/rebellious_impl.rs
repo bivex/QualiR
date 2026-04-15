@@ -25,33 +25,30 @@ impl Detector for RebelliousImplDetector {
                     continue; // Skip trait impls
                 }
 
-                if let syn::Type::Path(tp) = &*imp.self_ty {
-                    if let Some(seg) = tp.path.segments.last() {
-                        let type_name = seg.ident.to_string().to_lowercase();
+                if let syn::Type::Path(tp) = &*imp.self_ty
+                    && let Some(seg) = tp.path.segments.last()
+                {
+                    let type_name = seg.ident.to_string().to_lowercase();
 
-                        // Collect all method names
-                        let methods: Vec<String> = imp
-                            .items
-                            .iter()
-                            .filter_map(|item| {
-                                if let syn::ImplItem::Fn(method) = item {
-                                    Some(method.sig.ident.to_string())
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect();
+                    // Collect all method names
+                    let methods: Vec<String> = imp
+                        .items
+                        .iter()
+                        .filter_map(|item| {
+                            if let syn::ImplItem::Fn(method) = item {
+                                Some(method.sig.ident.to_string())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
 
-                        let rebellion = detect_rebellion(&type_name, &methods);
-                        if rebellion {
-                            let line = imp
-                                .self_ty
-                                .span()
-                                .start().line;
-                            let method_list: Vec<&str> =
-                                methods.iter().map(|m| m.as_str()).collect();
+                    let rebellion = detect_rebellion(&type_name, &methods);
+                    if rebellion {
+                        let line = imp.self_ty.span().start().line;
+                        let method_list: Vec<&str> = methods.iter().map(|m| m.as_str()).collect();
 
-                            smells.push(Smell::new(
+                        smells.push(Smell::new(
                                 SmellCategory::Design,
                                 "Rebellious Impl",
                                 Severity::Info,
@@ -68,7 +65,6 @@ impl Detector for RebelliousImplDetector {
                                 ),
                                 "Consider extracting unrelated methods into separate types or modules.",
                             ));
-                        }
                     }
                 }
             }
@@ -83,7 +79,10 @@ fn detect_rebellion(type_name: &str, methods: &[String]) -> bool {
     if type_name.contains("repo") || type_name.contains("database") || type_name.contains("store") {
         let io_methods = methods.iter().any(|m| {
             let m = m.to_lowercase();
-            m.contains("print") || m.contains("render") || m.contains("display") || m.contains("format")
+            m.contains("print")
+                || m.contains("render")
+                || m.contains("display")
+                || m.contains("format")
         });
         return io_methods;
     }
@@ -92,7 +91,10 @@ fn detect_rebellion(type_name: &str, methods: &[String]) -> bool {
     if type_name.contains("validator") || type_name.contains("checker") {
         let persist = methods.iter().any(|m| {
             let m = m.to_lowercase();
-            m.contains("save") || m.contains("delete") || m.contains("insert") || m.contains("update")
+            m.contains("save")
+                || m.contains("delete")
+                || m.contains("insert")
+                || m.contains("update")
         });
         return persist;
     }

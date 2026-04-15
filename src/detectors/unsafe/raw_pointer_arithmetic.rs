@@ -18,9 +18,7 @@ impl Detector for RawPointerArithmeticDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let mut smells = Vec::new();
 
-        let mut visitor = PtrArithVisitor {
-            usages: Vec::new(),
-        };
+        let mut visitor = PtrArithVisitor { usages: Vec::new() };
         visitor.visit_file(&file.ast);
 
         for (line, method) in &visitor.usages {
@@ -51,8 +49,15 @@ impl<'ast> Visit<'ast> for PtrArithVisitor {
     fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
         let method = node.method.to_string();
         let ptr_methods = [
-            "offset", "add", "sub", "wrapping_offset", "wrapping_add",
-            "wrapping_sub", "byte_offset", "byte_add", "byte_sub",
+            "offset",
+            "add",
+            "sub",
+            "wrapping_offset",
+            "wrapping_add",
+            "wrapping_sub",
+            "byte_offset",
+            "byte_add",
+            "byte_sub",
         ];
 
         if ptr_methods.iter().any(|m| *m == method) {
@@ -62,7 +67,8 @@ impl<'ast> Visit<'ast> for PtrArithVisitor {
             let receiver_str = expr_to_string(&node.receiver);
             if receiver_str.contains("ptr") || receiver_str.contains("raw") {
                 let line = node.method.span().start().line;
-                self.usages.push((line, format!("{}.{}()", receiver_str, method)));
+                self.usages
+                    .push((line, format!("{}.{}()", receiver_str, method)));
             }
         }
 
@@ -74,7 +80,8 @@ fn expr_to_string(expr: &syn::Expr) -> String {
     match expr {
         syn::Expr::Path(p) => {
             let last_seg = p.path.segments.last();
-            last_seg.map(|s| s.ident.to_string())
+            last_seg
+                .map(|s| s.ident.to_string())
                 .unwrap_or_else(|| "ptr".into())
         }
         syn::Expr::Cast(c) => {

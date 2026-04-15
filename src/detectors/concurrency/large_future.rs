@@ -18,34 +18,34 @@ impl Detector for LargeFutureDetector {
         let mut smells = Vec::new();
 
         for item in &file.ast.items {
-            if let syn::Item::Fn(fn_item) = item {
-                if fn_item.sig.asyncness.is_some() {
-                    let start = fn_item.block.brace_token.span.open().start().line;
-                    let end = fn_item.block.brace_token.span.close().start().line;
-                    let loc = end.saturating_sub(start).saturating_sub(1);
+            if let syn::Item::Fn(fn_item) = item
+                && fn_item.sig.asyncness.is_some()
+            {
+                let start = fn_item.block.brace_token.span.open().start().line;
+                let end = fn_item.block.brace_token.span.close().start().line;
+                let loc = end.saturating_sub(start).saturating_sub(1);
 
-                    if loc > thresholds.concurrency.large_future_loc {
-                        smells.push(Smell::new(
-                            SmellCategory::Concurrency,
-                            "Large Future",
-                            if loc > thresholds.concurrency.large_future_loc * 2 {
-                                Severity::Critical
-                            } else {
-                                Severity::Warning
-                            },
-                            SourceLocation {
-                                file: file.path.clone(),
-                                line_start: start,
-                                line_end: end,
-                                column: None,
-                            },
-                            format!(
-                                "Async function `{}` is ~{} lines (threshold: {})",
-                                fn_item.sig.ident, loc, thresholds.concurrency.large_future_loc
-                            ),
-                            "Break large async functions into smaller composable futures.",
-                        ));
-                    }
+                if loc > thresholds.concurrency.large_future_loc {
+                    smells.push(Smell::new(
+                        SmellCategory::Performance,
+                        "Large Future",
+                        if loc > thresholds.concurrency.large_future_loc * 2 {
+                            Severity::Critical
+                        } else {
+                            Severity::Warning
+                        },
+                        SourceLocation {
+                            file: file.path.clone(),
+                            line_start: start,
+                            line_end: end,
+                            column: None,
+                        },
+                        format!(
+                            "Async function `{}` is ~{} lines (threshold: {})",
+                            fn_item.sig.ident, loc, thresholds.concurrency.large_future_loc
+                        ),
+                        "Break large async functions into smaller composable futures.",
+                    ));
                 }
             }
         }

@@ -19,32 +19,31 @@ impl Detector for ManualDropDetector {
         let mut smells = Vec::new();
 
         for item in &file.ast.items {
-            if let syn::Item::Impl(imp) = item {
-                if let Some((_, trait_path, _)) = &imp.trait_ {
-                    let trait_name = path_last(trait_path);
-                    if trait_name == "Drop" {
-                        if let syn::Type::Path(tp) = &*imp.self_ty {
-                            if let Some(seg) = tp.path.segments.last() {
-                                let line = imp.self_ty.span().start().line;
-                                smells.push(Smell::new(
-                                    SmellCategory::Design,
-                                    "Manual Drop",
-                                    Severity::Info,
-                                    SourceLocation {
-                                        file: file.path.clone(),
-                                        line_start: line,
-                                        line_end: line,
-                                        column: None,
-                                    },
-                                    format!(
-                                        "Type `{}` implements Drop manually — review for safety",
-                                        seg.ident
-                                    ),
-                                    "Consider using a RAII wrapper or guard instead of manual Drop.",
-                                ));
-                            }
-                        }
-                    }
+            if let syn::Item::Impl(imp) = item
+                && let Some((_, trait_path, _)) = &imp.trait_
+            {
+                let trait_name = path_last(trait_path);
+                if trait_name == "Drop"
+                    && let syn::Type::Path(tp) = &*imp.self_ty
+                    && let Some(seg) = tp.path.segments.last()
+                {
+                    let line = imp.self_ty.span().start().line;
+                    smells.push(Smell::new(
+                        SmellCategory::Idiomaticity,
+                        "Manual Drop",
+                        Severity::Info,
+                        SourceLocation {
+                            file: file.path.clone(),
+                            line_start: line,
+                            line_end: line,
+                            column: None,
+                        },
+                        format!(
+                            "Type `{}` implements Drop manually — review for safety",
+                            seg.ident
+                        ),
+                        "Consider using a RAII wrapper or guard instead of manual Drop.",
+                    ));
                 }
             }
         }

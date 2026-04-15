@@ -7,7 +7,7 @@ use crate::domain::source::SourceFile;
 
 /// Detects excessive use of interior mutability (`RefCell`, `Cell`) in a single file.
 ///
-/// While sometimes necessary, overusing interior mutability disables compile-time 
+/// While sometimes necessary, overusing interior mutability disables compile-time
 /// borrow checking and risks runtime panics (e.g. `BorrowMutError`).
 pub struct InteriorMutabilityAbuseDetector;
 
@@ -20,12 +20,15 @@ impl Detector for InteriorMutabilityAbuseDetector {
         let thresholds = Thresholds::default();
         let mut smells = Vec::new();
 
-        let mut visitor = MutVisitor { count: 0, first_line: 0 };
+        let mut visitor = MutVisitor {
+            count: 0,
+            first_line: 0,
+        };
         visitor.visit_file(&file.ast);
 
         if visitor.count > thresholds.r#impl.type_safety.interior_mutability_abuse {
             smells.push(Smell::new(
-                SmellCategory::Implementation,
+                SmellCategory::Performance,
                 "Interior Mutability Abuse",
                 Severity::Warning,
                 SourceLocation::new(file.path.clone(), visitor.first_line, visitor.first_line, None),

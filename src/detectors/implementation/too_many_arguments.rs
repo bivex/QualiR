@@ -33,7 +33,9 @@ impl Detector for TooManyArgumentsDetector {
                         },
                         format!(
                             "Function `{}` has {} arguments (threshold: {})",
-                            fn_item.sig.ident, arg_count, thresholds.r#impl.control_flow.too_many_arguments
+                            fn_item.sig.ident,
+                            arg_count,
+                            thresholds.r#impl.control_flow.too_many_arguments
                         ),
                         "Group related parameters into a struct or use the Builder pattern.",
                     ));
