@@ -28,6 +28,8 @@ fn main() -> anyhow::Result<()> {
 
     if args.quiet {
         print_summary(&report);
+    } else if args.llm {
+        cli::output::print_llm_report(&report);
     } else if args.compact {
         cli::output::print_compact_report(&report);
     } else {
