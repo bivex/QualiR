@@ -26,6 +26,26 @@ cargo run --release -- .
 # Analyze a specific path
 qualirs ~/projects/my-crate
 
+# Analyze a git repository
+qualirs --git https://github.com/bivex/QualiR
+qualirs --git git@github.com:bivex/QualiR.git
+
+# Use a specific parent directory for temporary git/crate sources
+qualirs --git https://github.com/bivex/QualiR --temp-dir /var/tmp/qualirs
+
+# Keep temporary git/crate sources for inspection after analysis
+qualirs --crate serde --keep-temp --temp-dir /var/tmp/qualirs
+
+# Analyze a specific git branch or tag
+qualirs --git https://github.com/bivex/QualiR --branch main
+qualirs --git git@github.com:bivex/QualiR.git --tag v1.0.0
+
+# Analyze the latest published crates.io source for a crate
+qualirs --crate serde
+
+# Analyze a specific crates.io crate version
+qualirs --crate serde --crate-version 1.0.228
+
 # List all detectors
 qualirs --list-detectors
 
@@ -48,13 +68,20 @@ qualirs --format json --output qualirs-report.json .
 qualirs [OPTIONS] [PATH] [COMMAND]
 
 Arguments:
-  [PATH]  Path to the Rust project or file to analyze [default: .]
+  [PATH]  Path to the Rust project or file to analyze (defaults to current directory)
 
 Commands:
   init-config  Generate a default qualirs.toml configuration file
   help         Print this message or the help of the given subcommand(s)
 
 Options:
+      --git <URL>                    Git repository URL to clone and analyze
+      --branch <BRANCH>              Git branch to check out when using --git
+      --tag <TAG>                    Git tag to check out when using --git
+      --crate <CRATE>                crates.io crate name to download and analyze
+      --crate-version <VERSION>      crates.io crate version to download when using --crate
+      --temp-dir <DIR>               Directory to create temporary git and crate analysis folders in
+      --keep-temp                    Preserve temporary git and crate analysis folders after the run
   -c, --config <CONFIG>              Configuration file path (default: qualirs.toml in project root)
   -m, --min-severity <MIN_SEVERITY>  Minimum severity to report: info, warning, critical [default: info]
   -t, --category <CATEGORY>          Show only smells of a specific category

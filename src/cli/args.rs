@@ -9,9 +9,52 @@ pub struct Args {
     #[command(subcommand)]
     pub command: Option<Command>,
 
-    /// Path to the Rust project or file to analyze
-    #[arg(default_value = ".")]
-    pub path: PathBuf,
+    /// Path to the Rust project or file to analyze (defaults to current directory)
+    #[arg(conflicts_with_all = ["git", "crate_name"])]
+    pub path: Option<PathBuf>,
+
+    /// Git repository URL to clone and analyze
+    #[arg(long, value_name = "URL", conflicts_with = "crate_name")]
+    pub git: Option<String>,
+
+    /// Git branch to check out when using --git
+    #[arg(
+        long,
+        value_name = "BRANCH",
+        requires = "git",
+        conflicts_with_all = ["tag", "crate_name"]
+    )]
+    pub branch: Option<String>,
+
+    /// Git tag to check out when using --git
+    #[arg(
+        long,
+        value_name = "TAG",
+        requires = "git",
+        conflicts_with_all = ["branch", "crate_name"]
+    )]
+    pub tag: Option<String>,
+
+    /// crates.io crate name to download and analyze
+    #[arg(long = "crate", value_name = "CRATE", conflicts_with = "git")]
+    pub crate_name: Option<String>,
+
+    /// crates.io crate version to download when using --crate
+    #[arg(
+        long,
+        value_name = "VERSION",
+        requires = "crate_name",
+        conflicts_with = "git"
+    )]
+    pub crate_version: Option<String>,
+
+    /// Directory to create temporary git and crate analysis folders in
+    #[arg(long, value_name = "DIR")]
+    pub temp_dir: Option<PathBuf>,
+
+    /// Preserve temporary git and crate analysis folders after the run
+    #[arg(long)]
+    pub keep_temp: bool,
 
     /// Configuration file path (default: qualirs.toml in project root)
     #[arg(short, long)]
