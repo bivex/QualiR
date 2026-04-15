@@ -1,6 +1,7 @@
-use syn::visit::Visit;
+use syn::visit::{Visit, visit_item_impl, visit_item_mod, visit_item_trait};
 
 use crate::analysis::detector::Detector;
+use crate::detectors::policy::has_test_cfg;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
 
@@ -45,14 +46,50 @@ struct MacroAttributeVisitor {
 }
 
 impl<'ast> Visit<'ast> for MacroAttributeVisitor {
-    fn visit_attribute(&mut self, node: &'ast syn::Attribute) {
-        if let Some(seg) = node.path().segments.last()
-            && seg.ident == "async_trait"
+    fn visit_item_mod(&mut self, node: &'ast syn::ItemMod) {
+        if has_test_cfg(&node.attrs) {
+            return;
+        }
+        visit_item_mod(self, node);
+    }
+
+    fn visit_item_trait(&mut self, node: &'ast syn::ItemTrait) {
+        if has_test_cfg(&node.attrs) {
+            return;
+        }
+        if let Some(line) = async_trait_attr_line(&node.attrs)
+            && !trait_is_likely_dyn_port(node)
         {
-            // Approximate line number since span might encompass the whole attribute
-            let line = seg.ident.span().start().line;
             self.violations.push(line);
         }
-        syn::visit::visit_attribute(self, node);
+        visit_item_trait(self, node);
     }
+
+    fn visit_item_impl(&mut self, node: &'ast syn::ItemImpl) {
+        if has_test_cfg(&node.attrs) {
+            return;
+        }
+        visit_item_impl(self, node);
+    }
+}
+
+fn async_trait_attr_line(attrs: &[syn::Attribute]) -> Option<usize> {
+    attrs.iter().find_map(|attr| {
+        let seg = attr.path().segments.last()?;
+        (seg.ident == "async_trait").then(|| seg.ident.span().start().line)
+    })
+}
+
+fn trait_is_likely_dyn_port(item: &syn::ItemTrait) -> bool {
+    item.supertraits.iter().any(|bound| {
+        matches!(
+            bound,
+            syn::TypeParamBound::Trait(trait_bound)
+                if trait_bound
+                    .path
+                    .segments
+                    .last()
+                    .is_some_and(|segment| matches!(segment.ident.to_string().as_str(), "Send" | "Sync"))
+        )
+    })
 }

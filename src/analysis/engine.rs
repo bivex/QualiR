@@ -182,6 +182,9 @@ impl Engine {
             detectors::implementation::large_value_passed_by_value::LargeValuePassedByValueDetector,
         ));
         self.register(Box::new(
+            detectors::implementation::inline_candidate::InlineCandidateDetector,
+        ));
+        self.register(Box::new(
             detectors::implementation::manual_default_constructor::ManualDefaultConstructorDetector,
         ));
         self.register(Box::new(detectors::implementation::manual_option_result_mapping::ManualOptionResultMappingDetector));

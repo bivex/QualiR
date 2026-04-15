@@ -1,6 +1,10 @@
-use syn::visit::{Visit, visit_expr_for_loop, visit_expr_loop, visit_expr_while};
+use syn::visit::{
+    Visit, visit_expr_for_loop, visit_expr_loop, visit_expr_while, visit_item_fn, visit_item_mod,
+    visit_local,
+};
 
 use crate::analysis::detector::Detector;
+use crate::detectors::policy::has_test_cfg;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
 
@@ -42,6 +46,20 @@ struct AllocationLoopVisitor {
 }
 
 impl<'ast> Visit<'ast> for AllocationLoopVisitor {
+    fn visit_item_mod(&mut self, node: &'ast syn::ItemMod) {
+        if has_test_cfg(&node.attrs) {
+            return;
+        }
+        visit_item_mod(self, node);
+    }
+
+    fn visit_item_fn(&mut self, node: &'ast syn::ItemFn) {
+        if has_test_cfg(&node.attrs) {
+            return;
+        }
+        visit_item_fn(self, node);
+    }
+
     fn visit_expr_for_loop(&mut self, node: &'ast syn::ExprForLoop) {
         self.loop_depth += 1;
         visit_expr_for_loop(self, node);
@@ -61,7 +79,11 @@ impl<'ast> Visit<'ast> for AllocationLoopVisitor {
     }
 
     fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
-        if self.loop_depth > 0 && is_finding_push(node) {
+        if self.loop_depth > 0
+            && (is_diagnostic_collection_mutation(node)
+                || is_error_mapping_method(node)
+                || is_owned_metadata_method(node))
+        {
             return;
         }
 
@@ -76,7 +98,7 @@ impl<'ast> Visit<'ast> for AllocationLoopVisitor {
     }
 
     fn visit_expr_call(&mut self, node: &'ast syn::ExprCall) {
-        if self.loop_depth > 0 && is_diagnostic_constructor(node) {
+        if self.loop_depth > 0 && (is_diagnostic_constructor(node) || is_error_constructor(node)) {
             return;
         }
 
@@ -98,6 +120,14 @@ impl<'ast> Visit<'ast> for AllocationLoopVisitor {
             }
         }
         syn::visit::visit_expr_call(self, node);
+    }
+
+    fn visit_local(&mut self, node: &'ast syn::Local) {
+        if self.loop_depth > 0 && is_diagnostic_collection_init(node) {
+            return;
+        }
+
+        visit_local(self, node);
     }
 
     fn visit_expr_reference(&mut self, node: &'ast syn::ExprReference) {
@@ -143,6 +173,32 @@ fn is_diagnostic_constructor(node: &syn::ExprCall) -> bool {
     )
 }
 
+fn is_error_constructor(node: &syn::ExprCall) -> bool {
+    let syn::Expr::Path(path) = &*node.func else {
+        return false;
+    };
+
+    let mut segments = path.path.segments.iter().rev();
+    let Some(method) = segments.next() else {
+        return false;
+    };
+    if method.ident == "Err" {
+        return true;
+    }
+
+    let Some(receiver) = segments.next() else {
+        return false;
+    };
+    let receiver = receiver.ident.to_string();
+    let method = method.ident.to_string();
+    (receiver == "ApplicationError" || receiver.ends_with("Error"))
+        && (method == "new"
+            || method == "fatal"
+            || method == "external"
+            || method == "conflict"
+            || method.chars().next().is_some_and(char::is_uppercase))
+}
+
 fn is_visitor_struct(path: &syn::Path) -> bool {
     path.segments
         .last()
@@ -150,20 +206,30 @@ fn is_visitor_struct(path: &syn::Path) -> bool {
         .unwrap_or(false)
 }
 
-fn is_finding_push(node: &syn::ExprMethodCall) -> bool {
-    if node.method != "push" {
+fn is_error_mapping_method(node: &syn::ExprMethodCall) -> bool {
+    matches!(node.method.to_string().as_str(), "map_err" | "ok_or_else")
+}
+
+fn is_owned_metadata_method(node: &syn::ExprMethodCall) -> bool {
+    matches!(node.method.to_string().as_str(), "with_origin")
+}
+
+fn is_diagnostic_collection_mutation(node: &syn::ExprMethodCall) -> bool {
+    if !matches!(
+        node.method.to_string().as_str(),
+        "push" | "extend" | "insert"
+    ) {
         return false;
     }
 
-    receiver_path_tail(&node.receiver).is_some_and(|name| {
-        name == "smells"
-            || name == "findings"
-            || name == "usages"
-            || name == "blocking_calls"
-            || name == "lock_calls"
-            || name == "spawns"
-            || name == "parts"
-    })
+    receiver_path_tail(&node.receiver).is_some_and(is_diagnostic_collection_name)
+}
+
+fn is_diagnostic_collection_init(local: &syn::Local) -> bool {
+    pat_ident(&local.pat).is_some_and(is_diagnostic_collection_name)
+        && local.init.as_ref().is_some_and(
+            |init| matches!(&*init.expr, syn::Expr::Macro(expr) if expr.mac.path.is_ident("vec")),
+        )
 }
 
 fn receiver_path_tail(expr: &syn::Expr) -> Option<&syn::Ident> {
@@ -175,4 +241,25 @@ fn receiver_path_tail(expr: &syn::Expr) -> Option<&syn::Ident> {
         },
         _ => None,
     }
+}
+
+fn pat_ident(pat: &syn::Pat) -> Option<&syn::Ident> {
+    match pat {
+        syn::Pat::Ident(ident) => Some(&ident.ident),
+        _ => None,
+    }
+}
+
+fn is_diagnostic_collection_name(name: &syn::Ident) -> bool {
+    matches!(
+        name.to_string().as_str(),
+        "smells"
+            | "findings"
+            | "evidence"
+            | "usages"
+            | "blocking_calls"
+            | "lock_calls"
+            | "spawns"
+            | "parts"
+    )
 }
