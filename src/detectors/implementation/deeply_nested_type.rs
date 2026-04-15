@@ -27,19 +27,33 @@ impl Detector for DeeplyNestedTypeDetector {
 
         visitor.visit_file(&file.ast);
 
-        for (line, depth, type_str) in visitor.violations {
-            smells.push(Smell::new(
-                SmellCategory::Implementation,
-                "Type Alias Explosion (Deep Nesting)",
-                Severity::Info,
-                SourceLocation::new(file.path.clone(), line, line, None),
-                format!("Type parameter nesting is {} levels deep (threshold: {}). Approx type: `{}`", depth, thresholds.r#impl.type_safety.deeply_nested_type, type_str),
-                "Wrap complex nested types in a Newtype struct to encapsulate their behavior and clean up signatures.",
+        for violation in visitor.violations {
+            smells.push(nested_type_smell(
+                file,
+                violation,
+                thresholds.r#impl.type_safety.deeply_nested_type,
             ));
         }
 
         smells
     }
+}
+
+fn nested_type_smell(
+    file: &SourceFile,
+    (line, depth, type_str): (usize, usize, String),
+    threshold: usize,
+) -> Smell {
+    Smell::new(
+        SmellCategory::Implementation,
+        "Type Alias Explosion (Deep Nesting)",
+        Severity::Info,
+        SourceLocation::new(file.path.clone(), line, line, None),
+        format!(
+            "Type parameter nesting is {depth} levels deep (threshold: {threshold}). Approx type: `{type_str}`"
+        ),
+        "Wrap complex nested types in a Newtype struct to encapsulate their behavior and clean up signatures.",
+    )
 }
 
 struct TypeVisitor {
@@ -52,10 +66,15 @@ impl<'ast> Visit<'ast> for TypeVisitor {
         let depth = get_type_depth(node);
         if depth > self.max_depth_threshold {
             let line = match node {
-                syn::Type::Path(tp) => tp.path.segments.first().map(|s| s.ident.span().start().line).unwrap_or(1),
+                syn::Type::Path(tp) => tp
+                    .path
+                    .segments
+                    .first()
+                    .map(|s| s.ident.span().start().line)
+                    .unwrap_or(1),
                 _ => 1,
             };
-            
+
             // Generate a rough name representation
             let mut name = String::new();
             if let syn::Type::Path(tp) = node {
@@ -81,11 +100,9 @@ fn get_type_depth(ty: &syn::Type) -> usize {
             if let Some(seg) = tp.path.segments.last() {
                 match &seg.arguments {
                     syn::PathArguments::AngleBracketed(args) => {
-                        let depths = args.args.iter().map(|arg| {
-                            match arg {
-                                syn::GenericArgument::Type(inner_ty) => get_type_depth(inner_ty),
-                                _ => 0,
-                            }
+                        let depths = args.args.iter().map(|arg| match arg {
+                            syn::GenericArgument::Type(inner_ty) => get_type_depth(inner_ty),
+                            _ => 0,
                         });
                         let inner_max = depths.max().unwrap_or(0);
                         1 + inner_max

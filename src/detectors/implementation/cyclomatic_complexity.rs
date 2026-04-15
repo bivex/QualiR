@@ -28,25 +28,12 @@ impl Detector for CyclomaticComplexityDetector {
                 if visitor.cc > thresholds.r#impl.control_flow.cyclomatic_complexity {
                     let line = fn_item.sig.fn_token.span.start().line;
 
-                    smells.push(Smell::new(
-                        SmellCategory::Implementation,
-                        "High Cyclomatic Complexity",
-                        if visitor.cc > thresholds.r#impl.control_flow.cyclomatic_complexity * 2 {
-                            Severity::Critical
-                        } else {
-                            Severity::Warning
-                        },
-                        SourceLocation {
-                            file: file.path.clone(),
-                            line_start: line,
-                            line_end: line,
-                            column: None,
-                        },
-                        format!(
-                            "Function `{}` has cyclomatic complexity of {} (threshold: {})",
-                            fn_item.sig.ident, visitor.cc, thresholds.r#impl.control_flow.cyclomatic_complexity
-                        ),
-                        "Reduce branching. Extract helper functions, use early returns, or leverage combinators.",
+                    smells.push(complexity_smell(
+                        file,
+                        &fn_item.sig.ident,
+                        visitor.cc,
+                        thresholds.r#impl.control_flow.cyclomatic_complexity,
+                        line,
                     ));
                 }
             }
@@ -54,6 +41,34 @@ impl Detector for CyclomaticComplexityDetector {
 
         smells
     }
+}
+
+fn complexity_smell(
+    file: &SourceFile,
+    ident: &syn::Ident,
+    complexity: usize,
+    threshold: usize,
+    line: usize,
+) -> Smell {
+    Smell::new(
+        SmellCategory::Implementation,
+        "High Cyclomatic Complexity",
+        if complexity > threshold * 2 {
+            Severity::Critical
+        } else {
+            Severity::Warning
+        },
+        SourceLocation {
+            file: file.path.clone(),
+            line_start: line,
+            line_end: line,
+            column: None,
+        },
+        format!(
+            "Function `{ident}` has cyclomatic complexity of {complexity} (threshold: {threshold})"
+        ),
+        "Reduce branching. Extract helper functions, use early returns, or leverage combinators.",
+    )
 }
 
 struct CcVisitor {

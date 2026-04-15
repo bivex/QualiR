@@ -16,25 +16,12 @@ impl Detector for DerivableImplDetector {
         for item in &file.ast.items {
             if let syn::Item::Impl(imp) = item {
                 if let Some((_, trait_path, _)) = &imp.trait_ {
-                    let trait_name = trait_path
-                        .segments
-                        .last()
-                        .map(|seg| seg.ident.to_string())
-                        .unwrap_or_default();
-                    if matches!(
-                        trait_name.as_str(),
-                        "Debug" | "Clone" | "Default" | "PartialEq" | "Eq" | "Hash"
-                    ) && imp.items.len() <= 2
-                    {
+                    if let Some(trait_ident) = trait_path.segments.last().map(|seg| &seg.ident) {
+                        if !is_derivable_trait(trait_ident) || imp.items.len() > 2 {
+                            continue;
+                        }
                         let line = imp.impl_token.span.start().line;
-                        smells.push(Smell::new(
-                            SmellCategory::Idiomaticity,
-                            "Derivable Impl",
-                            Severity::Info,
-                            SourceLocation::new(file.path.clone(), line, line, None),
-                            format!("Manual `{trait_name}` impl may be derivable"),
-                            "Prefer #[derive(...)] when the implementation is mechanical.",
-                        ));
+                        smells.push(derivable_impl_smell(file, trait_ident, line));
                     }
                 }
             }
@@ -42,4 +29,24 @@ impl Detector for DerivableImplDetector {
 
         smells
     }
+}
+
+fn is_derivable_trait(ident: &syn::Ident) -> bool {
+    ident == "Debug"
+        || ident == "Clone"
+        || ident == "Default"
+        || ident == "PartialEq"
+        || ident == "Eq"
+        || ident == "Hash"
+}
+
+fn derivable_impl_smell(file: &SourceFile, trait_ident: &syn::Ident, line: usize) -> Smell {
+    Smell::new(
+        SmellCategory::Idiomaticity,
+        "Derivable Impl",
+        Severity::Info,
+        SourceLocation::new(file.path.clone(), line, line, None),
+        format!("Manual `{trait_ident}` impl may be derivable"),
+        "Prefer #[derive(...)] when the implementation is mechanical.",
+    )
 }

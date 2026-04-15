@@ -44,7 +44,7 @@ impl<'ast> Visit<'ast> for DuplicateArmVisitor {
     fn visit_expr_match(&mut self, node: &'ast syn::ExprMatch) {
         let mut seen = std::collections::HashSet::new();
         for arm in &node.arms {
-            let body = normalize(&arm.body.to_token_stream().to_string());
+            let body = normalized_body(&arm.body);
             if body.len() > 3 && !seen.insert(body) {
                 self.findings
                     .push(arm.fat_arrow_token.spans[0].start().line);
@@ -53,6 +53,10 @@ impl<'ast> Visit<'ast> for DuplicateArmVisitor {
         }
         visit_expr_match(self, node);
     }
+}
+
+fn normalized_body(body: &syn::Expr) -> String {
+    normalize(&body.to_token_stream().to_string())
 }
 
 fn normalize(value: &str) -> String {

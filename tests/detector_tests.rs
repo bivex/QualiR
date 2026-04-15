@@ -1690,6 +1690,52 @@ pub struct Handler;
     }
 }
 
+mod unnecessary_allocation_in_loop {
+    use super::*;
+    use qualirs::detectors::implementation::unnecessary_allocation_in_loop::UnnecessaryAllocationInLoopDetector;
+    static DETECTOR: UnnecessaryAllocationInLoopDetector = UnnecessaryAllocationInLoopDetector;
+
+    #[test]
+    fn detects_clear_loop_allocations() {
+        let code = r#"
+fn build(items: &[&str]) {
+    for item in items {
+        let a = String::from(*item);
+        let b = item.to_owned();
+        let c = format!("item: {item}");
+    }
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Unnecessary Allocation in Loop", 3);
+    }
+
+    #[test]
+    fn clean_owned_reporting_and_grouping_work() {
+        let code = r#"
+fn report(items: &[i32]) {
+    for item in items {
+        let label = item.to_string();
+        let selected: Vec<_> = [1, 2, 3].iter().filter(|value| **value > 1).collect();
+        println!("{label}: {}", selected.len());
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_borrowed_format_argument() {
+        let code = r#"
+fn report(items: &[i32]) {
+    for item in items {
+        consume(&format!("item: {item}"));
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
 // ─── False Positive Tests: Unsafe ────────────────────────────
 
 mod multi_mut_ref_unsafe {

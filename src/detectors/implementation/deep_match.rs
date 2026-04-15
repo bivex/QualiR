@@ -25,21 +25,12 @@ impl Detector for DeepMatchDetector {
                 if visitor.max_depth > thresholds.r#impl.control_flow.deep_match_nesting {
                     let line = fn_item.sig.fn_token.span.start().line;
 
-                    smells.push(Smell::new(
-                        SmellCategory::Implementation,
-                        "Deep Match Nesting",
-                        Severity::Warning,
-                        SourceLocation {
-                            file: file.path.clone(),
-                            line_start: line,
-                            line_end: line,
-                            column: None,
-                        },
-                        format!(
-                            "Function `{}` has match nesting depth of {} (threshold: {})",
-                            fn_item.sig.ident, visitor.max_depth, thresholds.r#impl.control_flow.deep_match_nesting
-                        ),
-                        "Flatten nested matches using early returns, combinators, or extract helper functions.",
+                    smells.push(match_depth_smell(
+                        file,
+                        &fn_item.sig.ident,
+                        visitor.max_depth,
+                        thresholds.r#impl.control_flow.deep_match_nesting,
+                        line,
                     ));
                 }
             }
@@ -47,6 +38,28 @@ impl Detector for DeepMatchDetector {
 
         smells
     }
+}
+
+fn match_depth_smell(
+    file: &SourceFile,
+    ident: &syn::Ident,
+    depth: usize,
+    threshold: usize,
+    line: usize,
+) -> Smell {
+    Smell::new(
+        SmellCategory::Implementation,
+        "Deep Match Nesting",
+        Severity::Warning,
+        SourceLocation {
+            file: file.path.clone(),
+            line_start: line,
+            line_end: line,
+            column: None,
+        },
+        format!("Function `{ident}` has match nesting depth of {depth} (threshold: {threshold})"),
+        "Flatten nested matches using early returns, combinators, or extract helper functions.",
+    )
 }
 
 struct MatchDepthVisitor {

@@ -61,9 +61,13 @@ impl<'ast> Visit<'ast> for AllocationLoopVisitor {
     }
 
     fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
+        if self.loop_depth > 0 && is_finding_push(node) {
+            return;
+        }
+
         if self.loop_depth > 0 {
             let method = node.method.to_string();
-            if matches!(method.as_str(), "to_string" | "to_owned" | "collect") {
+            if method == "to_owned" {
                 self.findings
                     .push((node.method.span().start().line, method));
             }
@@ -72,6 +76,10 @@ impl<'ast> Visit<'ast> for AllocationLoopVisitor {
     }
 
     fn visit_expr_call(&mut self, node: &'ast syn::ExprCall) {
+        if self.loop_depth > 0 && is_diagnostic_constructor(node) {
+            return;
+        }
+
         if self.loop_depth > 0 {
             if let syn::Expr::Path(path) = &*node.func {
                 let call = path
@@ -81,7 +89,7 @@ impl<'ast> Visit<'ast> for AllocationLoopVisitor {
                     .map(|s| s.ident.to_string())
                     .collect::<Vec<_>>()
                     .join("::");
-                if matches!(call.as_str(), "String::from" | "Vec::new") {
+                if call == "String::from" {
                     self.findings.push((
                         path.path.segments.last().unwrap().ident.span().start().line,
                         call,
@@ -90,6 +98,24 @@ impl<'ast> Visit<'ast> for AllocationLoopVisitor {
             }
         }
         syn::visit::visit_expr_call(self, node);
+    }
+
+    fn visit_expr_reference(&mut self, node: &'ast syn::ExprReference) {
+        if self.loop_depth > 0
+            && matches!(&*node.expr, syn::Expr::Macro(expr) if expr.mac.path.is_ident("format"))
+        {
+            return;
+        }
+
+        syn::visit::visit_expr_reference(self, node);
+    }
+
+    fn visit_expr_struct(&mut self, node: &'ast syn::ExprStruct) {
+        if self.loop_depth > 0 && is_visitor_struct(&node.path) {
+            return;
+        }
+
+        syn::visit::visit_expr_struct(self, node);
     }
 
     fn visit_macro(&mut self, node: &'ast syn::Macro) {
@@ -102,5 +128,53 @@ impl<'ast> Visit<'ast> for AllocationLoopVisitor {
             }
         }
         syn::visit::visit_macro(self, node);
+    }
+}
+
+fn is_diagnostic_constructor(node: &syn::ExprCall) -> bool {
+    let syn::Expr::Path(path) = &*node.func else {
+        return false;
+    };
+
+    let mut segments = path.path.segments.iter().rev();
+    matches!(
+        (segments.next(), segments.next()),
+        (Some(method), Some(receiver))
+            if method.ident == "new"
+                && (receiver.ident == "Smell" || receiver.ident == "SourceLocation")
+    )
+}
+
+fn is_visitor_struct(path: &syn::Path) -> bool {
+    path.segments
+        .last()
+        .map(|segment| segment.ident.to_string().ends_with("Visitor"))
+        .unwrap_or(false)
+}
+
+fn is_finding_push(node: &syn::ExprMethodCall) -> bool {
+    if node.method != "push" {
+        return false;
+    }
+
+    receiver_path_tail(&node.receiver).is_some_and(|name| {
+        name == "smells"
+            || name == "findings"
+            || name == "usages"
+            || name == "blocking_calls"
+            || name == "lock_calls"
+            || name == "spawns"
+            || name == "parts"
+    })
+}
+
+fn receiver_path_tail(expr: &syn::Expr) -> Option<&syn::Ident> {
+    match expr {
+        syn::Expr::Path(path) => path.path.segments.last().map(|segment| &segment.ident),
+        syn::Expr::Field(field) => match &field.member {
+            syn::Member::Named(name) => Some(name),
+            syn::Member::Unnamed(_) => None,
+        },
+        _ => None,
     }
 }

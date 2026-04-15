@@ -54,16 +54,13 @@ impl Detector for DuplicateDependencyVersionsDetector {
     }
 
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
-        if !is_entry_file(&file.path) {
+        if !is_primary_entry_file(&file.path) {
             return Vec::new();
         }
-        let Some(lockfile) = find_upwards(&file.path, "Cargo.lock") else {
+        let Some(manifest) = find_upwards(&file.path, "Cargo.toml") else {
             return Vec::new();
         };
-        let Ok(content) = std::fs::read_to_string(lockfile) else {
-            return Vec::new();
-        };
-        let duplicates = duplicate_packages(&content);
+        let duplicates = duplicate_packages(&manifest);
         duplicates
             .into_iter()
             .map(|name| {
@@ -148,6 +145,22 @@ fn is_entry_file(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
+fn is_primary_entry_file(path: &Path) -> bool {
+    if !is_entry_file(path) {
+        return false;
+    }
+
+    let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
+        return false;
+    };
+
+    file_name == "lib.rs"
+        || path
+            .parent()
+            .map(|parent| !parent.join("lib.rs").exists())
+            .unwrap_or(true)
+}
+
 fn find_upwards(path: &Path, filename: &str) -> Option<PathBuf> {
     for ancestor in path.ancestors() {
         let candidate = ancestor.join(filename);
@@ -192,29 +205,92 @@ fn use_tree_root(tree: &syn::UseTree) -> String {
     }
 }
 
-fn duplicate_packages(content: &str) -> Vec<String> {
-    let mut versions: std::collections::HashMap<String, std::collections::HashSet<String>> =
+fn duplicate_packages(manifest: &Path) -> Vec<String> {
+    let Some(project_dir) = manifest.parent() else {
+        return Vec::new();
+    };
+    let Ok(output) = std::process::Command::new("cargo")
+        .args([
+            "tree",
+            "-d",
+            "--locked",
+            "--prefix",
+            "none",
+            "--manifest-path",
+        ])
+        .arg(manifest)
+        .current_dir(project_dir)
+        .output()
+    else {
+        return Vec::new();
+    };
+    if !output.status.success() {
+        return Vec::new();
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    duplicate_packages_from_cargo_tree(&stdout)
+}
+
+fn duplicate_packages_from_cargo_tree(output: &str) -> Vec<String> {
+    let mut versions: std::collections::HashMap<&str, std::collections::HashSet<&str>> =
         std::collections::HashMap::new();
-    let mut current: Option<String> = None;
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if let Some(name) = trimmed.strip_prefix("name = ") {
-            current = Some(name.trim_matches('"').to_string());
-        } else if let Some(version) = trimmed.strip_prefix("version = ") {
-            if let Some(name) = current.take() {
-                versions
-                    .entry(name)
-                    .or_default()
-                    .insert(version.trim_matches('"').to_string());
-            }
+
+    for line in output
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+    {
+        let mut parts = line.split_whitespace();
+        let Some(name) = parts.next() else {
+            continue;
+        };
+        let Some(version) = parts.next() else {
+            continue;
+        };
+        if let Some(version) = version.strip_prefix('v') {
+            versions.entry(name).or_default().insert(version);
         }
     }
+
     versions
         .into_iter()
         .filter_map(|(name, versions)| (versions.len() > 1).then_some(name))
+        .map(str::to_string)
         .collect()
 }
 
 fn path_has_pair(text: &str, a: &str, b: &str) -> bool {
     text.contains(&format!("{a}::{b}")) || text.contains(&format!("{a} :: {b}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cargo_tree_duplicates_require_multiple_versions() {
+        let output = "\
+hashbrown v0.15.5
+some-crate v1.0.0
+hashbrown v0.17.0
+other-crate v2.0.0
+";
+        assert_eq!(
+            duplicate_packages_from_cargo_tree(output),
+            vec!["hashbrown".to_string()]
+        );
+    }
+
+    #[test]
+    fn cargo_tree_repeated_same_version_is_not_duplicate() {
+        let output = "\
+proc-macro2 v1.0.106
+quote v1.0.45
+proc-macro2 v1.0.106
+syn v2.0.117
+syn v2.0.117
+";
+        assert!(duplicate_packages_from_cargo_tree(output).is_empty());
+    }
 }
