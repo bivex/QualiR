@@ -103,14 +103,21 @@ pub(crate) struct OutputOptions {
     pub(crate) table: bool,
 
     /// LLM mode: show compact Markdown with fenced finding blocks for coding assistants
-    #[arg(long, conflicts_with_all = ["quiet", "compact"])]
+    #[arg(long, conflicts_with_all = ["quiet", "compact", "how_fix"])]
     pub(crate) llm: bool,
+
+    /// How-fix mode: explain each finding with the current source code and improvement guidance
+    #[arg(
+        long,
+        conflicts_with_all = ["quiet", "compact", "table", "llm", "format", "list_detectors"]
+    )]
+    pub(crate) how_fix: bool,
 
     /// Output format
     #[arg(
         long,
         value_enum,
-        conflicts_with_all = ["quiet", "compact", "table", "llm", "list_detectors"]
+        conflicts_with_all = ["quiet", "compact", "table", "llm", "how_fix", "list_detectors"]
     )]
     pub(crate) format: Option<OutputFormat>,
 

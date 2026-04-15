@@ -90,6 +90,7 @@ Options:
       --compact                      Compact mode: show findings as a categorized list (default)
       --table                        Table mode: show findings in the legacy table layout
       --llm                          LLM mode: show compact Markdown with fenced finding blocks for coding assistants
+      --how-fix                      Explain each finding with current source code and improvement guidance
       --format <FORMAT>              Output format [possible values: json]
       --output <OUTPUT_PATH>         Write JSON findings to a file instead of stdout
       --list-detectors               List available detectors and exit

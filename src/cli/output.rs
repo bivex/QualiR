@@ -2,8 +2,8 @@ use colored::*;
 use comfy_table::{Cell, Color as TableColor, Table, presets::UTF8_FULL};
 
 use crate::analysis::engine::AnalysisReport;
-use crate::cli::llm_snippet::{print_fenced_code, source_snippet};
-use crate::domain::smell::{Severity, SmellCategory};
+use crate::cli::llm_snippet::{print_fenced_code, source_snippet, source_snippet_with_context};
+use crate::domain::smell::{Severity, Smell, SmellCategory};
 
 /// Print the full analysis report to stdout.
 pub fn print_report(report: &AnalysisReport) {
@@ -31,6 +31,24 @@ pub fn print_compact_report(report: &AnalysisReport) {
     if !report.smells.is_empty() {
         println!();
         print_compact_smells(report);
+    }
+
+    if !report.parse_errors.is_empty() {
+        println!();
+        print_parse_errors(report);
+    }
+
+    print_footer(report);
+}
+
+/// Print findings with source snippets and improvement guidance.
+pub fn print_how_fix_report(report: &AnalysisReport) {
+    print_header();
+    print_summary(report);
+
+    if !report.smells.is_empty() {
+        println!();
+        print_how_fix_smells(report);
     }
 
     if !report.parse_errors.is_empty() {
@@ -213,6 +231,109 @@ fn print_compact_smells(report: &AnalysisReport) {
 
         println!();
     }
+}
+
+fn print_how_fix_smells(report: &AnalysisReport) {
+    let categories = [
+        SmellCategory::Architecture,
+        SmellCategory::Design,
+        SmellCategory::Implementation,
+        SmellCategory::Performance,
+        SmellCategory::Idiomaticity,
+        SmellCategory::Concurrency,
+        SmellCategory::Unsafe,
+    ];
+
+    for category in categories {
+        let mut smells: Vec<_> = report
+            .smells
+            .iter()
+            .filter(|smell| smell.category == category)
+            .collect();
+
+        if smells.is_empty() {
+            continue;
+        }
+
+        smells.sort_by(|a, b| {
+            b.severity
+                .cmp(&a.severity)
+                .then_with(|| a.location.cmp(&b.location))
+                .then_with(|| a.name.cmp(&b.name))
+        });
+
+        println!(
+            "{} {}",
+            "▸".bright_magenta(),
+            compact_category_label(&category).bold()
+        );
+
+        for smell in smells {
+            print_how_fix_smell(smell);
+        }
+
+        println!();
+    }
+}
+
+fn print_how_fix_smell(smell: &Smell) {
+    println!(
+        "  {} {} {}",
+        compact_severity_label(&smell.severity),
+        smell.code.cyan().bold(),
+        smell.name.bold()
+    );
+    println!("    Location: {}", smell.location.to_string().dimmed());
+    println!("    Problem: {}", smell.message);
+    println!("    How to improve:");
+    println!("      {}", smell.suggestion);
+    println!("      {}", enhancement_explanation(smell));
+
+    println!("    Current code:");
+    if let Some(snippet) = source_snippet_with_context(&smell.location, 2) {
+        print_indented_fenced_code("text", &snippet, 6);
+    } else {
+        println!(
+            "      {}",
+            "source snippet unavailable; the file may have moved or been deleted".dimmed()
+        );
+    }
+}
+
+fn enhancement_explanation(smell: &Smell) -> &'static str {
+    match smell.category {
+        SmellCategory::Architecture => {
+            "Refactor toward clearer boundaries so dependencies and module responsibilities stay easy to reason about."
+        }
+        SmellCategory::Design => {
+            "Move behavior or data into a shape that makes the type's responsibility explicit and easier to extend."
+        }
+        SmellCategory::Implementation => {
+            "Prefer the simpler Rust construct so the code keeps the same behavior with less maintenance overhead."
+        }
+        SmellCategory::Performance => {
+            "Remove avoidable work or allocation while keeping the observable behavior unchanged."
+        }
+        SmellCategory::Idiomaticity => {
+            "Use the common Rust idiom so intent is obvious to future readers and reviewers."
+        }
+        SmellCategory::Concurrency => {
+            "Make ownership, scheduling, or locking behavior explicit so concurrent code is less likely to block or race unexpectedly."
+        }
+        SmellCategory::Unsafe => {
+            "Narrow and document the unsafe boundary so the invariants are auditable at the call site."
+        }
+    }
+}
+
+fn print_indented_fenced_code(language: &str, code: &str, indent: usize) {
+    let padding = " ".repeat(indent);
+    let fence = if code.contains("```") { "````" } else { "```" };
+    println!("{padding}{fence}{language}");
+    for line in code.lines() {
+        println!("{padding}{line}");
+    }
+    println!("{padding}{fence}");
 }
 
 fn print_smell_table(report: &AnalysisReport) {

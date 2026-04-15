@@ -53,6 +53,8 @@ fn run() -> anyhow::Result<ExitCode> {
         cli::json_output::emit_json_report(&report, args.output_options.output_path.as_deref())?;
     } else if args.output_options.llm {
         cli::output::print_llm_report(&report);
+    } else if args.output_options.how_fix {
+        cli::output::print_how_fix_report(&report);
     } else if args.output_options.table {
         cli::output::print_report(&report);
     } else {
@@ -185,6 +187,7 @@ mod tests {
                 compact: false,
                 table: false,
                 llm: false,
+                how_fix: false,
                 format: None,
                 output_path: None,
             },
