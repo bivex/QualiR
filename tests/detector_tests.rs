@@ -1,9 +1,9 @@
 mod common;
 
-use std::path::PathBuf;
+use common::{assert_clean, assert_smell_count};
 use qualirs::analysis::detector::Detector;
 use qualirs::domain::source::SourceFile;
-use common::{assert_clean, assert_smell_count};
+use std::path::PathBuf;
 
 // ─── Architecture ──────────────────────────────────────────
 
@@ -27,6 +27,15 @@ mod god_module {
     fn clean_few_items() {
         let code = "fn main() {}";
         assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_module_registry_file() {
+        let mods: String = (0..25)
+            .map(|i| format!("pub mod detector_{i};"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert_clean(&DETECTOR, &mods);
     }
 }
 
@@ -134,6 +143,19 @@ impl Point {
 ";
         assert_clean(&DETECTOR, code);
     }
+
+    #[test]
+    fn clean_template_struct() {
+        let code = r#"
+#[derive(Template)]
+#[template(path = "dashboard.html")]
+struct DashboardTemplate {
+    title: String,
+    count: usize,
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
 }
 
 // ─── Implementation ────────────────────────────────────────
@@ -146,7 +168,10 @@ mod long_function {
 
     #[test]
     fn detects_long_fn() {
-        let body: String = (0..55).map(|i| format!("let _ = {i};")).collect::<Vec<_>>().join("\n");
+        let body: String = (0..55)
+            .map(|i| format!("let _ = {i};"))
+            .collect::<Vec<_>>()
+            .join("\n");
         let code = format!("fn long() {{\n{body}\n}}");
         assert_smell_count(&DETECTOR, &code, "Long Function", 1);
     }
@@ -200,6 +225,21 @@ fn risky() {
     fn clean_single_unwrap() {
         let code = "fn ok() { let x = Some(1).unwrap(); }";
         assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_test_file() {
+        let code = "\
+fn risky() {
+    let a = Some(1).unwrap();
+    let b = Some(2).unwrap();
+    let c = Some(3).unwrap();
+    let d = Some(4).unwrap();
+}
+";
+        let file =
+            SourceFile::from_source(PathBuf::from("src/tests.rs"), code.to_string()).unwrap();
+        assert!(DETECTOR.detect(&file).is_empty());
     }
 }
 
@@ -286,6 +326,14 @@ mod magic_numbers {
         let code = "fn calc() { let x = 0; let y = 1; let z = 100; }";
         assert_clean(&DETECTOR, code);
     }
+
+    #[test]
+    fn clean_test_file() {
+        let code = "fn calc() { let x = 42; let y = 1337; }";
+        let file =
+            SourceFile::from_source(PathBuf::from("tests/magic.rs"), code.to_string()).unwrap();
+        assert!(DETECTOR.detect(&file).is_empty());
+    }
 }
 
 mod large_enum {
@@ -337,7 +385,10 @@ mod cyclomatic_complexity {
 
     #[test]
     fn counts_match_arms() {
-        let arms: String = (0..20).map(|i| format!("{i} => (),")).collect::<Vec<_>>().join(" ");
+        let arms: String = (0..20)
+            .map(|i| format!("{i} => (),"))
+            .collect::<Vec<_>>()
+            .join(" ");
         let code = format!("fn matchy(x: i32) {{ match x {{ {arms} _ => () }} }}");
         assert_smell_count(&DETECTOR, &code, "High Cyclomatic Complexity", 1);
     }
@@ -389,7 +440,11 @@ mod long_method_chain {
         let code = "fn chain(x: Vec<i32>) { x.iter().filter(|&&x| x > 0).map(|&x| x * 2).flatten().collect::<Vec<i32>>(); }";
         let file = SourceFile::from_source(PathBuf::from("main.rs"), code.to_string()).unwrap();
         let smells = DETECTOR.detect(&file);
-        assert!(smells.iter().any(|s| s.name == "Long Method Chain"), "Should detect long chain: {:?}", smells);
+        assert!(
+            smells.iter().any(|s| s.name == "Long Method Chain"),
+            "Should detect long chain: {:?}",
+            smells
+        );
     }
 
     #[test]
@@ -398,7 +453,11 @@ mod long_method_chain {
         let code = "fn short(x: Vec<i32>) { x.iter().count(); }";
         let file = SourceFile::from_source(PathBuf::from("main.rs"), code.to_string()).unwrap();
         let smells = DETECTOR.detect(&file);
-        assert!(smells.is_empty(), "Expected no smells, but found: {:?}", smells);
+        assert!(
+            smells.is_empty(),
+            "Expected no smells, but found: {:?}",
+            smells
+        );
     }
 }
 
@@ -419,6 +478,66 @@ mod unused_result {
         let code = "fn ok() { let _x = std::fs::read_to_string(\"x\"); }";
         assert_clean(&DETECTOR, code);
     }
+
+    #[test]
+    fn clean_test_file() {
+        let code = "fn discard() { let _ = std::fs::remove_file(\"x\"); }";
+        let file =
+            SourceFile::from_source(PathBuf::from("src/settings/tests.rs"), code.to_string())
+                .unwrap();
+        assert!(DETECTOR.detect(&file).is_empty());
+    }
+}
+
+mod repeated_regex_construction {
+    use super::*;
+    use qualirs::detectors::implementation::repeated_regex_construction::RepeatedRegexConstructionDetector;
+
+    static DETECTOR: RepeatedRegexConstructionDetector = RepeatedRegexConstructionDetector;
+
+    #[test]
+    fn detects_runtime_regex_construction() {
+        let code = r#"
+use regex::Regex;
+
+fn validate(value: &str) -> bool {
+    Regex::new(r"^[a-z]+$").unwrap().is_match(value)
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Repeated Regex Construction", 1);
+    }
+
+    #[test]
+    fn clean_lazy_lock_regex_initializer() {
+        let code = r#"
+use regex::Regex;
+use std::sync::LazyLock;
+
+fn validate(value: &str) -> bool {
+    static VALID: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"^[a-z]+$").expect("valid regex")
+    });
+    VALID.is_match(value)
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_once_lock_get_or_init_regex_initializer() {
+        let code = r#"
+use regex::Regex;
+use std::sync::OnceLock;
+
+fn validate(value: &str) -> bool {
+    static VALID: OnceLock<Regex> = OnceLock::new();
+    VALID
+        .get_or_init(|| Regex::new(r"^[a-z]+$").expect("valid regex"))
+        .is_match(value)
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
 }
 
 mod panic_in_library {
@@ -433,7 +552,11 @@ mod panic_in_library {
         let code = "fn crash() { panic!(\"oops\"); }";
         let file = SourceFile::from_source(PathBuf::from("main.rs"), code.to_string()).unwrap();
         let smells = DETECTOR.detect(&file);
-        assert!(smells.iter().any(|s| s.name == "Panic in Library"), "Should detect panic!: {:?}", smells);
+        assert!(
+            smells.iter().any(|s| s.name == "Panic in Library"),
+            "Should detect panic!: {:?}",
+            smells
+        );
     }
 
     #[test]
@@ -441,7 +564,11 @@ mod panic_in_library {
         let code = "fn unfinished() { todo!(); }";
         let file = SourceFile::from_source(PathBuf::from("main.rs"), code.to_string()).unwrap();
         let smells = DETECTOR.detect(&file);
-        assert!(smells.iter().any(|s| s.name == "Panic in Library"), "Should detect todo!: {:?}", smells);
+        assert!(
+            smells.iter().any(|s| s.name == "Panic in Library"),
+            "Should detect todo!: {:?}",
+            smells
+        );
     }
 
     #[test]
@@ -577,7 +704,8 @@ mod blocking_in_async {
 
     #[test]
     fn clean_no_blocking_in_async() {
-        let code = "async fn foo() { tokio::time::sleep(std::time::Duration::from_secs(1)).await; }";
+        let code =
+            "async fn foo() { tokio::time::sleep(std::time::Duration::from_secs(1)).await; }";
         assert_clean(&DETECTOR, code);
     }
 }
@@ -656,7 +784,10 @@ mod large_future {
     #[test]
     fn detects_long_async_fn() {
         // Threshold is 100 lines by default
-        let body: String = (0..120).map(|i| format!("let _ = {i};")).collect::<Vec<_>>().join("\n");
+        let body: String = (0..120)
+            .map(|i| format!("let _ = {i};"))
+            .collect::<Vec<_>>()
+            .join("\n");
         let code = format!("async fn big() {{\n{body}\n}}");
         assert_smell_count(&DETECTOR, &code, "Large Future", 1);
     }
@@ -670,7 +801,10 @@ mod large_future {
     #[test]
     fn clean_long_sync_function() {
         // Long non-async functions are not flagged by LargeFutureDetector
-        let body: String = (0..120).map(|i| format!("let _ = {i};")).collect::<Vec<_>>().join("\n");
+        let body: String = (0..120)
+            .map(|i| format!("let _ = {i};"))
+            .collect::<Vec<_>>()
+            .join("\n");
         let code = format!("fn big_sync() {{\n{body}\n}}");
         assert_clean(&DETECTOR, &code);
     }
@@ -821,7 +955,8 @@ mod layer_violation {
     #[test]
     fn detects_domain_to_infra_violation() {
         let code = "use crate::infrastructure::db::UserRepo;";
-        let source = SourceFile::from_source("src/domain/user.rs".into(), code.to_string()).unwrap();
+        let source =
+            SourceFile::from_source("src/domain/user.rs".into(), code.to_string()).unwrap();
         let smells = DETECTOR.detect(&source);
         assert!(!smells.is_empty(), "Expected layer violation smell");
         assert_eq!(smells[0].name, "Layer Violation");
@@ -830,7 +965,8 @@ mod layer_violation {
     #[test]
     fn clean_layering() {
         let code = "use crate::domain::model::User;";
-        let source = SourceFile::from_source("src/infrastructure/db.rs".into(), code.to_string()).unwrap();
+        let source =
+            SourceFile::from_source("src/infrastructure/db.rs".into(), code.to_string()).unwrap();
         let smells = DETECTOR.detect(&source);
         assert!(smells.is_empty());
     }
@@ -839,18 +975,28 @@ mod layer_violation {
     fn clean_io_substring_domain() {
         // 'action' contains 'io', but it's not the 'io' module
         let code = "use crate::domain::action::UserAction;";
-        let source = SourceFile::from_source("src/domain/user.rs".into(), code.to_string()).unwrap();
+        let source =
+            SourceFile::from_source("src/domain/user.rs".into(), code.to_string()).unwrap();
         let smells = DETECTOR.detect(&source);
-        assert!(smells.is_empty(), "Should not flag 'action' as 'io' violation. Smells found: {:?}", smells);
+        assert!(
+            smells.is_empty(),
+            "Should not flag 'action' as 'io' violation. Smells found: {:?}",
+            smells
+        );
     }
 
     #[test]
     fn clean_option_domain() {
         // 'option' contains 'io', but it's std::option
         let code = "use std::option::Option;";
-        let source = SourceFile::from_source("src/domain/user.rs".into(), code.to_string()).unwrap();
+        let source =
+            SourceFile::from_source("src/domain/user.rs".into(), code.to_string()).unwrap();
         let smells = DETECTOR.detect(&source);
-        assert!(smells.is_empty(), "Should not flag 'option' as 'io' violation. Smells found: {:?}", smells);
+        assert!(
+            smells.is_empty(),
+            "Should not flag 'option' as 'io' violation. Smells found: {:?}",
+            smells
+        );
     }
 
     #[test]
@@ -858,9 +1004,14 @@ mod layer_violation {
         // 'client' contains 'cli', but it's not the 'cli' module
         // 'HttpClient' contains 'http', but it's not the 'http' module
         let code = "use crate::app::client::HttpClient;";
-        let source = SourceFile::from_source("src/domain/user.rs".into(), code.to_string()).unwrap();
+        let source =
+            SourceFile::from_source("src/domain/user.rs".into(), code.to_string()).unwrap();
         let smells = DETECTOR.detect(&source);
-        assert!(smells.is_empty(), "Should not flag 'client' as 'cli' or 'HttpClient' as 'http'. Smells found: {:?}", smells);
+        assert!(
+            smells.is_empty(),
+            "Should not flag 'client' as 'cli' or 'HttpClient' as 'http'. Smells found: {:?}",
+            smells
+        );
     }
 }
 
@@ -999,6 +1150,26 @@ enum Huge {
         let code = "pub struct Wrapper(pub i32, pub i32, pub i32, pub i32, pub i32, pub i32, pub i32, pub i32, pub i32, pub i32, pub i32);";
         assert_clean(&DETECTOR, code);
     }
+
+    #[test]
+    fn clean_threshold_config_struct() {
+        let code = "\
+struct DesignThresholds {
+    a: usize, b: usize, c: usize, d: usize, e: usize, f: usize,
+    g: usize, h: usize, i: usize, j: usize, k: usize,
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_config_and_template_structs() {
+        let code = "\
+struct Settings { a:i32,b:i32,c:i32,d:i32,e:i32,f:i32,g:i32,h:i32,i:i32,j:i32,k:i32,l:i32 }
+struct DashboardTemplate { a:i32,b:i32,c:i32,d:i32,e:i32,f:i32,g:i32,h:i32,i:i32,j:i32,k:i32,l:i32 }
+";
+        assert_clean(&DETECTOR, code);
+    }
 }
 
 mod broken_constructor {
@@ -1068,6 +1239,32 @@ pub struct Pair {
 ";
         assert_clean(&DETECTOR, code);
     }
+
+    #[test]
+    fn clean_dto_template_and_config_structs() {
+        let code = r#"
+pub struct CreateUserCommand {
+    pub name: String,
+    pub email: String,
+    pub age: i32,
+}
+
+#[derive(Template)]
+#[template(path = "user.html")]
+pub struct UserTemplate {
+    pub name: String,
+    pub email: String,
+    pub age: i32,
+}
+
+pub struct ServerConfig {
+    pub host: String,
+    pub port: u16,
+    pub tls: bool,
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
 }
 
 // ─── Extended Concurrency ───────────────────────────────
@@ -1099,6 +1296,130 @@ mod spawn_without_join {
     fn clean_assigned_spawn() {
         // Spawn assigned to a named variable is safe
         let code = "fn foo() { let handle = std::thread::spawn(|| {}); handle.join().unwrap(); }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_regular_function_with_spawn_in_name() {
+        let code = "fn foo() { spawn_detached_mirror_refresh_job(); }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_spawn_handle_returned_from_function() {
+        let code = "fn foo() -> Option<JoinHandle> { Some(tokio::spawn(async {})) }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_rayon_spawn_without_join_handle() {
+        let code = "fn foo() { rayon::spawn(|| {}); }";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod holding_lock_across_await {
+    use super::*;
+    use qualirs::detectors::concurrency::holding_lock_across_await::HoldingLockAcrossAwaitDetector;
+
+    static DETECTOR: HoldingLockAcrossAwaitDetector = HoldingLockAcrossAwaitDetector;
+
+    #[test]
+    fn detects_bound_guard_held_across_later_await() {
+        let code = r#"
+async fn foo(lock: &tokio::sync::Mutex<i32>) {
+    let guard = lock.lock().await;
+    do_work().await;
+    drop(guard);
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Holding Lock Across Await", 1);
+    }
+
+    #[test]
+    fn clean_lock_temporary_used_in_single_statement_before_await() {
+        let code = r#"
+async fn logout(state: State) {
+    let removed = state.sessions.write().await.remove("session-id");
+    if removed.is_some() {
+        record_audit_event().await;
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_bound_guard_without_later_await() {
+        let code = r#"
+async fn require_session(state: State) {
+    let mut sessions = state.sessions.write().await;
+    sessions.remove("session-id");
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_explicit_drop_before_await() {
+        let code = r#"
+async fn foo(lock: &tokio::sync::Mutex<i32>) {
+    let guard = lock.lock().await;
+    drop(guard);
+    do_work().await;
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod blocking_channel_in_async {
+    use super::*;
+    use qualirs::detectors::concurrency::blocking_channel_in_async::BlockingChannelInAsyncDetector;
+
+    static DETECTOR: BlockingChannelInAsyncDetector = BlockingChannelInAsyncDetector;
+
+    #[test]
+    fn detects_blocking_recv_in_async() {
+        let code = r#"
+async fn wait(receiver: std::sync::mpsc::Receiver<i32>) {
+    let _ = receiver.recv();
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Blocking Channel in Async", 1);
+    }
+
+    #[test]
+    fn clean_awaited_async_recv() {
+        let code = r#"
+async fn wait(mut signal: tokio::sync::watch::Receiver<bool>) {
+    signal.recv().await;
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_send_inside_non_async_worker_closure() {
+        let code = r#"
+async fn inspect() {
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    rayon::spawn(move || {
+        let _ = sender.send(1);
+    });
+    let _ = receiver.await;
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_nonblocking_send_in_async() {
+        let code = r#"
+async fn notify(sender: tokio::sync::watch::Sender<bool>) {
+    sender.send(true).expect("send shutdown");
+}
+"#;
         assert_clean(&DETECTOR, code);
     }
 }
@@ -1172,6 +1493,124 @@ mod ffi_without_wrapper {
 extern \"C\" { fn some_api(); }
 pub fn some_api_wrapper() { unsafe { some_api(); } }
 ";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod ffi_type_not_repr_c {
+    use super::*;
+    use qualirs::detectors::r#unsafe::ffi_type_not_repr_c::FfiTypeNotReprCDetector;
+    static DETECTOR: FfiTypeNotReprCDetector = FfiTypeNotReprCDetector;
+
+    #[test]
+    fn detects_ffi_type_without_repr_c() {
+        let code = r#"
+extern "C" { fn use_config(config: *const CConfig); }
+pub struct CConfig {
+    value: i32,
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "FFI Type Not repr(C)", 1);
+    }
+
+    #[test]
+    fn clean_repr_c_ffi_type() {
+        let code = r#"
+extern "C" { fn use_config(config: *const CConfig); }
+#[repr(C)]
+pub struct CConfig {
+    value: i32,
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_public_c_named_rust_types_outside_ffi_context() {
+        let code = r#"
+pub struct Config;
+pub struct CategorySmells;
+pub struct CloneOnCopyDetector;
+pub struct ConcurrencyThresholds;
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_detector_names_outside_ffi_context() {
+        let code = r#"
+pub struct FfiTypeNotReprCDetector;
+pub struct FfiWithoutWrapperDetector;
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod duplicate_match_arms {
+    use super::*;
+    use qualirs::detectors::implementation::duplicate_match_arms::DuplicateMatchArmsDetector;
+    static DETECTOR: DuplicateMatchArmsDetector = DuplicateMatchArmsDetector;
+
+    #[test]
+    fn detects_duplicate_match_arm_bodies() {
+        let code = r#"
+fn classify(value: i32) -> i32 {
+    match value {
+        1 => score(),
+        2 => score(),
+        _ => 0,
+    }
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Duplicate Match Arms", 1);
+    }
+
+    #[test]
+    fn clean_same_field_projection_from_different_variant_payloads() {
+        let code = r#"
+enum Item {
+    Const(ConstItem),
+    Enum(EnumItem),
+}
+
+struct ConstItem {
+    vis: bool,
+}
+
+struct EnumItem {
+    vis: bool,
+}
+
+fn is_pub(item: Item) -> bool {
+    let vis = match item {
+        Item::Const(i) => &i.vis,
+        Item::Enum(i) => &i.vis,
+    };
+    *vis
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_duplicate_body_that_depends_on_pattern_binding() {
+        let code = r#"
+fn collect_pat_idents(pat: &syn::Pat) {
+    match pat {
+        syn::Pat::Tuple(tuple) => {
+            for elem in &tuple.elems {
+                collect_pat_idents(elem);
+            }
+        }
+        syn::Pat::TupleStruct(tuple) => {
+            for elem in &tuple.elems {
+                collect_pat_idents(elem);
+            }
+        }
+        _ => {}
+    }
+}
+"#;
         assert_clean(&DETECTOR, code);
     }
 }
@@ -1404,6 +1843,15 @@ mod primitive_obsession {
     }
 
     #[test]
+    fn clean_config_and_view_carriers() {
+        let code = "\
+struct RateLimitConfig { a: i32, b: i32, c: i32, d: i32, e: i32 }
+struct DashboardView { a: String, b: String, c: String, d: String, e: String }
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
     fn clean_option_not_primitive() {
         // Option<i32> is NOT considered primitive
         let code = "struct Data { a: i32, b: i32, c: i32, d: i32, e: Option<i32> }";
@@ -1433,6 +1881,16 @@ fn migrate_user(name: String, age: i32, email: String) {}
 fn build_user(name: String, age: i32) {}
 fn update_user(name: String, age: i32) {}
 fn migrate_user(name: String, age: i32) {}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_destructured_arguments_do_not_create_one_param_clumps() {
+        let code = "\
+fn simple_index(State(state): State, Path(tenant): Path<String>, headers: HeaderMap) {}
+fn simple_project(State(state): State, Path(tenant): Path<String>, headers: HeaderMap) {}
+fn download_artifact(State(state): State, Path(tenant): Path<String>, headers: HeaderMap) {}
 ";
         assert_clean(&DETECTOR, code);
     }
@@ -1687,6 +2145,191 @@ pub trait Handler {
 pub struct Handler;
 ";
         assert_clean(&DETECTOR, code);
+    }
+}
+
+mod unnecessary_allocation_in_loop {
+    use super::*;
+    use qualirs::detectors::implementation::unnecessary_allocation_in_loop::UnnecessaryAllocationInLoopDetector;
+    static DETECTOR: UnnecessaryAllocationInLoopDetector = UnnecessaryAllocationInLoopDetector;
+
+    #[test]
+    fn detects_clear_loop_allocations() {
+        let code = r#"
+fn build(items: &[&str]) {
+    for item in items {
+        let a = String::from(*item);
+        let b = item.to_owned();
+        let c = format!("item: {item}");
+    }
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Unnecessary Allocation in Loop", 3);
+    }
+
+    #[test]
+    fn clean_owned_reporting_and_grouping_work() {
+        let code = r#"
+fn report(items: &[i32]) {
+    for item in items {
+        let label = item.to_string();
+        let selected: Vec<_> = [1, 2, 3].iter().filter(|value| **value > 1).collect();
+        println!("{label}: {}", selected.len());
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_borrowed_format_argument() {
+        let code = r#"
+fn report(items: &[i32]) {
+    for item in items {
+        consume(&format!("item: {item}"));
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod manual_default_constructor {
+    use super::*;
+    use qualirs::detectors::implementation::manual_default_constructor::ManualDefaultConstructorDetector;
+    static DETECTOR: ManualDefaultConstructorDetector = ManualDefaultConstructorDetector;
+
+    #[test]
+    fn detects_no_arg_defaultish_new() {
+        let code = "\
+struct Bag { items: Vec<String> }
+impl Bag {
+    fn new() -> Self {
+        Self { items: Vec::new() }
+    }
+}
+";
+        assert_smell_count(&DETECTOR, code, "Manual Default Constructor", 1);
+    }
+
+    #[test]
+    fn clean_constructor_uses_parameter() {
+        let code = "\
+struct Engine { detectors: Vec<String>, config: Config }
+struct Config;
+impl Engine {
+    fn new(config: Config) -> Self {
+        Self { detectors: Vec::new(), config }
+    }
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod manual_find_loop {
+    use super::*;
+    use qualirs::detectors::implementation::manual_find_loop::ManualFindLoopDetector;
+    static DETECTOR: ManualFindLoopDetector = ManualFindLoopDetector;
+
+    #[test]
+    fn detects_direct_conditional_return_in_loop() {
+        let code = "\
+fn has_even(values: &[i32]) -> bool {
+    for value in values {
+        if *value % 2 == 0 {
+            return true;
+        }
+    }
+    false
+}
+";
+        assert_smell_count(&DETECTOR, code, "Manual Find/Any Loop", 1);
+    }
+
+    #[test]
+    fn clean_return_inside_nested_closure() {
+        let code = "\
+pub fn process(items: &[i32]) {
+    for item in items {
+        let selected = [1, 2, 3].iter().filter_map(|value| {
+            if *value == *item {
+                return Some(value);
+            }
+            None
+        });
+        let _ = selected.count();
+    }
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_loop_returning_constructed_value() {
+        let code = "\
+fn find_path(paths: &[&str]) -> Option<String> {
+    for path in paths {
+        if path.ends_with(\".rs\") {
+            return Some(path.to_string());
+        }
+    }
+    None
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_stateful_loop_with_conditional_return() {
+        let code = "\
+fn block_holds_lock_across_await(block: &Block) -> bool {
+    let mut active_guards = HashSet::new();
+
+    for stmt in &block.stmts {
+        if !active_guards.is_empty() && contains_await_in_stmt(stmt) {
+            return true;
+        }
+
+        remove_explicitly_dropped_guards(stmt, &mut active_guards);
+    }
+
+    false
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod derivable_impl {
+    use super::*;
+    use qualirs::detectors::implementation::derivable_impl::DerivableImplDetector;
+    static DETECTOR: DerivableImplDetector = DerivableImplDetector;
+
+    #[test]
+    fn clean_custom_default_values() {
+        let code = "\
+struct Thresholds { limit: usize }
+impl Default for Thresholds {
+    fn default() -> Self {
+        Self { limit: 50 }
+    }
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn detects_mechanical_default_impl() {
+        let code = "\
+struct State { name: String, items: Vec<String> }
+impl Default for State {
+    fn default() -> Self {
+        Self { name: String::new(), items: Vec::new() }
+    }
+}
+";
+        assert_smell_count(&DETECTOR, code, "Derivable Impl", 1);
     }
 }
 

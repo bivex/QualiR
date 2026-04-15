@@ -30,7 +30,7 @@ impl Detector for ArcMutexOveruseDetector {
         if visitor.arc_mutex_count > thresholds.concurrency.arc_mutex_overuse {
             let line = visitor.first_line.unwrap_or(1);
             smells.push(Smell::new(
-                SmellCategory::Concurrency,
+                SmellCategory::Performance,
                 "Arc Mutex Overuse",
                 Severity::Warning,
                 SourceLocation {
@@ -59,7 +59,10 @@ struct ArcMutexVisitor {
 impl<'ast> Visit<'ast> for ArcMutexVisitor {
     fn visit_type(&mut self, node: &'ast syn::Type) {
         if let syn::Type::Path(tp) = node {
-            let segments: Vec<String> = tp.path.segments.iter()
+            let segments: Vec<String> = tp
+                .path
+                .segments
+                .iter()
                 .map(|s| s.ident.to_string())
                 .collect();
 
@@ -75,5 +78,7 @@ impl<'ast> Visit<'ast> for ArcMutexVisitor {
 }
 
 fn is_arc_mutex(segments: &[String]) -> bool {
-    segments.iter().any(|s| s == "Arc" || s == "Mutex" || s == "RwLock")
+    segments
+        .iter()
+        .any(|s| s == "Arc" || s == "Mutex" || s == "RwLock")
 }

@@ -1,6 +1,7 @@
-use syn::visit::{visit_expr, Visit};
+use syn::visit::{Visit, visit_expr};
 
 use crate::analysis::detector::Detector;
+use crate::detectors::policy::is_test_path;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
 
@@ -17,6 +18,10 @@ impl Detector for MagicNumbersDetector {
 
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let mut smells = Vec::new();
+
+        if is_test_path(&file.path) {
+            return smells;
+        }
 
         for item in &file.ast.items {
             if let syn::Item::Fn(fn_item) = item {
@@ -67,14 +72,12 @@ struct MagicNumberVisitor {
 
 impl<'ast> Visit<'ast> for MagicNumberVisitor {
     fn visit_expr(&mut self, expr: &'ast syn::Expr) {
-        if let syn::Expr::Lit(lit_expr) = expr {
-            if let syn::Lit::Int(lit_int) = &lit_expr.lit {
-                if let Ok(val) = lit_int.base10_parse::<i64>() {
-                    if !WHITELIST.contains(&val) {
-                        self.magic_numbers.push(val);
-                    }
-                }
-            }
+        if let syn::Expr::Lit(lit_expr) = expr
+            && let syn::Lit::Int(lit_int) = &lit_expr.lit
+            && let Ok(val) = lit_int.base10_parse::<i64>()
+            && !WHITELIST.contains(&val)
+        {
+            self.magic_numbers.push(val);
         }
         visit_expr(self, expr);
     }

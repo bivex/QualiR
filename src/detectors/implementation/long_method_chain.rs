@@ -49,7 +49,9 @@ impl Detector for LongMethodChainDetector {
                             },
                             format!(
                                 "Function `{}` has a method chain of length {} (threshold: {})",
-                                fn_item.sig.ident, depth, thresholds.r#impl.control_flow.long_method_chain
+                                fn_item.sig.ident,
+                                depth,
+                                thresholds.r#impl.control_flow.long_method_chain
                             ),
                             "Break long chains into intermediate variables with descriptive names.",
                         ));
@@ -70,7 +72,10 @@ struct ChainVisitor {
 impl ChainVisitor {
     fn is_builder_method(ident: &syn::Ident) -> bool {
         let s = ident.to_string();
-        matches!(s.as_str(), "arg" | "args" | "env" | "envs" | "on" | "with" | "id" | "name" | "value" | "label")
+        matches!(
+            s.as_str(),
+            "arg" | "args" | "env" | "envs" | "on" | "with" | "id" | "name" | "value" | "label"
+        )
     }
 
     fn chain_depth(expr: &syn::Expr) -> usize {

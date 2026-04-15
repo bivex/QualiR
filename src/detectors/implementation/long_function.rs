@@ -21,12 +21,7 @@ impl Detector for LongFunctionDetector {
 
         for item in &file.ast.items {
             if let syn::Item::Fn(fn_item) = item {
-                check_function(
-                    &file.path,
-                    fn_item,
-                    &thresholds,
-                    &mut smells,
-                );
+                check_function(&file.path, fn_item, &thresholds, &mut smells);
             }
         }
 

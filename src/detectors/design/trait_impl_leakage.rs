@@ -22,28 +22,34 @@ impl Detector for TraitImplLeakageDetector {
             std::collections::HashMap::new();
 
         for item in &file.ast.items {
-            if let syn::Item::Impl(imp) = item {
-                if let Some((_, trait_path, _)) = &imp.trait_ {
-                    let trait_name = trait_path_to_string(trait_path);
-                    let kind = classify_trait(&trait_name);
-                    if let syn::Type::Path(tp) = &*imp.self_ty {
-                        let type_name = tp.path.segments.last()
-                            .map(|s| s.ident.to_string())
-                            .unwrap_or_default();
-                        if !type_name.is_empty() {
-                            type_impls
-                                .entry(type_name)
-                                .or_default()
-                                .push(kind);
-                        }
+            if let syn::Item::Impl(imp) = item
+                && let Some((_, trait_path, _)) = &imp.trait_
+            {
+                let trait_name = trait_path_to_string(trait_path);
+                let kind = classify_trait(&trait_name);
+                if let syn::Type::Path(tp) = &*imp.self_ty {
+                    let type_name = tp
+                        .path
+                        .segments
+                        .last()
+                        .map(|s| s.ident.to_string())
+                        .unwrap_or_default();
+                    if !type_name.is_empty() {
+                        type_impls.entry(type_name).or_default().push(kind);
                     }
                 }
             }
         }
 
         for (type_name, traits) in &type_impls {
-            let std_count = traits.iter().filter(|k| matches!(k, TraitKind::Std)).count();
-            let domain_count = traits.iter().filter(|k| matches!(k, TraitKind::Domain)).count();
+            let std_count = traits
+                .iter()
+                .filter(|k| matches!(k, TraitKind::Std))
+                .count();
+            let domain_count = traits
+                .iter()
+                .filter(|k| matches!(k, TraitKind::Domain))
+                .count();
 
             if std_count >= 5 && domain_count == 0 {
                 smells.push(Smell::new(
@@ -77,14 +83,41 @@ enum TraitKind {
 
 fn classify_trait(name: &str) -> TraitKind {
     let std_traits = [
-        "Debug", "Clone", "Copy", "Hash", "Eq", "PartialEq", "Ord", "PartialOrd",
-        "Display", "FromStr", "Default", "From", "Into", "AsRef", "AsMut",
-        "Borrow", "ToOwned", "ToString", "Iterator", "ExactSizeIterator",
-        "Read", "Write", "Seek", "BufRead", "Error", "Send", "Sync",
-        "Unpin", "Sized", "Fn", "FnMut", "FnOnce",
+        "Debug",
+        "Clone",
+        "Copy",
+        "Hash",
+        "Eq",
+        "PartialEq",
+        "Ord",
+        "PartialOrd",
+        "Display",
+        "FromStr",
+        "Default",
+        "From",
+        "Into",
+        "AsRef",
+        "AsMut",
+        "Borrow",
+        "ToOwned",
+        "ToString",
+        "Iterator",
+        "ExactSizeIterator",
+        "Read",
+        "Write",
+        "Seek",
+        "BufRead",
+        "Error",
+        "Send",
+        "Sync",
+        "Unpin",
+        "Sized",
+        "Fn",
+        "FnMut",
+        "FnOnce",
     ];
 
-    if std_traits.iter().any(|t| name == *t) {
+    if std_traits.contains(&name) {
         TraitKind::Std
     } else {
         TraitKind::Domain

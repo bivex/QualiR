@@ -33,7 +33,9 @@ impl Detector for LargeEnumDetector {
                         },
                         format!(
                             "Enum `{}` has {} variants (threshold: {})",
-                            enum_item.ident, variant_count, thresholds.r#impl.control_flow.large_enum_variants
+                            enum_item.ident,
+                            variant_count,
+                            thresholds.r#impl.control_flow.large_enum_variants
                         ),
                         "Consider splitting into multiple enums or using a trait-based dispatch.",
                     ));

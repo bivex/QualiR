@@ -1,6 +1,7 @@
-use syn::visit::{visit_expr, Visit};
+use syn::visit::{Visit, visit_expr};
 
 use crate::analysis::detector::Detector;
+use crate::detectors::policy::is_test_path;
 use crate::domain::config::Thresholds;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
@@ -17,6 +18,10 @@ impl Detector for ExcessiveUnwrapDetector {
         let thresholds = Thresholds::default();
         let mut smells = Vec::new();
 
+        if is_test_path(&file.path) {
+            return smells;
+        }
+
         for item in &file.ast.items {
             if let syn::Item::Fn(fn_item) = item {
                 let mut visitor = UnwrapCounter::new();
@@ -26,7 +31,7 @@ impl Detector for ExcessiveUnwrapDetector {
                     let line = fn_item.sig.fn_token.span.start().line;
 
                     smells.push(Smell::new(
-                        SmellCategory::Implementation,
+                        SmellCategory::Idiomaticity,
                         "Excessive Unwrap",
                         Severity::Warning,
                         SourceLocation {
@@ -37,7 +42,9 @@ impl Detector for ExcessiveUnwrapDetector {
                         },
                         format!(
                             "Function `{}` has {} unwrap/expect calls (threshold: {})",
-                            fn_item.sig.ident, visitor.unwrap_count, thresholds.r#impl.control_flow.excessive_unwrap
+                            fn_item.sig.ident,
+                            visitor.unwrap_count,
+                            thresholds.r#impl.control_flow.excessive_unwrap
                         ),
                         "Use proper error handling with ?, map_err, or match instead of unwrap().",
                     ));
@@ -61,10 +68,10 @@ impl UnwrapCounter {
 
 impl<'ast> Visit<'ast> for UnwrapCounter {
     fn visit_expr(&mut self, expr: &'ast syn::Expr) {
-        if let syn::Expr::MethodCall(call) = expr {
-            if call.method == "unwrap" || call.method == "expect" {
-                self.unwrap_count += 1;
-            }
+        if let syn::Expr::MethodCall(call) = expr
+            && (call.method == "unwrap" || call.method == "expect")
+        {
+            self.unwrap_count += 1;
         }
         visit_expr(self, expr);
     }

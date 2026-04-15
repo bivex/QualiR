@@ -1,6 +1,6 @@
 [package]
 name = "qualirs"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "Structural and architectural code smell detector for Rust"
 license = "MIT"
@@ -17,6 +17,7 @@ path = "src/main.rs"
 # AST parsing
 syn = { version = "2", features = ["full", "extra-traits", "visit", "parsing", "printing"] }
 proc-macro2 = { version = "1", features = ["span-locations"] }
+quote = "1"
 
 # CLI
 clap = { version = "4", features = ["derive"] }
@@ -38,6 +39,14 @@ rayon = "1"
 # Error handling
 thiserror = "2"
 anyhow = "1"
+fixed-json = { version = "0.2.1", features = ["std"] }
 
 [dev-dependencies]
 tempfile = "3"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"

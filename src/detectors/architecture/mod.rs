@@ -1,8 +1,10 @@
-pub mod god_module;
-pub mod public_api_explosion;
-pub mod feature_concentration;
 pub mod cyclic_crate_dependency;
-pub mod layer_violation;
-pub mod unstable_dependency;
-pub mod leaky_error;
+pub mod feature_concentration;
+pub mod god_module;
 pub mod hidden_global_state;
+pub mod layer_violation;
+pub mod leaky_error;
+pub mod project_hygiene;
+pub mod public_api_explosion;
+pub mod public_api_leak;
+pub mod unstable_dependency;

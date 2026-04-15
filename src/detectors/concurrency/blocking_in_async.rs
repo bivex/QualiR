@@ -19,40 +19,40 @@ impl Detector for BlockingInAsyncDetector {
         let mut smells = Vec::new();
 
         for item in &file.ast.items {
-            if let syn::Item::Fn(fn_item) = item {
-                if fn_item.sig.asyncness.is_some() {
-                    let mut visitor = BlockingCallVisitor {
-                        blocking_calls: Vec::new(),
-                    };
-                    visitor.visit_item_fn(fn_item);
+            if let syn::Item::Fn(fn_item) = item
+                && fn_item.sig.asyncness.is_some()
+            {
+                let mut visitor = BlockingCallVisitor {
+                    blocking_calls: Vec::new(),
+                };
+                visitor.visit_item_fn(fn_item);
 
-                    if !visitor.blocking_calls.is_empty() {
-                        let start = fn_item.block.brace_token.span.open().start().line;
-                        let end = fn_item.block.brace_token.span.close().start().line;
-                        let calls: Vec<String> = visitor
-                            .blocking_calls
-                            .iter()
-                            .map(|(name, _)| name.clone())
-                            .collect();
+                if !visitor.blocking_calls.is_empty() {
+                    let start = fn_item.block.brace_token.span.open().start().line;
+                    let end = fn_item.block.brace_token.span.close().start().line;
+                    let calls: Vec<String> = visitor
+                        .blocking_calls
+                        .iter()
+                        .map(|(name, _)| name.clone())
+                        .collect();
 
-                        smells.push(Smell::new(
-                            SmellCategory::Concurrency,
-                            "Blocking in Async",
-                            Severity::Warning,
-                            SourceLocation {
-                                file: file.path.clone(),
-                                line_start: start,
-                                line_end: end,
-                                column: None,
-                            },
-                            format!(
-                                "Async function `{}` contains blocking calls: {}",
-                                fn_item.sig.ident,
-                                calls.join(", ")
-                            ),
-                            "Use async alternatives (tokio::fs, tokio::time::sleep, spawn_blocking).",
-                        ));
-                    }
+                    smells.push(Smell::new(
+                        SmellCategory::Concurrency,
+                        "Blocking in Async",
+                        Severity::Warning,
+                        SourceLocation {
+                            file: file.path.clone(),
+                            line_start: start,
+                            line_end: end,
+                            column: None,
+                        },
+                        format!(
+                            "Async function `{}` contains blocking calls: {}",
+                            fn_item.sig.ident,
+                            calls.join(", ")
+                        ),
+                        "Use async alternatives (tokio::fs, tokio::time::sleep, spawn_blocking).",
+                    ));
                 }
             }
         }
@@ -98,8 +98,6 @@ impl<'ast> Visit<'ast> for BlockingCallVisitor {
 }
 
 fn path_to_string(path: &syn::Path) -> String {
-    let idents: Vec<String> = path.segments.iter()
-        .map(|s| s.ident.to_string())
-        .collect();
+    let idents: Vec<String> = path.segments.iter().map(|s| s.ident.to_string()).collect();
     idents.join("::")
 }

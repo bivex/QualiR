@@ -1,6 +1,7 @@
 use syn::visit::Visit;
 
 use crate::analysis::detector::Detector;
+use crate::detectors::policy::is_test_path;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
 
@@ -17,6 +18,10 @@ impl Detector for UnusedResultDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let mut smells = Vec::new();
 
+        if is_test_path(&file.path) {
+            return smells;
+        }
+
         for item in &file.ast.items {
             if let syn::Item::Fn(fn_item) = item {
                 let mut visitor = UnusedResultVisitor {
@@ -26,7 +31,7 @@ impl Detector for UnusedResultDetector {
 
                 for (line, expr_desc) in visitor.findings {
                     smells.push(Smell::new(
-                        SmellCategory::Implementation,
+                        SmellCategory::Idiomaticity,
                         "Unused Result Ignored",
                         Severity::Warning,
                         SourceLocation {
@@ -56,12 +61,12 @@ struct UnusedResultVisitor {
 impl<'ast> Visit<'ast> for UnusedResultVisitor {
     fn visit_local(&mut self, local: &'ast syn::Local) {
         // Check for `let _ = expr;` pattern
-        if let syn::Pat::Wild(wild) = &local.pat {
-            if let Some(init) = &local.init {
-                let description = describe_expr(&init.expr);
-                let line = wild.underscore_token.span.start().line;
-                self.findings.push((line, description));
-            }
+        if let syn::Pat::Wild(wild) = &local.pat
+            && let Some(init) = &local.init
+        {
+            let description = describe_expr(&init.expr);
+            let line = wild.underscore_token.span.start().line;
+            self.findings.push((line, description));
         }
         syn::visit::visit_local(self, local);
     }
@@ -92,8 +97,6 @@ fn extract_path_string(expr: &syn::Expr) -> String {
 }
 
 fn path_to_string(path: &syn::Path) -> String {
-    let idents: Vec<String> = path.segments.iter()
-        .map(|s| s.ident.to_string())
-        .collect();
+    let idents: Vec<String> = path.segments.iter().map(|s| s.ident.to_string()).collect();
     idents.join("::")
 }

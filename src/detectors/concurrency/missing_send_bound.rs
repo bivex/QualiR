@@ -33,8 +33,7 @@ impl Detector for MissingSendBoundDetector {
                         if let syn::GenericParam::Type(tp) = p {
                             tp.bounds.iter().any(|b| {
                                 if let syn::TypeParamBound::Trait(tb) = b {
-                                    let last = tb.path.segments.last()
-                                        .map(|s| s.ident.to_string());
+                                    let last = tb.path.segments.last().map(|s| s.ident.to_string());
                                     last.as_deref() == Some("Send")
                                 } else {
                                     false
@@ -74,7 +73,9 @@ impl Detector for MissingSendBoundDetector {
 
 fn contains_spawn_call(fn_item: &syn::ItemFn) -> bool {
     use syn::visit::Visit;
-    struct SpawnFinder { found: bool }
+    struct SpawnFinder {
+        found: bool,
+    }
     impl<'ast> Visit<'ast> for SpawnFinder {
         fn visit_expr_call(&mut self, i: &'ast syn::ExprCall) {
             if let syn::Expr::Path(p) = &*i.func {

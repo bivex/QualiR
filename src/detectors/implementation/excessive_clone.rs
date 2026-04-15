@@ -1,4 +1,4 @@
-use syn::visit::{visit_expr, Visit};
+use syn::visit::{Visit, visit_expr};
 
 use crate::analysis::detector::Detector;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
@@ -26,7 +26,7 @@ impl Detector for ExcessiveCloneDetector {
                     let line = fn_item.sig.fn_token.span.start().line;
 
                     smells.push(Smell::new(
-                        SmellCategory::Implementation,
+                        SmellCategory::Performance,
                         "Excessive Clone",
                         Severity::Info,
                         SourceLocation {
@@ -61,10 +61,10 @@ impl CloneCounter {
 
 impl<'ast> Visit<'ast> for CloneCounter {
     fn visit_expr(&mut self, expr: &'ast syn::Expr) {
-        if let syn::Expr::MethodCall(call) = expr {
-            if call.method == "clone" {
-                self.clone_count += 1;
-            }
+        if let syn::Expr::MethodCall(call) = expr
+            && call.method == "clone"
+        {
+            self.clone_count += 1;
         }
         visit_expr(self, expr);
     }

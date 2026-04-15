@@ -37,7 +37,7 @@ impl Detector for PanicInLibraryDetector {
 
                 for incident in visitor.panics {
                     smells.push(Smell::new(
-                        SmellCategory::Implementation,
+                        SmellCategory::Idiomaticity,
                         "Panic in Library",
                         Severity::Warning,
                         SourceLocation {

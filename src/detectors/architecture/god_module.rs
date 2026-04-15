@@ -20,6 +20,12 @@ impl Detector for GodModuleDetector {
         }
 
         let item_count = file.ast.items.len();
+        let is_module_registry = item_count > 0
+            && file
+                .ast
+                .items
+                .iter()
+                .all(|item| matches!(item, syn::Item::Mod(_)));
 
         if file.line_count > thresholds.arch.god_module_loc {
             smells.push(Smell::new(
@@ -40,7 +46,7 @@ impl Detector for GodModuleDetector {
             ));
         }
 
-        if item_count > thresholds.arch.god_module_items {
+        if item_count > thresholds.arch.god_module_items && !is_module_registry {
             smells.push(Smell::new(
                 SmellCategory::Architecture,
                 "God Module (items)",

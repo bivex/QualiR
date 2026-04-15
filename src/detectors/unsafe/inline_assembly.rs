@@ -6,7 +6,7 @@ use crate::domain::source::SourceFile;
 
 /// Detects usage of inline assembly (`asm!` or `global_asm!`).
 ///
-/// Inline assembly is highly architecture-specific, unsafe, and non-portable. 
+/// Inline assembly is highly architecture-specific, unsafe, and non-portable.
 /// Its usage should be strictly isolated to low-level platform code.
 pub struct InlineAssemblyDetector;
 
@@ -17,10 +17,8 @@ impl Detector for InlineAssemblyDetector {
 
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let mut smells = Vec::new();
-        let mut visitor = AsmVisitor {
-            usages: Vec::new(),
-        };
-        
+        let mut visitor = AsmVisitor { usages: Vec::new() };
+
         visitor.visit_file(&file.ast);
 
         for (line, macro_name) in visitor.usages {

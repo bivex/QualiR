@@ -19,16 +19,19 @@ impl Detector for AsyncTraitOverheadDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let mut smells = Vec::new();
 
-        let mut visitor = MacroAttributeVisitor { violations: Vec::new() };
+        let mut visitor = MacroAttributeVisitor {
+            violations: Vec::new(),
+        };
         visitor.visit_file(&file.ast);
 
         for line in visitor.violations {
             smells.push(Smell::new(
-                SmellCategory::Concurrency,
+                SmellCategory::Performance,
                 "Async Trait Overhead",
                 Severity::Info,
                 SourceLocation::new(file.path.clone(), line, line, None),
-                "Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead".to_string(),
+                "Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead"
+                    .to_string(),
                 "Migrate to native async fn in traits (stabilized in Rust 1.75) if possible.",
             ));
         }
@@ -43,12 +46,12 @@ struct MacroAttributeVisitor {
 
 impl<'ast> Visit<'ast> for MacroAttributeVisitor {
     fn visit_attribute(&mut self, node: &'ast syn::Attribute) {
-        if let Some(seg) = node.path().segments.last() {
-            if seg.ident == "async_trait" {
-                // Approximate line number since span might encompass the whole attribute
-                let line = seg.ident.span().start().line;
-                self.violations.push(line);
-            }
+        if let Some(seg) = node.path().segments.last()
+            && seg.ident == "async_trait"
+        {
+            // Approximate line number since span might encompass the whole attribute
+            let line = seg.ident.span().start().line;
+            self.violations.push(line);
         }
         syn::visit::visit_attribute(self, node);
     }

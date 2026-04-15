@@ -1,4 +1,5 @@
 use crate::analysis::detector::Detector;
+use crate::detectors::policy::{is_dto_template_or_config_struct, is_test_path};
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
 
@@ -16,7 +17,7 @@ impl Detector for BrokenConstructorDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let mut smells = Vec::new();
 
-        if file.path.to_string_lossy().contains("tests") {
+        if is_test_path(&file.path) {
             return smells;
         }
 
@@ -27,6 +28,9 @@ impl Detector for BrokenConstructorDetector {
         for item in &file.ast.items {
             match item {
                 syn::Item::Struct(s) => {
+                    if is_dto_template_or_config_struct(s) {
+                        continue;
+                    }
                     let all_pub = match &s.fields {
                         syn::Fields::Named(named) => named
                             .named
@@ -62,29 +66,29 @@ impl Detector for BrokenConstructorDetector {
                     });
                 }
                 syn::Item::Impl(imp) => {
-                    if let syn::Type::Path(tp) = &*imp.self_ty {
-                        if let Some(seg) = tp.path.segments.last() {
-                            let type_name = seg.ident.to_string();
-                            
-                            // Check for new() or other constructors
-                            if imp.trait_.is_none() {
-                                for item in &imp.items {
-                                    if let syn::ImplItem::Fn(method) = item {
-                                        let method_name = method.sig.ident.to_string();
-                                        if method_name == "new" 
-                                            || method_name.starts_with("from_") 
-                                            || method_name.starts_with("with_")
-                                            || method_name.starts_with("parse_") 
-                                        {
-                                            has_new.insert(type_name.clone());
-                                        }
+                    if let syn::Type::Path(tp) = &*imp.self_ty
+                        && let Some(seg) = tp.path.segments.last()
+                    {
+                        let type_name = seg.ident.to_string();
+
+                        // Check for new() or other constructors
+                        if imp.trait_.is_none() {
+                            for item in &imp.items {
+                                if let syn::ImplItem::Fn(method) = item {
+                                    let method_name = method.sig.ident.to_string();
+                                    if method_name == "new"
+                                        || method_name.starts_with("from_")
+                                        || method_name.starts_with("with_")
+                                        || method_name.starts_with("parse_")
+                                    {
+                                        has_new.insert(type_name.clone());
                                     }
                                 }
-                            } else if let Some((_, path, _)) = &imp.trait_ {
-                                // Check for impl Default
-                                if path.is_ident("Default") {
-                                    has_new.insert(type_name.clone());
-                                }
+                            }
+                        } else if let Some((_, path, _)) = &imp.trait_ {
+                            // Check for impl Default
+                            if path.is_ident("Default") {
+                                has_new.insert(type_name.clone());
                             }
                         }
                     }
@@ -95,7 +99,11 @@ impl Detector for BrokenConstructorDetector {
 
         for s in &structs {
             // Flag structs with all pub fields and no constructor/Default
-            if s.all_pub && s.field_count >= 3 && !has_new.contains(&s.id.name) && !s.has_default_derive {
+            if s.all_pub
+                && s.field_count >= 3
+                && !has_new.contains(&s.id.name)
+                && !s.has_default_derive
+            {
                 smells.push(Smell::new(
                     SmellCategory::Design,
                     "Broken Constructor",

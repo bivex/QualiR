@@ -1,4 +1,5 @@
 use crate::analysis::detector::Detector;
+use crate::detectors::policy::{is_dto_template_or_config_struct, is_test_path};
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
 
@@ -15,6 +16,10 @@ impl Detector for AnemicStructDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let mut smells = Vec::new();
 
+        if is_test_path(&file.path) {
+            return smells;
+        }
+
         // Collect struct names that have at least one field and no derive macros
         let structs_with_fields: Vec<&syn::ItemStruct> = file
             .ast
@@ -24,7 +29,7 @@ impl Detector for AnemicStructDetector {
                 syn::Item::Struct(s) => {
                     let has_fields = has_fields(s);
                     let has_derive = s.attrs.iter().any(|attr| attr.path().is_ident("derive"));
-                    (has_fields && !has_derive).then_some(s)
+                    (has_fields && !has_derive && !is_dto_template_or_config_struct(s)).then_some(s)
                 }
                 _ => None,
             })
@@ -35,20 +40,18 @@ impl Detector for AnemicStructDetector {
         }
 
         // Collect struct names that have impl blocks (inherent or trait) in this file
-        let impl_targets: Vec<String> = file
+        let impl_targets: Vec<&syn::Ident> = file
             .ast
             .items
             .iter()
             .filter_map(|item| match item {
-                syn::Item::Impl(imp) => {
-                    extract_type_ident(&imp.self_ty)
-                }
+                syn::Item::Impl(imp) => extract_type_ident(&imp.self_ty),
                 _ => None,
             })
             .collect();
 
         for s in &structs_with_fields {
-            let has_impl = impl_targets.iter().any(|id| *id == s.ident.to_string());
+            let has_impl = impl_targets.contains(&&s.ident);
             if !has_impl {
                 let line = line_of_struct(s);
 
@@ -80,9 +83,9 @@ fn has_fields(s: &syn::ItemStruct) -> bool {
     }
 }
 
-fn extract_type_ident(ty: &syn::Type) -> Option<String> {
+fn extract_type_ident(ty: &syn::Type) -> Option<&syn::Ident> {
     if let syn::Type::Path(tp) = ty {
-        tp.path.segments.first().map(|s| s.ident.to_string())
+        tp.path.segments.first().map(|s| &s.ident)
     } else {
         None
     }
