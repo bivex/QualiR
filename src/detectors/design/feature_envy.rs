@@ -30,10 +30,10 @@ impl Detector for FeatureEnvyDetector {
                     .inputs
                     .iter()
                     .filter_map(|arg| {
-                        if let syn::FnArg::Typed(pat_type) = arg {
-                            if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
-                                return Some(pat_ident.ident.to_string());
-                            }
+                        if let syn::FnArg::Typed(pat_type) = arg
+                            && let syn::Pat::Ident(pat_ident) = &*pat_type.pat
+                        {
+                            return Some(pat_ident.ident.to_string());
                         }
                         None
                     })
@@ -96,12 +96,12 @@ struct MethodCallVisitor {
 
 impl<'ast> Visit<'ast> for MethodCallVisitor {
     fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
-        if let syn::Expr::Path(expr_path) = &*node.receiver {
-            if let Some(ident) = expr_path.path.get_ident() {
-                let name = ident.to_string();
-                if self.params.contains(&name) || name == "self" {
-                    *self.param_calls.entry(name).or_insert(0) += 1;
-                }
+        if let syn::Expr::Path(expr_path) = &*node.receiver
+            && let Some(ident) = expr_path.path.get_ident()
+        {
+            let name = ident.to_string();
+            if self.params.contains(&name) || name == "self" {
+                *self.param_calls.entry(name).or_insert(0) += 1;
             }
         }
         syn::visit::visit_expr_method_call(self, node);

@@ -61,10 +61,10 @@ impl CloneCounter {
 
 impl<'ast> Visit<'ast> for CloneCounter {
     fn visit_expr(&mut self, expr: &'ast syn::Expr) {
-        if let syn::Expr::MethodCall(call) = expr {
-            if call.method == "clone" {
-                self.clone_count += 1;
-            }
+        if let syn::Expr::MethodCall(call) = expr
+            && call.method == "clone"
+        {
+            self.clone_count += 1;
         }
         visit_expr(self, expr);
     }

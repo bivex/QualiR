@@ -21,16 +21,14 @@ impl Detector for MultipleImplBlocksDetector {
         let mut impl_counts: HashMap<String, Vec<usize>> = HashMap::new();
 
         for item in &file.ast.items {
-            if let syn::Item::Impl(imp) = item {
-                if imp.trait_.is_none() {
-                    if let syn::Type::Path(tp) = &*imp.self_ty {
-                        if let Some(seg) = tp.path.segments.last() {
-                            let type_name = seg.ident.to_string();
-                            let start_line = imp.impl_token.span.start().line;
-                            impl_counts.entry(type_name).or_default().push(start_line);
-                        }
-                    }
-                }
+            if let syn::Item::Impl(imp) = item
+                && imp.trait_.is_none()
+                && let syn::Type::Path(tp) = &*imp.self_ty
+                && let Some(seg) = tp.path.segments.last()
+            {
+                let type_name = seg.ident.to_string();
+                let start_line = imp.impl_token.span.start().line;
+                impl_counts.entry(type_name).or_default().push(start_line);
             }
         }
 

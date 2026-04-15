@@ -19,21 +19,21 @@ impl Detector for LargeValuePassedByValueDetector {
         for item in &file.ast.items {
             if let syn::Item::Fn(func) = item {
                 for input in &func.sig.inputs {
-                    if let syn::FnArg::Typed(arg) = input {
-                        if is_large_by_value(&arg.ty) {
-                            let line = arg.pat.span().start().line;
-                            smells.push(Smell::new(
-                                SmellCategory::Performance,
-                                "Large Value Passed By Value",
-                                Severity::Info,
-                                SourceLocation::new(file.path.clone(), line, line, None),
-                                format!(
-                                    "Function `{}` takes a potentially large value by value",
-                                    func.sig.ident
-                                ),
-                                "Take a reference or a slice unless ownership is required.",
-                            ));
-                        }
+                    if let syn::FnArg::Typed(arg) = input
+                        && is_large_by_value(&arg.ty)
+                    {
+                        let line = arg.pat.span().start().line;
+                        smells.push(Smell::new(
+                            SmellCategory::Performance,
+                            "Large Value Passed By Value",
+                            Severity::Info,
+                            SourceLocation::new(file.path.clone(), line, line, None),
+                            format!(
+                                "Function `{}` takes a potentially large value by value",
+                                func.sig.ident
+                            ),
+                            "Take a reference or a slice unless ownership is required.",
+                        ));
                     }
                 }
             }

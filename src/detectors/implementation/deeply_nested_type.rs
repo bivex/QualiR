@@ -77,10 +77,10 @@ impl<'ast> Visit<'ast> for TypeVisitor {
 
             // Generate a rough name representation
             let mut name = String::new();
-            if let syn::Type::Path(tp) = node {
-                if let Some(seg) = tp.path.segments.last() {
-                    name = seg.ident.to_string();
-                }
+            if let syn::Type::Path(tp) = node
+                && let Some(seg) = tp.path.segments.last()
+            {
+                name = seg.ident.to_string();
             }
             if name.is_empty() {
                 name = "ComplexType".to_string();

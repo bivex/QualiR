@@ -19,29 +19,30 @@ impl Detector for SyncDropBlockingDetector {
         let mut smells = Vec::new();
 
         for item in &file.ast.items {
-            if let syn::Item::Impl(imp) = item {
-                if let Some((_, path, _)) = &imp.trait_ {
-                    if path.is_ident("Drop") {
-                        let mut visitor = BlockingDropVisitor {
-                            violations: Vec::new(),
-                        };
-                        for it_item in &imp.items {
-                            visitor.visit_impl_item(it_item);
-                        }
+            if let syn::Item::Impl(imp) = item
+                && let Some((_, path, _)) = &imp.trait_
+                && path.is_ident("Drop")
+            {
+                let mut visitor = BlockingDropVisitor {
+                    violations: Vec::new(),
+                };
+                for it_item in &imp.items {
+                    visitor.visit_impl_item(it_item);
+                }
 
-                        if !visitor.violations.is_empty() {
-                            let type_name = if let syn::Type::Path(tp) = &*imp.self_ty {
-                                tp.path
-                                    .segments
-                                    .last()
-                                    .map(|s| s.ident.to_string())
-                                    .unwrap_or_else(|| "Unknown".to_string())
-                            } else {
-                                "Unknown".to_string()
-                            };
+                if !visitor.violations.is_empty() {
+                    let type_name = if let syn::Type::Path(tp) = &*imp.self_ty {
+                        tp.path
+                            .segments
+                            .last()
+                            .map(|s| s.ident.to_string())
+                            .unwrap_or_else(|| "Unknown".to_string())
+                    } else {
+                        "Unknown".to_string()
+                    };
 
-                            for (line, method) in visitor.violations {
-                                smells.push(Smell::new(
+                    for (line, method) in visitor.violations {
+                        smells.push(Smell::new(
                                                     SmellCategory::Concurrency,
                                                     "Sync Drop Blocking (Async Hazard)",
                                                     Severity::Critical,
@@ -51,8 +52,6 @@ impl Detector for SyncDropBlockingDetector {
                                                     ),
                                                     "Use `tokio::spawn(async move { ... })` for background cleanup or provide a separate `async fn shutdown()` method rather than blocking in Drop.",
                                                 ));
-                            }
-                        }
                     }
                 }
             }
@@ -90,13 +89,13 @@ impl<'ast> Visit<'ast> for BlockingDropVisitor {
     }
 
     fn visit_expr_call(&mut self, node: &'ast syn::ExprCall) {
-        if let syn::Expr::Path(tp) = &*node.func {
-            if let Some(seg) = tp.path.segments.last() {
-                let name = seg.ident.to_string();
-                if name == "sleep" || name == "park" {
-                    let line = seg.ident.span().start().line;
-                    self.violations.push((line, name));
-                }
+        if let syn::Expr::Path(tp) = &*node.func
+            && let Some(seg) = tp.path.segments.last()
+        {
+            let name = seg.ident.to_string();
+            if name == "sleep" || name == "park" {
+                let line = seg.ident.span().start().line;
+                self.violations.push((line, name));
             }
         }
         syn::visit::visit_expr_call(self, node);

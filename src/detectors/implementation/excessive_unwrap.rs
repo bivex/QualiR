@@ -68,10 +68,10 @@ impl UnwrapCounter {
 
 impl<'ast> Visit<'ast> for UnwrapCounter {
     fn visit_expr(&mut self, expr: &'ast syn::Expr) {
-        if let syn::Expr::MethodCall(call) = expr {
-            if call.method == "unwrap" || call.method == "expect" {
-                self.unwrap_count += 1;
-            }
+        if let syn::Expr::MethodCall(call) = expr
+            && (call.method == "unwrap" || call.method == "expect")
+        {
+            self.unwrap_count += 1;
         }
         visit_expr(self, expr);
     }

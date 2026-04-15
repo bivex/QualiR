@@ -43,12 +43,11 @@ struct CloneOnCopyVisitor {
 
 impl<'ast> Visit<'ast> for CloneOnCopyVisitor {
     fn visit_local(&mut self, node: &'ast syn::Local) {
-        if let syn::Pat::Type(pat_ty) = &node.pat {
-            if is_copy_type(&pat_ty.ty) {
-                if let syn::Pat::Ident(ident) = &*pat_ty.pat {
-                    self.copy_vars.insert(ident.ident.to_string());
-                }
-            }
+        if let syn::Pat::Type(pat_ty) = &node.pat
+            && is_copy_type(&pat_ty.ty)
+            && let syn::Pat::Ident(ident) = &*pat_ty.pat
+        {
+            self.copy_vars.insert(ident.ident.to_string());
         }
         syn::visit::visit_local(self, node);
     }

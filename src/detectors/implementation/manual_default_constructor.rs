@@ -16,14 +16,14 @@ impl Detector for ManualDefaultConstructorDetector {
         for item in &file.ast.items {
             if let syn::Item::Impl(imp) = item {
                 for impl_item in &imp.items {
-                    if let syn::ImplItem::Fn(func) = impl_item {
-                        if func.sig.ident == "new"
-                            && returns_self(&func.sig.output)
-                            && has_no_inputs(&func.sig.inputs)
-                            && body_is_defaultish(&func.block)
-                        {
-                            let line = func.sig.fn_token.span.start().line;
-                            smells.push(Smell::new(
+                    if let syn::ImplItem::Fn(func) = impl_item
+                        && func.sig.ident == "new"
+                        && returns_self(&func.sig.output)
+                        && has_no_inputs(&func.sig.inputs)
+                        && body_is_defaultish(&func.block)
+                    {
+                        let line = func.sig.fn_token.span.start().line;
+                        smells.push(Smell::new(
                                 SmellCategory::Idiomaticity,
                                 "Manual Default Constructor",
                                 Severity::Info,
@@ -31,7 +31,6 @@ impl Detector for ManualDefaultConstructorDetector {
                                 "Constructor `new` appears to return only default field values",
                                 "Implement or derive Default and delegate `new()` to `Self::default()`.",
                             ));
-                        }
                     }
                 }
             }

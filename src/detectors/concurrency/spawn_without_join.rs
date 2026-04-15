@@ -71,22 +71,21 @@ impl<'ast> Visit<'ast> for SpawnVisitor {
     }
 
     fn visit_local(&mut self, local: &'ast syn::Local) {
-        if let Some(init) = &local.init {
-            if let syn::Expr::Call(call) = &*init.expr {
-                if let syn::Expr::Path(path) = &*call.func {
-                    let func_str = path_to_string(&path.path);
-                    if is_spawn(&func_str) {
-                        if is_underscore_binding(&local.pat) {
-                            // Discarded handle — flag it
-                            let line = local.let_token.span.start().line;
-                            self.spawns.push((func_str, line));
-                        }
-                        // Named binding (let handle = spawn(...)) is safe.
-                        // Return early in both cases to prevent visit_expr
-                        // from catching this same call.
-                        return;
-                    }
+        if let Some(init) = &local.init
+            && let syn::Expr::Call(call) = &*init.expr
+            && let syn::Expr::Path(path) = &*call.func
+        {
+            let func_str = path_to_string(&path.path);
+            if is_spawn(&func_str) {
+                if is_underscore_binding(&local.pat) {
+                    // Discarded handle — flag it
+                    let line = local.let_token.span.start().line;
+                    self.spawns.push((func_str, line));
                 }
+                // Named binding (let handle = spawn(...)) is safe.
+                // Return early in both cases to prevent visit_expr
+                // from catching this same call.
+                return;
             }
         }
         syn::visit::visit_local(self, local);

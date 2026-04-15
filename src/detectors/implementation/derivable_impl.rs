@@ -14,19 +14,18 @@ impl Detector for DerivableImplDetector {
         let mut smells = Vec::new();
 
         for item in &file.ast.items {
-            if let syn::Item::Impl(imp) = item {
-                if let Some((_, trait_path, _)) = &imp.trait_ {
-                    if let Some(trait_ident) = trait_path.segments.last().map(|seg| &seg.ident) {
-                        if !is_derivable_trait(trait_ident) || imp.items.len() > 2 {
-                            continue;
-                        }
-                        if trait_ident == "Default" && !is_derived_equivalent_default_impl(imp) {
-                            continue;
-                        }
-                        let line = imp.impl_token.span.start().line;
-                        smells.push(derivable_impl_smell(file, trait_ident, line));
-                    }
+            if let syn::Item::Impl(imp) = item
+                && let Some((_, trait_path, _)) = &imp.trait_
+                && let Some(trait_ident) = trait_path.segments.last().map(|seg| &seg.ident)
+            {
+                if !is_derivable_trait(trait_ident) || imp.items.len() > 2 {
+                    continue;
                 }
+                if trait_ident == "Default" && !is_derived_equivalent_default_impl(imp) {
+                    continue;
+                }
+                let line = imp.impl_token.span.start().line;
+                smells.push(derivable_impl_smell(file, trait_ident, line));
             }
         }
 

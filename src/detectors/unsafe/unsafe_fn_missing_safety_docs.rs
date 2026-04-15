@@ -15,24 +15,23 @@ impl Detector for UnsafeFnMissingSafetyDocsDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let mut smells = Vec::new();
         for item in &file.ast.items {
-            if let syn::Item::Fn(func) = item {
-                if func.sig.unsafety.is_some()
-                    && is_public(&func.vis)
-                    && !has_safety_docs(&func.attrs)
-                {
-                    let line = func.sig.fn_token.span.start().line;
-                    smells.push(Smell::new(
-                        SmellCategory::Unsafe,
-                        "Unsafe Fn Missing Safety Docs",
-                        Severity::Warning,
-                        SourceLocation::new(file.path.clone(), line, line, None),
-                        format!(
-                            "Public unsafe function `{}` lacks a # Safety docs section",
-                            func.sig.ident
-                        ),
-                        "Document the caller obligations under a `# Safety` heading.",
-                    ));
-                }
+            if let syn::Item::Fn(func) = item
+                && func.sig.unsafety.is_some()
+                && is_public(&func.vis)
+                && !has_safety_docs(&func.attrs)
+            {
+                let line = func.sig.fn_token.span.start().line;
+                smells.push(Smell::new(
+                    SmellCategory::Unsafe,
+                    "Unsafe Fn Missing Safety Docs",
+                    Severity::Warning,
+                    SourceLocation::new(file.path.clone(), line, line, None),
+                    format!(
+                        "Public unsafe function `{}` lacks a # Safety docs section",
+                        func.sig.ident
+                    ),
+                    "Document the caller obligations under a `# Safety` heading.",
+                ));
             }
         }
         smells

@@ -115,12 +115,9 @@ fn has_safety_comment(lines: &[&str], line_number: usize) -> bool {
     let start = line_number.saturating_sub(SAFETY_COMMENT_LOOKBACK);
     let end = line_number;
 
-    for i in start..end {
-        if let Some(&line) = lines.get(i) {
-            if line.to_lowercase().contains("safety") {
-                return true;
-            }
-        }
-    }
-    false
+    (start..end).any(|i| {
+        lines
+            .get(i)
+            .is_some_and(|line| line.to_lowercase().contains("safety"))
+    })
 }
