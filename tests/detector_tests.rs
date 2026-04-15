@@ -1176,6 +1176,55 @@ pub fn some_api_wrapper() { unsafe { some_api(); } }
     }
 }
 
+mod ffi_type_not_repr_c {
+    use super::*;
+    use qualirs::detectors::r#unsafe::ffi_type_not_repr_c::FfiTypeNotReprCDetector;
+    static DETECTOR: FfiTypeNotReprCDetector = FfiTypeNotReprCDetector;
+
+    #[test]
+    fn detects_ffi_type_without_repr_c() {
+        let code = r#"
+extern "C" { fn use_config(config: *const CConfig); }
+pub struct CConfig {
+    value: i32,
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "FFI Type Not repr(C)", 1);
+    }
+
+    #[test]
+    fn clean_repr_c_ffi_type() {
+        let code = r#"
+extern "C" { fn use_config(config: *const CConfig); }
+#[repr(C)]
+pub struct CConfig {
+    value: i32,
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_public_c_named_rust_types_outside_ffi_context() {
+        let code = r#"
+pub struct Config;
+pub struct CategorySmells;
+pub struct CloneOnCopyDetector;
+pub struct ConcurrencyThresholds;
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_detector_names_outside_ffi_context() {
+        let code = r#"
+pub struct FfiTypeNotReprCDetector;
+pub struct FfiWithoutWrapperDetector;
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
 mod inline_assembly {
     use super::*;
     use qualirs::detectors::r#unsafe::inline_assembly::InlineAssemblyDetector;
