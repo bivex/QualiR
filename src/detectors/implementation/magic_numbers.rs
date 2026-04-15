@@ -217,7 +217,9 @@ fn is_allowed_number(value: i64, literal: &syn::LitInt) -> bool {
 }
 
 fn is_hex_color_literal(literal: &syn::LitInt, value: i64) -> bool {
-    if !(0..=0x00ff_ffff).contains(&value) {
+    const MAX_RGB_HEX_LITERAL: i64 = 0x00ff_ffff;
+
+    if !(0..=MAX_RGB_HEX_LITERAL).contains(&value) {
         return false;
     }
 

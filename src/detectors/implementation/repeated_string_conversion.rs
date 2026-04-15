@@ -182,6 +182,7 @@ impl<'ast> Visit<'ast> for StringConversionVisitor {
 }
 
 impl StringConversionVisitor {
+    #[inline]
     fn in_hot_path(&self) -> bool {
         self.loop_depth > 0 || self.iterator_closure_depth > 0
     }

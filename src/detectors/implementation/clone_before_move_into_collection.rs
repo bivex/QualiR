@@ -95,23 +95,22 @@ impl CloneMoveVisitor {
             return;
         };
 
-        match &local.pat {
-            syn::Pat::Type(pat_type)
-                if !type_is_reference(&pat_type.ty) && !is_obvious_copy_type(&pat_type.ty) =>
-            {
-                self.owned_vars.insert(name);
-            }
-            syn::Pat::Ident(_)
-                if local
-                    .init
-                    .as_ref()
-                    .is_some_and(|init| init_is_owned(&init.expr)) =>
-            {
-                self.owned_vars.insert(name);
-            }
-            _ => {}
+        if local_declares_owned_binding(local) {
+            self.owned_vars.insert(name);
         }
     }
+}
+
+fn local_declares_owned_binding(local: &syn::Local) -> bool {
+    if let syn::Pat::Type(pat_type) = &local.pat {
+        return !type_is_reference(&pat_type.ty) && !is_obvious_copy_type(&pat_type.ty);
+    }
+
+    matches!(&local.pat, syn::Pat::Ident(_))
+        && local
+            .init
+            .as_ref()
+            .is_some_and(|init| init_is_owned(&init.expr))
 }
 
 fn collect_owned_params(sig: &syn::Signature) -> HashSet<String> {
@@ -157,12 +156,11 @@ fn cloned_simple_ident(expr: &syn::Expr) -> Option<(usize, String)> {
 }
 
 fn init_is_owned(expr: &syn::Expr) -> bool {
-    match expr {
-        syn::Expr::Call(_) | syn::Expr::Struct(_) | syn::Expr::Array(_) | syn::Expr::Tuple(_) => {
-            true
-        }
-        syn::Expr::Macro(expr) => expr.mac.path.is_ident("vec") || expr.mac.path.is_ident("format"),
-        syn::Expr::Lit(lit) => matches!(lit.lit, syn::Lit::Str(_)),
-        _ => false,
-    }
+    matches!(
+        expr,
+        syn::Expr::Call(_) | syn::Expr::Struct(_) | syn::Expr::Array(_) | syn::Expr::Tuple(_)
+    ) || matches!(
+        expr,
+        syn::Expr::Macro(expr) if expr.mac.path.is_ident("vec") || expr.mac.path.is_ident("format")
+    ) || matches!(expr, syn::Expr::Lit(lit) if matches!(lit.lit, syn::Lit::Str(_)))
 }

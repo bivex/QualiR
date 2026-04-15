@@ -93,20 +93,10 @@ fn is_same_module_or_child(dep: &str, module_name: &str) -> bool {
 }
 
 fn file_to_module(path: &std::path::Path) -> String {
-    let mut parts: Vec<String> = path
-        .components()
-        .skip_while(|component| component.as_os_str() != "src")
-        .skip(1)
-        .filter_map(|component| component.as_os_str().to_str())
-        .map(|component| component.trim_end_matches(".rs").to_string())
-        .collect();
+    let mut parts = module_path_parts(path);
 
     if parts.is_empty() {
-        return path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("unknown")
-            .to_string();
+        return file_stem_or_unknown(path).to_string();
     }
 
     if parts.last().is_some_and(|part| part == "mod") {
@@ -114,6 +104,30 @@ fn file_to_module(path: &std::path::Path) -> String {
     }
 
     parts.join("::")
+}
+
+fn module_path_parts(path: &std::path::Path) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut in_src = false;
+
+    for component in path.components() {
+        if !in_src {
+            in_src = component.as_os_str() == "src";
+            continue;
+        }
+
+        if let Some(component) = component.as_os_str().to_str() {
+            parts.push(component.trim_end_matches(".rs").to_string());
+        }
+    }
+
+    parts
+}
+
+fn file_stem_or_unknown(path: &std::path::Path) -> &str {
+    path.file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("unknown")
 }
 
 fn collect_crate_deps(ast: &syn::File) -> HashSet<String> {

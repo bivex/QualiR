@@ -71,7 +71,7 @@ impl fmt::Display for Severity {
 }
 
 /// Location in source code where a smell was detected.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SourceLocation {
     pub file: PathBuf,
     pub line_start: usize,

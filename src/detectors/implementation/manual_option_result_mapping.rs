@@ -49,17 +49,21 @@ impl<'ast> Visit<'ast> for ManualMappingVisitor {
 }
 
 fn is_direct_variant_mapping(node: &syn::ExprMatch) -> bool {
-    if node.arms.len() != 2 {
-        return false;
-    }
-
-    let Some(first) = arm_shape(&node.arms[0]) else {
-        return false;
-    };
-    let Some(second) = arm_shape(&node.arms[1]) else {
+    let Some((first, second)) = two_arm_shapes(node) else {
         return false;
     };
 
+    shapes_are_direct_variant_mapping(first, second)
+}
+
+fn two_arm_shapes(node: &syn::ExprMatch) -> Option<(ArmShape, ArmShape)> {
+    let [first, second] = node.arms.as_slice() else {
+        return None;
+    };
+    Some((arm_shape(first)?, arm_shape(second)?))
+}
+
+fn shapes_are_direct_variant_mapping(first: ArmShape, second: ArmShape) -> bool {
     matches!(
         (first, second),
         (

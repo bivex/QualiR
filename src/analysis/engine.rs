@@ -25,6 +25,7 @@ impl Engine {
     }
 
     /// Register a detector. Call before `analyze`.
+    #[inline]
     pub fn register(&mut self, detector: Box<dyn Detector>) {
         self.detectors.push(detector);
     }
@@ -321,29 +322,29 @@ impl Engine {
         let walker = RustFileWalker::new(path, &self.config.exclude_paths);
         let files = walker.collect_files();
 
-        let parse_errors: std::sync::Mutex<Vec<crate::domain::source::ParseError>> =
-            std::sync::Mutex::new(Vec::new());
-
-        let all_smells: Vec<Smell> = files
+        let (all_smells, errors) = files
             .par_iter()
             .filter(|file_path| !crate::detectors::policy::is_test_path(file_path))
-            .flat_map(|file_path| match SourceFile::from_path(file_path.clone()) {
+            .map(|file_path| match SourceFile::from_path(file_path.clone()) {
                 Ok(source) => {
                     let mut smells = Vec::new();
                     for detector in &self.detectors {
                         smells.extend(detector.detect(&source));
                     }
-                    smells
+                    smells.retain(|smell| smell.severity >= self.config.min_severity);
+                    (smells, Vec::new())
                 }
-                Err(e) => {
-                    parse_errors.lock().unwrap().push(e);
-                    Vec::new()
-                }
+                Err(e) => (Vec::new(), vec![e]),
             })
-            .filter(|smell| smell.severity >= self.config.min_severity)
-            .collect();
+            .reduce(
+                || (Vec::new(), Vec::new()),
+                |mut left, mut right| {
+                    left.0.append(&mut right.0);
+                    left.1.append(&mut right.1);
+                    left
+                },
+            );
 
-        let errors = parse_errors.into_inner().unwrap();
         let total_files = files.len();
 
         AnalysisReport::new(all_smells, total_files, errors)

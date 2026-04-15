@@ -56,12 +56,13 @@ impl PreparedSource {
         }
     }
 
+    #[inline]
     pub fn path(&self) -> &Path {
         &self.path
     }
 
     pub fn preserved_path(&self) -> Option<&Path> {
-        self.keep_temp.then_some(self.path())
+        self.keep_temp.then_some(&*self.path)
     }
 }
 
@@ -196,18 +197,18 @@ fn create_temp_dir(
     Ok(temp_dir)
 }
 
-#[derive(Debug, serde::Deserialize)]
-struct CratesIoResponse {
-    #[serde(rename = "crate")]
-    krate: CratesIoCrate,
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct CratesIoCrate {
-    max_version: String,
-}
-
 fn latest_crate_version(name: &str) -> anyhow::Result<String> {
+    #[derive(Debug, serde::Deserialize)]
+    struct CratesIoResponse {
+        #[serde(rename = "crate")]
+        krate: CratesIoCrate,
+    }
+
+    #[derive(Debug, serde::Deserialize)]
+    struct CratesIoCrate {
+        max_version: String,
+    }
+
     let url = crates_io_metadata_url(name);
     let response = ureq::get(&url)
         .set("Accept", "application/json")
@@ -276,7 +277,7 @@ fn validate_crate_version(version: &str) -> anyhow::Result<()> {
 }
 
 fn find_unpacked_crate_root(unpack_dir: &Path) -> anyhow::Result<PathBuf> {
-    let mut candidates = Vec::new();
+    let mut candidates = Vec::with_capacity(1);
     for entry in fs::read_dir(unpack_dir)? {
         let entry = entry?;
         if entry.file_type()?.is_dir() && entry.path().join("Cargo.toml").is_file() {

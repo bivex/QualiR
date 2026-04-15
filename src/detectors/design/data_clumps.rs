@@ -102,7 +102,7 @@ fn signature_part_count(sig_string: &str) -> usize {
 fn signature_to_string(
     inputs: &syn::punctuated::Punctuated<syn::FnArg, syn::token::Comma>,
 ) -> String {
-    let mut parts = Vec::new();
+    let mut parts = Vec::with_capacity(inputs.len());
     for input in inputs {
         if let syn::FnArg::Typed(pat_type) = input {
             // Include both name and type roughly, as data clumps usually have the same names too

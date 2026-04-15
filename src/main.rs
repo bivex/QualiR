@@ -40,7 +40,7 @@ fn run() -> anyhow::Result<ExitCode> {
     let engine = setup_engine(config);
     let mut report = engine.analyze(source.path());
 
-    if let Some(category) = &args.category {
+    if let Some(category) = &args.filters.category {
         let category = category
             .parse::<SmellCategory>()
             .map_err(anyhow::Error::msg)?;
@@ -77,52 +77,56 @@ fn run_command(command: &Command) -> anyhow::Result<()> {
 }
 
 fn prepare_analysis_source(args: &Args) -> anyhow::Result<infrastructure::source::PreparedSource> {
-    if args.git.is_none() && (args.branch.is_some() || args.tag.is_some()) {
+    let source = &args.source;
+
+    if source.git.is_none() && (source.branch.is_some() || source.tag.is_some()) {
         anyhow::bail!("--branch and --tag can only be used with --git");
     }
 
-    let request = if let Some(url) = args.git.as_deref() {
+    let request = if let Some(url) = source.git.as_deref() {
         SourceRequest::Git {
             url,
-            reference: git_reference(args),
+            reference: git_reference(source),
         }
-    } else if let Some(name) = args.crate_name.as_deref() {
+    } else if let Some(name) = source.crate_name.as_deref() {
         SourceRequest::Crate {
             name,
-            version: args.crate_version.as_deref(),
+            version: source.crate_version.as_deref(),
         }
     } else {
-        let path = args.path.as_deref().unwrap_or_else(|| Path::new("."));
+        let path = source.path.as_deref().unwrap_or_else(|| Path::new("."));
         SourceRequest::Local(path)
     };
 
-    if args.keep_temp {
-        prepare_source_with_options(request, args.temp_dir.as_deref(), true)
-    } else if let Some(temp_dir) = args.temp_dir.as_deref() {
+    if source.keep_temp {
+        prepare_source_with_options(request, source.temp_dir.as_deref(), true)
+    } else if let Some(temp_dir) = source.temp_dir.as_deref() {
         prepare_source_in(request, Some(temp_dir))
     } else {
         prepare_source(request)
     }
 }
 
-fn git_reference(args: &Args) -> Option<GitReference<'_>> {
-    args.branch
+fn git_reference(source: &cli::args::SourceOptions) -> Option<GitReference<'_>> {
+    source
+        .branch
         .as_deref()
         .map(GitReference::Branch)
-        .or_else(|| args.tag.as_deref().map(GitReference::Tag))
+        .or_else(|| source.tag.as_deref().map(GitReference::Tag))
 }
 
 fn get_config(args: &Args, analysis_path: &Path) -> anyhow::Result<Config> {
     let path = analysis_path
         .canonicalize()
         .unwrap_or_else(|_| PathBuf::from(analysis_path));
-    let mut config = if let Some(config_path) = &args.config {
+    let filters = &args.filters;
+    let mut config = if let Some(config_path) = &filters.config {
         Config::load_from_file(config_path)?
     } else {
         Config::load_or_default(&path)
     };
 
-    config.min_severity = match args.min_severity.to_lowercase().as_str() {
+    config.min_severity = match filters.min_severity.to_lowercase().as_str() {
         "critical" => Severity::Critical,
         "warning" | "warn" => Severity::Warning,
         "info" => Severity::Info,

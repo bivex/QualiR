@@ -86,6 +86,17 @@ struct Candidate {
     growth: Option<Growth>,
 }
 
+impl Candidate {
+    fn new(kind: CollectionKind) -> Self {
+        Self {
+            kind,
+            reserved: false,
+            invalidated: false,
+            growth: None,
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 struct Growth {
     line: usize,
@@ -132,15 +143,7 @@ impl<'ast> Visit<'ast> for PreallocationVisitor {
                 .and_then(|init| empty_collection_kind(&init.expr))
                 && !is_diagnostic_collection_name(&name)
             {
-                self.candidates.insert(
-                    name,
-                    Candidate {
-                        kind,
-                        reserved: false,
-                        invalidated: false,
-                        growth: None,
-                    },
-                );
+                self.candidates.insert(name, Candidate::new(kind));
             } else if self.candidates.contains_key(&name) {
                 self.candidates.remove(&name);
             }
@@ -307,13 +310,14 @@ fn is_diagnostic_collection_name(name: &str) -> bool {
 }
 
 fn expr_has_capacity_hint(expr: &syn::Expr) -> bool {
+    if let Some(inner) = transparent_expr(expr) {
+        return expr_has_capacity_hint(inner);
+    }
+
     match expr {
         syn::Expr::Array(_) | syn::Expr::Field(_) | syn::Expr::Path(_) | syn::Expr::Tuple(_) => {
             true
         }
-        syn::Expr::Reference(reference) => expr_has_capacity_hint(&reference.expr),
-        syn::Expr::Paren(paren) => expr_has_capacity_hint(&paren.expr),
-        syn::Expr::Group(group) => expr_has_capacity_hint(&group.expr),
         syn::Expr::MethodCall(method) => {
             matches!(
                 method.method.to_string().as_str(),
@@ -329,12 +333,26 @@ fn expr_has_capacity_hint(expr: &syn::Expr) -> bool {
 }
 
 fn range_bound_has_capacity_hint(expr: &syn::Expr) -> bool {
-    match expr {
-        syn::Expr::Lit(_) => true,
-        syn::Expr::MethodCall(method) if method.method == "len" => true,
-        syn::Expr::Reference(reference) => range_bound_has_capacity_hint(&reference.expr),
-        syn::Expr::Paren(paren) => range_bound_has_capacity_hint(&paren.expr),
-        syn::Expr::Group(group) => range_bound_has_capacity_hint(&group.expr),
-        _ => expr_has_capacity_hint(expr),
+    if let Some(inner) = transparent_expr(expr) {
+        return range_bound_has_capacity_hint(inner);
     }
+
+    matches!(expr, syn::Expr::Lit(_)) || is_len_method_call(expr) || expr_has_capacity_hint(expr)
+}
+
+fn is_len_method_call(expr: &syn::Expr) -> bool {
+    matches!(expr, syn::Expr::MethodCall(method) if method.method == "len")
+}
+
+fn transparent_expr(expr: &syn::Expr) -> Option<&syn::Expr> {
+    if let syn::Expr::Reference(reference) = expr {
+        return Some(&reference.expr);
+    }
+    if let syn::Expr::Paren(paren) = expr {
+        return Some(&paren.expr);
+    }
+    if let syn::Expr::Group(group) = expr {
+        return Some(&group.expr);
+    }
+    None
 }

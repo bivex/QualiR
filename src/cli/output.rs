@@ -137,7 +137,7 @@ fn print_llm_smells(report: &AnalysisReport) {
         smells.sort_by(|a, b| {
             b.severity
                 .cmp(&a.severity)
-                .then_with(|| a.location.to_string().cmp(&b.location.to_string()))
+                .then_with(|| a.location.cmp(&b.location))
                 .then_with(|| a.name.cmp(&b.name))
         });
 
@@ -189,7 +189,7 @@ fn print_compact_smells(report: &AnalysisReport) {
         smells.sort_by(|a, b| {
             b.severity
                 .cmp(&a.severity)
-                .then_with(|| a.location.to_string().cmp(&b.location.to_string()))
+                .then_with(|| a.location.cmp(&b.location))
                 .then_with(|| a.name.cmp(&b.name))
         });
 
