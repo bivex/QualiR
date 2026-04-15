@@ -2795,6 +2795,386 @@ impl Default for State {
     }
 }
 
+mod missing_collection_preallocation {
+    use super::*;
+    use qualirs::detectors::implementation::missing_collection_preallocation::MissingCollectionPreallocationDetector;
+    static DETECTOR: MissingCollectionPreallocationDetector =
+        MissingCollectionPreallocationDetector;
+
+    #[test]
+    fn detects_empty_vec_grown_in_loop() {
+        let code = r#"
+fn build(items: &[u32]) -> Vec<u32> {
+    let mut out = Vec::new();
+    for item in items {
+        out.push(*item);
+    }
+    out
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Missing Collection Preallocation", 1);
+    }
+
+    #[test]
+    fn clean_when_capacity_is_reserved() {
+        let code = r#"
+fn build(items: &[u32]) -> Vec<u32> {
+    let mut out = Vec::new();
+    out.reserve(items.len());
+    for item in items {
+        out.push(*item);
+    }
+    out
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod repeated_string_conversion {
+    use super::*;
+    use qualirs::detectors::implementation::repeated_string_conversion::RepeatedStringConversionDetector;
+    static DETECTOR: RepeatedStringConversionDetector = RepeatedStringConversionDetector;
+
+    #[test]
+    fn detects_conversion_in_iterator_chain() {
+        let code = r#"
+fn labels(items: &[u32]) -> Vec<String> {
+    items.iter().map(|item| item.to_string()).collect()
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Repeated String Conversion in Hot Path", 1);
+    }
+
+    #[test]
+    fn clean_error_mapping_conversion() {
+        let code = r#"
+fn convert(result: Result<u32, Error>) -> Result<u32, String> {
+    result.map_err(|error| error.to_string())
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod needless_intermediate_string_formatting {
+    use super::*;
+    use qualirs::detectors::implementation::needless_intermediate_string_formatting::NeedlessIntermediateStringFormattingDetector;
+    static DETECTOR: NeedlessIntermediateStringFormattingDetector =
+        NeedlessIntermediateStringFormattingDetector;
+
+    #[test]
+    fn detects_push_str_format_temporary() {
+        let code = r#"
+fn render(id: u64, out: &mut String) {
+    out.push_str(&format!("id={id}"));
+}
+"#;
+        assert_smell_count(
+            &DETECTOR,
+            code,
+            "Needless Intermediate String Formatting",
+            1,
+        );
+    }
+
+    #[test]
+    fn clean_direct_write() {
+        let code = r#"
+fn render(id: u64, out: &mut String) {
+    let _ = write!(out, "id={id}");
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod vec_contains_in_loop {
+    use super::*;
+    use qualirs::detectors::implementation::vec_contains_in_loop::VecContainsInLoopDetector;
+    static DETECTOR: VecContainsInLoopDetector = VecContainsInLoopDetector;
+
+    #[test]
+    fn detects_vec_contains_inside_loop() {
+        let code = r#"
+fn count(ids: Vec<u64>, items: &[u64]) -> usize {
+    let mut count = 0;
+    for item in items {
+        if ids.contains(item) {
+            count += 1;
+        }
+    }
+    count
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Vec Contains in Loop", 1);
+    }
+
+    #[test]
+    fn clean_slice_contains_inside_loop() {
+        let code = r#"
+fn count(ids: &[u64], items: &[u64]) -> usize {
+    let mut count = 0;
+    for item in items {
+        if ids.contains(item) {
+            count += 1;
+        }
+    }
+    count
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod sort_before_min_max {
+    use super::*;
+    use qualirs::detectors::implementation::sort_before_min_max::SortBeforeMinMaxDetector;
+    static DETECTOR: SortBeforeMinMaxDetector = SortBeforeMinMaxDetector;
+
+    #[test]
+    fn detects_sort_then_first() {
+        let code = r#"
+fn smallest(mut values: Vec<u32>) -> Option<u32> {
+    values.sort();
+    values.first().copied()
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Sort Before Min or Max", 1);
+    }
+
+    #[test]
+    fn clean_when_sorted_order_is_used() {
+        let code = r#"
+fn ordered(mut values: Vec<u32>) -> Vec<u32> {
+    values.sort();
+    values.iter().copied().collect()
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod full_sort_for_single_element {
+    use super::*;
+    use qualirs::detectors::implementation::full_sort_for_single_element::FullSortForSingleElementDetector;
+    static DETECTOR: FullSortForSingleElementDetector = FullSortForSingleElementDetector;
+
+    #[test]
+    fn detects_sort_then_median_index() {
+        let code = r#"
+fn median(mut values: Vec<u32>) -> u32 {
+    values.sort_unstable();
+    values[values.len() / 2]
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Full Sort for Single Element", 1);
+    }
+
+    #[test]
+    fn clean_sort_then_first_index() {
+        let code = r#"
+fn first_sorted(mut values: Vec<u32>) -> u32 {
+    values.sort();
+    values[0]
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod clone_before_move_into_collection {
+    use super::*;
+    use qualirs::detectors::implementation::clone_before_move_into_collection::CloneBeforeMoveIntoCollectionDetector;
+    static DETECTOR: CloneBeforeMoveIntoCollectionDetector = CloneBeforeMoveIntoCollectionDetector;
+
+    #[test]
+    fn detects_clone_pushed_without_later_use() {
+        let code = r#"
+fn store(value: String, out: &mut Vec<String>) {
+    out.push(value.clone());
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Clone Before Move Into Collection", 1);
+    }
+
+    #[test]
+    fn clean_when_value_is_used_later() {
+        let code = r#"
+fn store(value: String, out: &mut Vec<String>) {
+    out.push(value.clone());
+    println!("{value}");
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_nested_push_when_outer_value_is_used_later() {
+        let code = r#"
+fn store(value: String, out: &mut Vec<String>, enabled: bool) {
+    if enabled {
+        out.push(value.clone());
+    }
+    consume(value);
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod inefficient_iterator_step {
+    use super::*;
+    use qualirs::detectors::implementation::inefficient_iterator_step::InefficientIteratorStepDetector;
+    static DETECTOR: InefficientIteratorStepDetector = InefficientIteratorStepDetector;
+
+    #[test]
+    fn detects_nth_zero_and_skip_next() {
+        let code = r#"
+fn pick(mut iter: impl Iterator<Item = u32>, n: usize) {
+    let _ = iter.nth(0);
+    let _ = iter.skip(n).next();
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Inefficient Iterator Step", 2);
+    }
+
+    #[test]
+    fn clean_direct_next_and_nth() {
+        let code = r#"
+fn pick(mut iter: impl Iterator<Item = u32>, n: usize) {
+    let _ = iter.next();
+    let _ = iter.nth(n);
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod chars_count_length_check {
+    use super::*;
+    use qualirs::detectors::implementation::chars_count_length_check::CharsCountLengthCheckDetector;
+    static DETECTOR: CharsCountLengthCheckDetector = CharsCountLengthCheckDetector;
+
+    #[test]
+    fn detects_chars_count_empty_check() {
+        let code = r#"
+fn empty(s: &str) -> bool {
+    s.chars().count() == 0
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Chars Count Length Check", 1);
+    }
+
+    #[test]
+    fn clean_plain_count_value() {
+        let code = r#"
+fn scalar_count(s: &str) -> usize {
+    s.chars().count()
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod repeated_expensive_construction {
+    use super::*;
+    use qualirs::detectors::implementation::repeated_expensive_construction::RepeatedExpensiveConstructionDetector;
+    static DETECTOR: RepeatedExpensiveConstructionDetector = RepeatedExpensiveConstructionDetector;
+
+    #[test]
+    fn detects_invariant_url_parse_inside_loop() {
+        let code = r#"
+fn build(items: &[u32]) {
+    for item in items {
+        let url = Url::parse("https://example.com").unwrap();
+        println!("{url:?} {item}");
+    }
+}
+"#;
+        assert_smell_count(
+            &DETECTOR,
+            code,
+            "Repeated Expensive Construction in Loop",
+            1,
+        );
+    }
+
+    #[test]
+    fn clean_loop_dependent_url_parse() {
+        let code = r#"
+fn parse_all(items: &[&str]) {
+    for item in items {
+        let url = Url::parse(item).unwrap();
+        println!("{url:?}");
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod needless_dynamic_dispatch {
+    use super::*;
+    use qualirs::detectors::implementation::needless_dynamic_dispatch::NeedlessDynamicDispatchDetector;
+    static DETECTOR: NeedlessDynamicDispatchDetector = NeedlessDynamicDispatchDetector;
+
+    #[test]
+    fn detects_local_box_dyn_from_concrete_value() {
+        let code = r#"
+trait Handler {}
+struct Local;
+impl Handler for Local {}
+
+fn run() {
+    let handler: Box<dyn Handler> = Box::new(Local);
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Needless Dynamic Dispatch", 1);
+    }
+
+    #[test]
+    fn clean_heterogeneous_dyn_collection() {
+        let code = r#"
+trait Handler {}
+
+fn run() {
+    let handlers: Vec<Box<dyn Handler>> = Vec::new();
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod local_lock_in_single_threaded_scope {
+    use super::*;
+    use qualirs::detectors::implementation::local_lock_in_single_threaded_scope::LocalLockInSingleThreadedScopeDetector;
+    static DETECTOR: LocalLockInSingleThreadedScopeDetector =
+        LocalLockInSingleThreadedScopeDetector;
+
+    #[test]
+    fn detects_local_mutex_lock() {
+        let code = r#"
+fn bump() {
+    let lock = Mutex::new(0);
+    *lock.lock().unwrap() += 1;
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Local Lock in Single-Threaded Scope", 1);
+    }
+
+    #[test]
+    fn clean_lock_moved_into_arc() {
+        let code = r#"
+fn share() {
+    let lock = Mutex::new(0);
+    let shared = Arc::new(lock);
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
 // ─── False Positive Tests: Unsafe ────────────────────────────
 
 mod multi_mut_ref_unsafe {

@@ -176,6 +176,42 @@ impl Engine {
         ));
         self.register(Box::new(detectors::implementation::repeated_regex_construction::RepeatedRegexConstructionDetector));
         self.register(Box::new(
+            detectors::implementation::missing_collection_preallocation::MissingCollectionPreallocationDetector,
+        ));
+        self.register(Box::new(
+            detectors::implementation::repeated_string_conversion::RepeatedStringConversionDetector,
+        ));
+        self.register(Box::new(
+            detectors::implementation::needless_intermediate_string_formatting::NeedlessIntermediateStringFormattingDetector,
+        ));
+        self.register(Box::new(
+            detectors::implementation::vec_contains_in_loop::VecContainsInLoopDetector,
+        ));
+        self.register(Box::new(
+            detectors::implementation::sort_before_min_max::SortBeforeMinMaxDetector,
+        ));
+        self.register(Box::new(
+            detectors::implementation::full_sort_for_single_element::FullSortForSingleElementDetector,
+        ));
+        self.register(Box::new(
+            detectors::implementation::clone_before_move_into_collection::CloneBeforeMoveIntoCollectionDetector,
+        ));
+        self.register(Box::new(
+            detectors::implementation::inefficient_iterator_step::InefficientIteratorStepDetector,
+        ));
+        self.register(Box::new(
+            detectors::implementation::chars_count_length_check::CharsCountLengthCheckDetector,
+        ));
+        self.register(Box::new(
+            detectors::implementation::repeated_expensive_construction::RepeatedExpensiveConstructionDetector,
+        ));
+        self.register(Box::new(
+            detectors::implementation::needless_dynamic_dispatch::NeedlessDynamicDispatchDetector,
+        ));
+        self.register(Box::new(
+            detectors::implementation::local_lock_in_single_threaded_scope::LocalLockInSingleThreadedScopeDetector,
+        ));
+        self.register(Box::new(
             detectors::implementation::clone_on_copy::CloneOnCopyDetector,
         ));
         self.register(Box::new(

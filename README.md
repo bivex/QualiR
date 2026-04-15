@@ -89,7 +89,7 @@ Run `qualirs --list-detectors` for the complete detector inventory. The current 
 | Architecture | 13 | God Module, Layer Violation, Public API Leak, Duplicate Dependency Versions |
 | Design | 16 | Large Trait, Anemic Struct, Data Clumps, God Struct, Large Error Enum |
 | Implementation | 14 | Long Function, Magic Numbers, Deep If/Else Nesting, Duplicate Match Arms |
-| Performance | 11 | Excessive Clone, Repeated Regex Construction, Clone on Copy, Inline Candidate |
+| Performance | 23 | Excessive Clone, Missing Collection Preallocation, Repeated Regex Construction, Inline Candidate |
 | Idiomaticity | 11 | Excessive Unwrap, Unused Result Ignored, Manual Find/Any Loop, Derivable Impl |
 | Concurrency | 9 | Blocking in Async, Spawn Without Join, Holding Lock Across Await |
 | Unsafe | 10 | Unsafe Without Comment, FFI Without Wrapper, Unsafe Fn Missing Safety Docs |
