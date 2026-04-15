@@ -12,7 +12,7 @@ impl Detector for LongFunctionDetector {
     }
 
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
-        let thresholds = Thresholds::default();
+        let thresholds = crate::domain::config::current_thresholds();
         let mut smells = Vec::new();
 
         if file.path.to_string_lossy().contains("tests") {

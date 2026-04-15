@@ -12,7 +12,7 @@ impl Detector for ExcessiveGenericsDetector {
     }
 
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
-        let thresholds = Thresholds::default();
+        let thresholds = crate::domain::config::current_thresholds();
         let mut smells = Vec::new();
 
         for item in &file.ast.items {

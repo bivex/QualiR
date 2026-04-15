@@ -60,7 +60,8 @@ impl<'ast> Visit<'ast> for FullSortVisitor {
             } else if method == "get"
                 && node
                     .args
-                    .first().is_none_or(|arg| int_lit_value(arg) != Some(0))
+                    .first()
+                    .is_none_or(|arg| int_lit_value(arg) != Some(0))
                 && self.sorted.remove(&receiver).is_some()
             {
                 self.findings

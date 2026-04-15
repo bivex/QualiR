@@ -84,7 +84,7 @@ Options:
       --temp-dir <DIR>               Directory to create temporary git and crate analysis folders in
       --keep-temp                    Preserve temporary git and crate analysis folders after the run
   -c, --config <CONFIG>              Configuration file path (default: qualirs.toml in project root)
-  -m, --min-severity <MIN_SEVERITY>  Minimum severity to report: info, warning, critical [default: info]
+  -m, --min-severity <MIN_SEVERITY>  Minimum severity to report: info, warning, critical
   -t, --category <CATEGORY>          Show only smells of a specific category
   -q, --quiet                        Quiet mode: only show summary counts
       --compact                      Compact mode: show findings as a categorized list (default)

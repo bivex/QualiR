@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::sync::{Mutex, OnceLock};
 
 use rayon::prelude::*;
 
@@ -7,6 +8,8 @@ use crate::domain::config::Config;
 use crate::domain::smell::{Severity, Smell};
 use crate::domain::source::SourceFile;
 use crate::infrastructure::walker::RustFileWalker;
+
+static ANALYSIS_CONFIG_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
 /// The central analysis engine. Owns a set of detectors and runs them
 /// across a codebase.
@@ -17,7 +20,6 @@ pub struct Engine {
 
 impl Engine {
     pub fn new(config: Config) -> Self {
-        crate::detectors::policy::configure(&config.policy);
         Self {
             detectors: Vec::new(),
             config,
@@ -317,7 +319,12 @@ impl Engine {
 
     /// Analyze all Rust files under `path` and return detected smells.
     pub fn analyze(&self, path: &Path) -> AnalysisReport {
+        let _config_guard = ANALYSIS_CONFIG_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("analysis config lock poisoned");
         crate::detectors::policy::configure(&self.config.policy);
+        crate::domain::config::configure_thresholds(&self.config.thresholds);
 
         let walker = RustFileWalker::new(path, &self.config.exclude_paths);
         let files = walker.collect_files();
@@ -440,8 +447,10 @@ mod tests {
 
     #[test]
     fn ignored_findings_filter_by_rule_code_case_insensitively() {
-        let mut config = Config::default();
-        config.ignore_findings = vec!["q0001".into()];
+        let config = Config {
+            ignore_findings: vec!["q0001".into()],
+            ..Config::default()
+        };
         let engine = Engine::new(config.clone());
         let ignored_findings = engine.ignored_findings();
         let smell = Smell::new(
@@ -454,5 +463,84 @@ mod tests {
         );
 
         assert!(!should_report_smell(&config, &ignored_findings, &smell));
+    }
+
+    #[test]
+    fn configured_thresholds_are_used_by_detectors() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        std::fs::write(
+            dir.path().join("args.rs"),
+            "fn many_args(a: i32, b: i32, c: i32) -> i32 { a + b + c }\n",
+        )
+        .expect("write source");
+
+        let strict_config = Config {
+            thresholds: crate::domain::config::Thresholds {
+                r#impl: crate::domain::config::ImplThresholds {
+                    control_flow: crate::domain::config::ControlFlowThresholds {
+                        too_many_arguments: 2,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Config::default()
+        };
+        let mut strict_engine = Engine::new(strict_config);
+        strict_engine.register(Box::new(
+            crate::detectors::implementation::too_many_arguments::TooManyArgumentsDetector,
+        ));
+        let strict_report = strict_engine.analyze(dir.path());
+        assert!(
+            strict_report
+                .smells
+                .iter()
+                .any(|smell| smell.name == "Too Many Arguments")
+        );
+
+        let lenient_config = Config {
+            thresholds: crate::domain::config::Thresholds {
+                r#impl: crate::domain::config::ImplThresholds {
+                    control_flow: crate::domain::config::ControlFlowThresholds {
+                        too_many_arguments: 10,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Config::default()
+        };
+        let mut lenient_engine = Engine::new(lenient_config);
+        lenient_engine.register(Box::new(
+            crate::detectors::implementation::too_many_arguments::TooManyArgumentsDetector,
+        ));
+        let lenient_report = lenient_engine.analyze(dir.path());
+        assert_eq!(lenient_report.total_smells(), 0);
+    }
+
+    #[test]
+    fn unsafe_without_comment_threshold_can_disable_detector() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        std::fs::write(dir.path().join("unsafe.rs"), "fn f() { unsafe { } }\n")
+            .expect("write source");
+
+        let disabled_config = Config {
+            thresholds: crate::domain::config::Thresholds {
+                r#unsafe: crate::domain::config::UnsafeThresholds {
+                    unsafe_without_comment: false,
+                },
+                ..Default::default()
+            },
+            ..Config::default()
+        };
+        let mut engine = Engine::new(disabled_config);
+        engine.register(Box::new(
+            crate::detectors::r#unsafe::unsafe_without_comment::UnsafeWithoutCommentDetector,
+        ));
+
+        let report = engine.analyze(dir.path());
+        assert_eq!(report.total_smells(), 0);
     }
 }

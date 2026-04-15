@@ -258,9 +258,7 @@ fn find_rule(name: &str) -> Option<&'static RuleMetadata> {
 }
 
 fn find_base_rule(name: &str) -> Option<&'static RuleMetadata> {
-    let Some((base, _)) = name.rsplit_once(" (") else {
-        return None;
-    };
+    let (base, _) = name.rsplit_once(" (")?;
     RULES.iter().find(|rule| rule.name == base)
 }
 

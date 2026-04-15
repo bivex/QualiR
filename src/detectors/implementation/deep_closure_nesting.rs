@@ -1,7 +1,6 @@
 use syn::visit::{Visit, visit_expr_closure};
 
 use crate::analysis::detector::Detector;
-use crate::domain::config::Thresholds;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
 
@@ -14,7 +13,7 @@ impl Detector for DeepClosureNestingDetector {
     }
 
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
-        let threshold = Thresholds::default()
+        let threshold = crate::domain::config::current_thresholds()
             .r#impl
             .control_flow
             .deep_closure_nesting;
