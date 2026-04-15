@@ -31,6 +31,9 @@ impl Detector for WideHierarchyDetector {
                     }
                 }
                 syn::Item::Struct(s) => {
+                    if is_threshold_config_struct(&s.ident) {
+                        continue;
+                    }
                     if let syn::Fields::Named(named) = &s.fields {
                         let count = named.named.len();
                         if count > thresholds.design.wide_hierarchy {
@@ -51,6 +54,10 @@ impl Detector for WideHierarchyDetector {
 
         smells
     }
+}
+
+fn is_threshold_config_struct(ident: &syn::Ident) -> bool {
+    ident.to_string().ends_with("Thresholds")
 }
 
 fn enum_smell(
