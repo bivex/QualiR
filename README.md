@@ -6,7 +6,7 @@ QualiRS parses your Rust source code with AST analysis and detects structural co
 
 ## Features
 
-- 83 built-in smell detectors across 7 categories
+- 96 built-in smell detectors across 7 categories
 - Parallel analysis via rayon (all CPU cores)
 - Configurable thresholds via `qualirs.toml`
 - Stable `Q0001`-style finding codes with config-based ignores
@@ -110,7 +110,7 @@ Options:
 
 ## Detectors
 
-Run `qualirs --list-detectors` for the complete detector inventory. The current built-in set is grouped as follows:
+Run `qualirs --list-detectors` for the complete detector inventory. See the [detector reference](docs/detectors.md) for explanations and good/bad examples for every rule. The current built-in set is grouped as follows:
 
 | Category | Count | Examples |
 |---|---:|---|

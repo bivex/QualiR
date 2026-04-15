@@ -13,7 +13,7 @@ pub struct DeeplyNestedTypeDetector;
 
 impl Detector for DeeplyNestedTypeDetector {
     fn name(&self) -> &str {
-        "Type Alias Explosion (Deep Nesting)"
+        "Deeply Nested Type"
     }
 
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
@@ -50,7 +50,7 @@ fn nested_type_smell(
 ) -> Smell {
     Smell::new(
         SmellCategory::Implementation,
-        "Type Alias Explosion (Deep Nesting)",
+        "Deeply Nested Type",
         Severity::Info,
         SourceLocation::new(file.path.clone(), line, line, None),
         format!(

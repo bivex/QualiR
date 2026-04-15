@@ -86,7 +86,9 @@ use crate::ser::Serialize;
         let source = SourceFile::from_source("src/private/de.rs".into(), code.to_string()).unwrap();
         let smells = DETECTOR.detect(&source);
         assert!(
-            smells.iter().all(|smell| smell.name != "Cyclic Dependency"),
+            smells
+                .iter()
+                .all(|smell| smell.name != "Cyclic Crate Dependency"),
             "Should not treat crate::de as private::de importing itself. Smells found: {smells:?}"
         );
     }
@@ -102,7 +104,7 @@ use crate::ser::Serialize;
         assert_eq!(
             smells
                 .iter()
-                .filter(|smell| smell.name == "Cyclic Dependency")
+                .filter(|smell| smell.name == "Cyclic Crate Dependency")
                 .count(),
             1
         );
@@ -2195,13 +2197,13 @@ mod inline_assembly {
     #[test]
     fn detects_asm_macro() {
         let code = "fn foo() { unsafe { std::arch::asm!(\"nop\"); } }";
-        assert_smell_count(&DETECTOR, code, "Inline Assembly Usage", 1);
+        assert_smell_count(&DETECTOR, code, "Inline Assembly", 1);
     }
 
     #[test]
     fn detects_global_asm_macro() {
         let code = "core::arch::global_asm!(\".global _start\");";
-        assert_smell_count(&DETECTOR, code, "Inline Assembly Usage", 1);
+        assert_smell_count(&DETECTOR, code, "Inline Assembly", 1);
     }
 
     #[test]
@@ -2526,7 +2528,7 @@ struct S;
 impl S { fn a(&self) {} }
 impl S { fn b(&self) {} }
 ";
-        assert_smell_count(&DETECTOR, code, "Scattered Implementation", 1);
+        assert_smell_count(&DETECTOR, code, "Multiple Impl Blocks", 1);
     }
 
     #[test]
@@ -2619,7 +2621,7 @@ mod deeply_nested_type {
     #[test]
     fn detects_deep_nesting() {
         let code = "struct S { data: Arc<Mutex<HashMap<String, Vec<i32>>>> }";
-        assert_smell_count(&DETECTOR, code, "Type Alias Explosion (Deep Nesting)", 1);
+        assert_smell_count(&DETECTOR, code, "Deeply Nested Type", 1);
     }
 
     #[test]
