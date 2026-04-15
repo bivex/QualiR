@@ -519,6 +519,47 @@ fn routes(state: AppState, layer: Layer) -> Router<AppState> {
             "fluent builder APIs should not be reported as long method chains"
         );
     }
+
+    #[test]
+    fn clean_option_result_cleanup_chain() {
+        let code = r#"
+fn relative_path(root: &Path, raw: &str) -> Option<String> {
+    let path = Path::new(raw);
+    path.strip_prefix(root)
+        .ok()
+        .or_else(|| path.strip_prefix(".").ok())
+        .unwrap_or(path)
+        .to_str()
+        .map(|value| value.replace('\\', "/"))
+        .filter(|value| !value.is_empty())
+}
+"#;
+        let file = SourceFile::from_source(PathBuf::from("main.rs"), code.to_string()).unwrap();
+        assert!(
+            DETECTOR.detect(&file).is_empty(),
+            "Option/Result cleanup chains should not be reported as long method chains"
+        );
+    }
+
+    #[test]
+    fn clean_string_normalization_chain() {
+        let code = r#"
+fn normalize(raw: &str) -> Option<IpAddr> {
+    raw.trim()
+        .trim_matches('"')
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .trim()
+        .parse()
+        .ok()
+}
+"#;
+        let file = SourceFile::from_source(PathBuf::from("main.rs"), code.to_string()).unwrap();
+        assert!(
+            DETECTOR.detect(&file).is_empty(),
+            "cleanup chains should not be reported as long method chains"
+        );
+    }
 }
 
 mod unused_result {
@@ -2559,7 +2600,21 @@ mod unnecessary_allocation_in_loop {
     static DETECTOR: UnnecessaryAllocationInLoopDetector = UnnecessaryAllocationInLoopDetector;
 
     #[test]
-    fn detects_clear_loop_allocations() {
+    fn detects_clear_invariant_loop_allocations() {
+        let code = r#"
+fn build(items: &[&str], prefix: &str) {
+    for item in items {
+        let a = String::from("fixed");
+        let b = prefix.to_owned();
+        let c = format!("prefix: {prefix}");
+    }
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Unnecessary Allocation in Loop", 3);
+    }
+
+    #[test]
+    fn clean_loop_item_dependent_allocations() {
         let code = r#"
 fn build(items: &[&str]) {
     for item in items {
@@ -2569,7 +2624,7 @@ fn build(items: &[&str]) {
     }
 }
 "#;
-        assert_smell_count(&DETECTOR, code, "Unnecessary Allocation in Loop", 3);
+        assert_clean(&DETECTOR, code);
     }
 
     #[test]
@@ -2609,6 +2664,21 @@ fn validate(items: &[Item]) -> Result<(), ApplicationError> {
         item.check().map_err(|error| format!("invalid item: {error}"))?;
     }
     Ok(())
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_match_arm_error_formatting_inside_loop() {
+        let code = r#"
+fn validate(items: &[Item]) {
+    for item in items {
+        match item.parse() {
+            Ok(value) => consume(value),
+            Err(error) => record(format!("invalid item: {error}")),
+        }
+    }
 }
 "#;
         assert_clean(&DETECTOR, code);
@@ -2837,13 +2907,38 @@ mod repeated_string_conversion {
     static DETECTOR: RepeatedStringConversionDetector = RepeatedStringConversionDetector;
 
     #[test]
-    fn detects_conversion_in_iterator_chain() {
+    fn detects_invariant_conversion_in_iterator_chain() {
+        let code = r#"
+fn labels(items: &[u32], prefix: &str) -> Vec<String> {
+    items.iter().map(|item| prefix.to_string()).collect()
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Repeated String Conversion in Hot Path", 1);
+    }
+
+    #[test]
+    fn clean_loop_item_conversion_in_iterator_chain() {
         let code = r#"
 fn labels(items: &[u32]) -> Vec<String> {
     items.iter().map(|item| item.to_string()).collect()
 }
 "#;
-        assert_smell_count(&DETECTOR, code, "Repeated String Conversion in Hot Path", 1);
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_loop_local_conversion() {
+        let code = r#"
+fn labels(items: &[Item]) -> Vec<String> {
+    let mut out = Vec::new();
+    for item in items {
+        let label = item.label();
+        out.push(label.to_string());
+    }
+    out
+}
+"#;
+        assert_clean(&DETECTOR, code);
     }
 
     #[test]
@@ -2851,6 +2946,25 @@ fn labels(items: &[u32]) -> Vec<String> {
         let code = r#"
 fn convert(result: Result<u32, Error>) -> Result<u32, String> {
     result.map_err(|error| error.to_string())
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_error_conversion_inside_loop() {
+        let code = r#"
+fn convert(items: &[Item]) -> Vec<String> {
+    let mut errors = Vec::new();
+    for item in items {
+        match item.parse() {
+            Ok(value) => consume(value),
+            Err(error) => errors.push(error.to_string()),
+        }
+
+        item.check().map_err(|error| error.to_string()).ok();
+    }
+    errors
 }
 "#;
         assert_clean(&DETECTOR, code);
@@ -3106,6 +3220,20 @@ fn build(items: &[u32]) {
 fn parse_all(items: &[&str]) {
     for item in items {
         let url = Url::parse(item).unwrap();
+        println!("{url:?}");
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_loop_local_url_parse() {
+        let code = r#"
+fn parse_all(items: &[Item]) {
+    for item in items {
+        let raw = item.url();
+        let url = Url::parse(raw).unwrap();
         println!("{url:?}");
     }
 }

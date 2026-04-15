@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use syn::visit::{
     Visit, visit_expr_call, visit_expr_for_loop, visit_expr_loop, visit_expr_while, visit_item_fn,
-    visit_item_mod,
+    visit_item_mod, visit_local,
 };
 
 use crate::analysis::detector::Detector;
@@ -91,6 +91,15 @@ impl<'ast> Visit<'ast> for ExpensiveConstructionVisitor {
         visit_expr_loop(self, node);
         self.loop_bindings.pop();
         self.loop_depth -= 1;
+    }
+
+    fn visit_local(&mut self, node: &'ast syn::Local) {
+        visit_local(self, node);
+        if self.loop_depth > 0
+            && let Some(bindings) = self.loop_bindings.last_mut()
+        {
+            collect_pat_idents(&node.pat, bindings);
+        }
     }
 
     fn visit_expr_call(&mut self, node: &'ast syn::ExprCall) {
