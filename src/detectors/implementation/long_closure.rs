@@ -2,7 +2,6 @@ use syn::spanned::Spanned;
 use syn::visit::{Visit, visit_expr_closure};
 
 use crate::analysis::detector::Detector;
-use crate::domain::config::Thresholds;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
 
@@ -15,7 +14,10 @@ impl Detector for LongClosureDetector {
     }
 
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
-        let threshold = Thresholds::default().r#impl.control_flow.long_closure_loc;
+        let threshold = crate::domain::config::current_thresholds()
+            .r#impl
+            .control_flow
+            .long_closure_loc;
         let mut visitor = LongClosureVisitor {
             threshold,
             findings: Vec::new(),

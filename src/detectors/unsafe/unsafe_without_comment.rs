@@ -13,6 +13,13 @@ impl Detector for UnsafeWithoutCommentDetector {
     }
 
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
+        if !crate::domain::config::current_thresholds()
+            .r#unsafe
+            .unsafe_without_comment
+        {
+            return Vec::new();
+        }
+
         let mut smells = Vec::new();
         let source_lines: Vec<&str> = file.code.lines().collect();
 

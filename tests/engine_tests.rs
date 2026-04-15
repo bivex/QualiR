@@ -110,16 +110,20 @@ fn risky() {
     std::fs::write(dir.path().join("prod.rs"), code).expect("write prod.rs");
 
     // With min_severity = Warning, should still find excessive unwrap (Warning)
-    let mut config = Config::default();
-    config.min_severity = Severity::Warning;
+    let config = Config {
+        min_severity: Severity::Warning,
+        ..Config::default()
+    };
     let mut engine = Engine::new(config);
     engine.register_defaults();
     let report = engine.analyze(dir.path());
     assert!(report.total_smells() > 0, "Should find warnings");
 
     // With min_severity = Critical, should find nothing (no critical smells here)
-    let mut config2 = Config::default();
-    config2.min_severity = Severity::Critical;
+    let config2 = Config {
+        min_severity: Severity::Critical,
+        ..Config::default()
+    };
     let mut engine2 = Engine::new(config2);
     engine2.register_defaults();
     let report2 = engine2.analyze(dir.path());
@@ -154,8 +158,13 @@ fn risky_test_helper() {
         "default policy should skip test files"
     );
 
-    let mut config = Config::default();
-    config.policy.skip_tests = false;
+    let config = Config {
+        policy: qualirs::domain::config::PolicyConfig {
+            skip_tests: false,
+            ..Default::default()
+        },
+        ..Config::default()
+    };
     let mut engine = Engine::new(config);
     engine.register_defaults();
     let analyzed_report = engine.analyze(dir.path());

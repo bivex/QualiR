@@ -1,5 +1,4 @@
 use crate::analysis::detector::Detector;
-use crate::domain::config::Thresholds;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
 
@@ -12,7 +11,9 @@ impl Detector for StringlyTypedDomainDetector {
     }
 
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
-        let threshold = Thresholds::default().design.stringly_typed_fields;
+        let threshold = crate::domain::config::current_thresholds()
+            .design
+            .stringly_typed_fields;
         let mut smells = Vec::new();
 
         for item in &file.ast.items {

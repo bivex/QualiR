@@ -1,3 +1,5 @@
+use std::sync::{OnceLock, RwLock};
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct ArchThresholds {
     pub god_module_loc: usize,
@@ -95,6 +97,23 @@ pub struct Thresholds {
     pub concurrency: ConcurrencyThresholds,
     #[serde(default)]
     pub r#unsafe: UnsafeThresholds,
+}
+
+static CURRENT_THRESHOLDS: OnceLock<RwLock<Thresholds>> = OnceLock::new();
+
+pub(crate) fn configure_thresholds(thresholds: &Thresholds) {
+    *threshold_store().write().expect("threshold lock poisoned") = thresholds.clone();
+}
+
+pub(crate) fn current_thresholds() -> Thresholds {
+    threshold_store()
+        .read()
+        .expect("threshold lock poisoned")
+        .clone()
+}
+
+fn threshold_store() -> &'static RwLock<Thresholds> {
+    CURRENT_THRESHOLDS.get_or_init(|| RwLock::new(Thresholds::default()))
 }
 
 #[cfg(test)]

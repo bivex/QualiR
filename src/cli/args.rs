@@ -80,8 +80,8 @@ pub(crate) struct FilterOptions {
     pub(crate) config: Option<PathBuf>,
 
     /// Minimum severity to report: info, warning, critical
-    #[arg(short = 'm', long, default_value = "info")]
-    pub(crate) min_severity: String,
+    #[arg(short = 'm', long)]
+    pub(crate) min_severity: Option<String>,
 
     /// Show only smells of a specific category
     #[arg(short = 't', long)]

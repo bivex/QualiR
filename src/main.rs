@@ -126,14 +126,16 @@ fn get_config(args: &Args, analysis_path: &Path) -> anyhow::Result<Config> {
         Config::load_or_default(&path)
     };
 
-    config.min_severity = match filters.min_severity.to_lowercase().as_str() {
-        "critical" => Severity::Critical,
-        "warning" | "warn" => Severity::Warning,
-        "info" => Severity::Info,
-        other => {
-            anyhow::bail!("Unknown severity level: {other}. Use: info, warning, critical");
-        }
-    };
+    if let Some(min_severity) = &filters.min_severity {
+        config.min_severity = match min_severity.to_lowercase().as_str() {
+            "critical" => Severity::Critical,
+            "warning" | "warn" => Severity::Warning,
+            "info" => Severity::Info,
+            other => {
+                anyhow::bail!("Unknown severity level: {other}. Use: info, warning, critical");
+            }
+        };
+    }
 
     Ok(config)
 }
@@ -153,4 +155,67 @@ fn print_summary(report: &analysis::engine::AnalysisReport) {
         report.count_by_severity(Severity::Warning),
         report.count_by_severity(Severity::Info),
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cli::args::{FilterOptions, OutputOptions, SourceOptions};
+
+    fn args_with_config(config: PathBuf, min_severity: Option<String>) -> Args {
+        Args {
+            command: None,
+            source: SourceOptions {
+                path: None,
+                git: None,
+                branch: None,
+                tag: None,
+                crate_name: None,
+                crate_version: None,
+                temp_dir: None,
+                keep_temp: false,
+            },
+            filters: FilterOptions {
+                config: Some(config),
+                min_severity,
+                category: None,
+            },
+            output_options: OutputOptions {
+                quiet: false,
+                compact: false,
+                table: false,
+                llm: false,
+                format: None,
+                output_path: None,
+            },
+            list_detectors: false,
+        }
+    }
+
+    #[test]
+    fn config_min_severity_is_used_when_cli_flag_is_absent() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let config_path = dir.path().join("qualirs.toml");
+        std::fs::write(&config_path, "min_severity = \"critical\"\n").expect("write config");
+
+        let config =
+            get_config(&args_with_config(config_path, None), dir.path()).expect("load config");
+
+        assert_eq!(config.min_severity, Severity::Critical);
+    }
+
+    #[test]
+    fn cli_min_severity_overrides_config_value() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let config_path = dir.path().join("qualirs.toml");
+        std::fs::write(&config_path, "min_severity = \"critical\"\n").expect("write config");
+
+        let config = get_config(
+            &args_with_config(config_path, Some("warning".into())),
+            dir.path(),
+        )
+        .expect("load config");
+
+        assert_eq!(config.min_severity, Severity::Warning);
+    }
 }
