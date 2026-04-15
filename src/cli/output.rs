@@ -142,8 +142,8 @@ pub fn print_detector_list() {
     println!("{}", "━".repeat(40).dimmed());
 
     let detectors = [
-        ("Architecture", vec!["God Module", "Public API Explosion", "Feature Concentration", "Cyclic Crate Dependency", "Layer Violation", "Unstable Dependency"]),
-        ("Design", vec!["Large Trait", "Excessive Generics", "Anemic Struct", "Wide Hierarchy", "Trait Impl Leakage", "Feature Envy", "Broken Constructor", "Rebellious Impl", "Fat Impl", "Primitive Obsession", "Data Clumps", "Multiple Impl Blocks"]),
+        ("Architecture", vec!["God Module", "Public API Explosion", "Feature Concentration", "Cyclic Crate Dependency", "Layer Violation", "Unstable Dependency", "Leaky Error Abstraction", "Hidden Global State", "Public API Leak", "Test-only Dependency in Production", "Duplicate Dependency Versions", "Feature Flag Sprawl", "Circular Module Dependency"]),
+        ("Design", vec!["Large Trait", "Excessive Generics", "Anemic Struct", "Wide Hierarchy", "Trait Impl Leakage", "Feature Envy", "Broken Constructor", "Rebellious Impl", "Fat Impl", "Primitive Obsession", "Data Clumps", "Multiple Impl Blocks", "God Struct", "Boolean Flag Argument", "Stringly Typed Domain", "Large Error Enum"]),
         (
             "Implementation",
             vec![
@@ -158,6 +158,9 @@ pub fn print_detector_list() {
                 "Unsafe Block Overuse",
                 "Lifetime Explosion",
                 "Deeply Nested Type",
+                "Duplicate Match Arms",
+                "Long Closure",
+                "Deep Closure Nesting",
             ],
         ),
         (
@@ -168,6 +171,11 @@ pub fn print_detector_list() {
                 "Large Future",
                 "Async Trait Overhead",
                 "Interior Mutability Abuse",
+                "Unnecessary Allocation in Loop",
+                "Collect Then Iterate",
+                "Repeated Regex Construction",
+                "Clone on Copy",
+                "Large Value Passed By Value",
             ],
         ),
         (
@@ -179,10 +187,15 @@ pub fn print_detector_list() {
                 "Copy + Drop Conflict",
                 "Deref Abuse",
                 "Manual Drop",
+                "Manual Default Constructor",
+                "Manual Option/Result Mapping",
+                "Manual Find/Any Loop",
+                "Needless Explicit Lifetime",
+                "Derivable Impl",
             ],
         ),
-        ("Concurrency", vec!["Blocking in Async", "Deadlock Risk", "Spawn Without Join", "Missing Send Bound", "Sync Drop Blocking"]),
-        ("Unsafe", vec!["Unsafe Without Comment", "Transmute Usage", "Raw Pointer Arithmetic", "Multi Mut Ref Unsafe", "FFI Without Wrapper", "Inline Assembly"]),
+        ("Concurrency", vec!["Blocking in Async", "Deadlock Risk", "Spawn Without Join", "Missing Send Bound", "Sync Drop Blocking", "Std Mutex in Async", "Blocking Channel in Async", "Holding Lock Across Await", "Dropped JoinHandle"]),
+        ("Unsafe", vec!["Unsafe Without Comment", "Transmute Usage", "Raw Pointer Arithmetic", "Multi Mut Ref Unsafe", "FFI Without Wrapper", "Inline Assembly", "Unsafe Fn Missing Safety Docs", "Unsafe Impl Missing Safety Docs", "Large Unsafe Block", "FFI Type Not repr(C)"]),
     ];
 
     for (category, names) in &detectors {

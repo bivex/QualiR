@@ -12,3 +12,7 @@ pub mod fat_impl;
 pub mod primitive_obsession;
 pub mod data_clumps;
 pub mod multiple_impl_blocks;
+pub mod god_struct;
+pub mod boolean_flag_argument;
+pub mod stringly_typed_domain;
+pub mod large_error_enum;

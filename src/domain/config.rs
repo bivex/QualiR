@@ -14,15 +14,20 @@ pub struct DesignThresholds {
     pub deep_trait_bounds: usize,
     pub wide_hierarchy: usize,
     pub fat_impl_methods: usize,
+    pub god_struct_fields: usize,
     pub primitive_obsession_fields: usize,
     pub data_clumps_args: usize,
     pub data_clumps_occurrences: usize,
+    pub stringly_typed_fields: usize,
+    pub large_error_enum_variants: usize,
 }
 
 /// Thresholds for control-flow complexity smells.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub(crate) struct ControlFlowThresholds {
     pub long_function_loc: usize,
+    pub long_closure_loc: usize,
+    pub deep_closure_nesting: usize,
     pub cyclomatic_complexity: usize,
     pub too_many_arguments: usize,
     pub deep_match_nesting: usize,
@@ -114,13 +119,18 @@ impl Default for Thresholds {
                 deep_trait_bounds: 4,
                 wide_hierarchy: 10,
                 fat_impl_methods: 20,
+                god_struct_fields: 20,
                 primitive_obsession_fields: 4,
                 data_clumps_args: 3,
                 data_clumps_occurrences: 3,
+                stringly_typed_fields: 3,
+                large_error_enum_variants: 12,
             },
             r#impl: ImplThresholds {
                 control_flow: ControlFlowThresholds {
                     long_function_loc: 50,
+                    long_closure_loc: 25,
+                    deep_closure_nesting: 3,
                     cyclomatic_complexity: 15,
                     too_many_arguments: 6,
                     deep_match_nesting: 3,

@@ -17,6 +17,7 @@ path = "src/main.rs"
 # AST parsing
 syn = { version = "2", features = ["full", "extra-traits", "visit", "parsing", "printing"] }
 proc-macro2 = { version = "1", features = ["span-locations"] }
+quote = "1"
 
 # CLI
 clap = { version = "4", features = ["derive"] }

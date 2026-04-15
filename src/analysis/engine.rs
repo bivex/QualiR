@@ -41,6 +41,11 @@ impl Engine {
         self.register(Box::new(detectors::architecture::unstable_dependency::UnstableDependencyDetector));
         self.register(Box::new(detectors::architecture::leaky_error::LeakyErrorAbstractionDetector));
         self.register(Box::new(detectors::architecture::hidden_global_state::HiddenGlobalStateDetector));
+        self.register(Box::new(detectors::architecture::public_api_leak::PublicApiLeakDetector));
+        self.register(Box::new(detectors::architecture::project_hygiene::TestOnlyDependencyInProductionDetector));
+        self.register(Box::new(detectors::architecture::project_hygiene::DuplicateDependencyVersionsDetector));
+        self.register(Box::new(detectors::architecture::project_hygiene::FeatureFlagSprawlDetector));
+        self.register(Box::new(detectors::architecture::project_hygiene::CircularModuleDependencyDetector));
 
         // Design
         self.register(Box::new(detectors::design::large_trait::LargeTraitDetector));
@@ -57,6 +62,10 @@ impl Engine {
         self.register(Box::new(detectors::design::primitive_obsession::PrimitiveObsessionDetector));
         self.register(Box::new(detectors::design::data_clumps::DataClumpsDetector));
         self.register(Box::new(detectors::design::multiple_impl_blocks::MultipleImplBlocksDetector));
+        self.register(Box::new(detectors::design::god_struct::GodStructDetector));
+        self.register(Box::new(detectors::design::boolean_flag_argument::BooleanFlagArgumentDetector));
+        self.register(Box::new(detectors::design::stringly_typed_domain::StringlyTypedDomainDetector));
+        self.register(Box::new(detectors::design::large_error_enum::LargeErrorEnumDetector));
 
         // Implementation
         self.register(Box::new(detectors::implementation::long_function::LongFunctionDetector));
@@ -76,6 +85,19 @@ impl Engine {
         self.register(Box::new(detectors::implementation::copy_drop_conflict::CopyDropConflictDetector));
         self.register(Box::new(detectors::implementation::deeply_nested_type::DeeplyNestedTypeDetector));
         self.register(Box::new(detectors::implementation::interior_mutability_abuse::InteriorMutabilityAbuseDetector));
+        self.register(Box::new(detectors::implementation::unnecessary_allocation_in_loop::UnnecessaryAllocationInLoopDetector));
+        self.register(Box::new(detectors::implementation::collect_then_iterate::CollectThenIterateDetector));
+        self.register(Box::new(detectors::implementation::repeated_regex_construction::RepeatedRegexConstructionDetector));
+        self.register(Box::new(detectors::implementation::clone_on_copy::CloneOnCopyDetector));
+        self.register(Box::new(detectors::implementation::large_value_passed_by_value::LargeValuePassedByValueDetector));
+        self.register(Box::new(detectors::implementation::manual_default_constructor::ManualDefaultConstructorDetector));
+        self.register(Box::new(detectors::implementation::manual_option_result_mapping::ManualOptionResultMappingDetector));
+        self.register(Box::new(detectors::implementation::manual_find_loop::ManualFindLoopDetector));
+        self.register(Box::new(detectors::implementation::needless_explicit_lifetime::NeedlessExplicitLifetimeDetector));
+        self.register(Box::new(detectors::implementation::derivable_impl::DerivableImplDetector));
+        self.register(Box::new(detectors::implementation::duplicate_match_arms::DuplicateMatchArmsDetector));
+        self.register(Box::new(detectors::implementation::long_closure::LongClosureDetector));
+        self.register(Box::new(detectors::implementation::deep_closure_nesting::DeepClosureNestingDetector));
 
         // Concurrency
         self.register(Box::new(detectors::concurrency::blocking_in_async::BlockingInAsyncDetector));
@@ -86,6 +108,10 @@ impl Engine {
         self.register(Box::new(detectors::concurrency::missing_send_bound::MissingSendBoundDetector));
         self.register(Box::new(detectors::concurrency::sync_drop_blocking::SyncDropBlockingDetector));
         self.register(Box::new(detectors::concurrency::async_trait_overhead::AsyncTraitOverheadDetector));
+        self.register(Box::new(detectors::concurrency::std_mutex_in_async::StdMutexInAsyncDetector));
+        self.register(Box::new(detectors::concurrency::blocking_channel_in_async::BlockingChannelInAsyncDetector));
+        self.register(Box::new(detectors::concurrency::holding_lock_across_await::HoldingLockAcrossAwaitDetector));
+        self.register(Box::new(detectors::concurrency::dropped_join_handle::DroppedJoinHandleDetector));
 
         // Unsafe
         self.register(Box::new(detectors::r#unsafe::unsafe_without_comment::UnsafeWithoutCommentDetector));
@@ -94,6 +120,10 @@ impl Engine {
         self.register(Box::new(detectors::r#unsafe::multi_mut_ref_unsafe::MultiMutRefUnsafeDetector));
         self.register(Box::new(detectors::r#unsafe::ffi_without_wrapper::FfiWithoutWrapperDetector));
         self.register(Box::new(detectors::r#unsafe::inline_assembly::InlineAssemblyDetector));
+        self.register(Box::new(detectors::r#unsafe::unsafe_fn_missing_safety_docs::UnsafeFnMissingSafetyDocsDetector));
+        self.register(Box::new(detectors::r#unsafe::unsafe_impl_safety_docs::UnsafeImplSafetyDocsDetector));
+        self.register(Box::new(detectors::r#unsafe::large_unsafe_block::LargeUnsafeBlockDetector));
+        self.register(Box::new(detectors::r#unsafe::ffi_type_not_repr_c::FfiTypeNotReprCDetector));
     }
 
     /// Analyze all Rust files under `path` and return detected smells.

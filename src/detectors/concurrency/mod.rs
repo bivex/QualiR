@@ -6,3 +6,7 @@ pub mod spawn_without_join;
 pub mod missing_send_bound;
 pub mod sync_drop_blocking;
 pub mod async_trait_overhead;
+pub mod std_mutex_in_async;
+pub mod blocking_channel_in_async;
+pub mod holding_lock_across_await;
+pub mod dropped_join_handle;

@@ -6,3 +6,5 @@ pub mod layer_violation;
 pub mod unstable_dependency;
 pub mod leaky_error;
 pub mod hidden_global_state;
+pub mod public_api_leak;
+pub mod project_hygiene;

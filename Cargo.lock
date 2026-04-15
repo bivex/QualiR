@@ -448,6 +448,7 @@ dependencies = [
  "comfy-table",
  "ignore",
  "proc-macro2",
+ "quote",
  "rayon",
  "serde",
  "syn",
