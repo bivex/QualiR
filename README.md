@@ -2,14 +2,15 @@
 
 **Structural and architectural code smell detector for Rust.**
 
-QualiRS parses your Rust source code via AST analysis and detects 53 types of code smells across 7 categories: Architecture, Design, Implementation, Performance, Idiomaticity, Concurrency, and Unsafe. It is designed to complement `clippy` — where clippy focuses on lint-level correctness and idioms, QualiRS focuses on structural, architectural, and design-level problems.
+QualiRS parses your Rust source code with AST analysis and detects structural code smells across 7 categories: Architecture, Design, Implementation, Performance, Idiomaticity, Concurrency, and Unsafe. It is designed to complement `clippy` — where clippy focuses on lint-level correctness and idioms, QualiRS focuses on structural, architectural, and design-level problems.
 
 ## Features
 
-- 53 built-in smell detectors across 7 categories: Architecture, Design, Implementation, Performance, Idiomaticity, Concurrency, and Unsafe.
+- 83 built-in smell detectors across 7 categories
 - Parallel analysis via rayon (all CPU cores)
 - Configurable thresholds via `qualirs.toml`
-- Colored terminal table output with severity levels
+- False-positive policy controls for tests, DTOs, templates, and config structs
+- Compact terminal output by default, with table, LLM, quiet, and JSON modes
 - CI-friendly: exits with code 1 on critical smells
 - Respects `.gitignore` automatically
 
@@ -36,6 +37,9 @@ qualirs --min-severity warning .
 
 # Quiet mode (summary only, great for CI)
 qualirs --quiet .
+
+# JSON output
+qualirs --format json --output qualirs-report.json .
 ```
 
 ## CLI Reference
@@ -58,6 +62,8 @@ Options:
       --compact                      Compact mode: show findings as a categorized list (default)
       --table                        Table mode: show findings in the legacy table layout
       --llm                          LLM mode: show compact Markdown with fenced finding blocks for coding assistants
+      --format <FORMAT>              Output format [possible values: json]
+      --output <OUTPUT_PATH>         Write JSON findings to a file instead of stdout
       --list-detectors               List available detectors and exit
   -h, --help                         Print help
   -V, --version                      Print version
@@ -76,80 +82,19 @@ Options:
 
 ## Detectors
 
-### Architecture
+Run `qualirs --list-detectors` for the complete detector inventory. The current built-in set is grouped as follows:
 
-| Detector | What it detects | Default threshold | Severity |
-|---|---|---|---|
-| **God Module** | Files with too many lines or too many top-level items | >1000 LOC or >20 items | Warning |
-| **Public API Explosion** | Files where >70% of items are `pub` | >70% pub ratio, min 5 items | Info |
-| **Hidden Global State** | Files with too many static/lazy_static usages | >3 objects | Warning |
-| **Leaky Error Abstraction** | Public enum variants wrapping external library paths | Any | Warning |
+| Category | Count | Examples |
+|---|---:|---|
+| Architecture | 13 | God Module, Layer Violation, Public API Leak, Duplicate Dependency Versions |
+| Design | 16 | Large Trait, Anemic Struct, Data Clumps, God Struct, Large Error Enum |
+| Implementation | 14 | Long Function, Magic Numbers, Deep If/Else Nesting, Duplicate Match Arms |
+| Performance | 10 | Excessive Clone, Repeated Regex Construction, Clone on Copy |
+| Idiomaticity | 11 | Excessive Unwrap, Unused Result Ignored, Manual Find/Any Loop, Derivable Impl |
+| Concurrency | 9 | Blocking in Async, Spawn Without Join, Holding Lock Across Await |
+| Unsafe | 10 | Unsafe Without Comment, FFI Without Wrapper, Unsafe Fn Missing Safety Docs |
 
-### Design
-
-| Detector | What it detects | Default threshold | Severity |
-|---|---|---|---|
-| **Large Trait** | Traits with too many methods | >15 methods | Warning |
-| **Excessive Generics** | Functions/structs/enums with too many generic parameters | >5 type params | Warning |
-| **Anemic Struct** | Structs with fields but no `impl` block in the same file | Any | Info |
-| **Fat Impl (God Object)** | `impl` block with too many methods | >20 methods | Warning |
-| **Primitive Obsession** | Struct with only primitive fields | >4 fields | Info |
-| **Data Clumps** | Same parameter groups passed to multiple functions | >3 params, >3 funcs | Warning |
-| **Scattered Implementation** | Single struct has multiple `impl` blocks in one file | Any | Info |
-
-### Implementation
-
-| Detector | What it detects | Default threshold | Severity |
-|---|---|---|---|
-| **Long Function** | Functions exceeding a line count | >50 LOC (Critical if >100) | Warning / Critical |
-| **Deeply Nested Type** | Deeply nested generic types (e.g. Arc<Mutex<...>>) | >3 levels | Info |
-| **Too Many Arguments** | Functions with too many parameters | >6 arguments | Warning |
-| **Deep Match Nesting** | Deeply nested `match` expressions | >3 levels deep | Warning |
-| **Magic Numbers** | Numeric literals that aren't well-known constants | Any non-whitelisted literal | Info |
-| **Large Enum** | Enums with too many variants | >20 variants | Warning |
-| **High Cyclomatic Complexity** | Functions with too many branching paths (if/match/loop/&&/\|\|/?/while/for) | >15 | Warning / Critical |
-| **Deep If/Else Nesting** | Deeply nested if/else chains | >4 levels deep | Warning |
-| **Long Method Chain** | Excessive chained method calls `a.b().c().d().e()` | >=4 chained calls | Info |
-| **Unsafe Block Overuse** | Files with too many unsafe blocks | >5 per file | Warning |
-| **Lifetime Explosion** | Functions/structs/enums with too many lifetime parameters | >4 lifetimes | Warning |
-
-### Performance
-
-| Detector | What it detects | Default threshold | Severity |
-|---|---|---|---|
-| **Excessive Clone** | Functions with too many `.clone()` calls | >10 calls | Info |
-| **Arc Mutex Overuse** | Excessive shared-state primitives in one type | >3 per type | Warning |
-| **Large Future** | Very large async functions that create large futures | >100 LOC | Warning / Critical |
-| **Async Trait Overhead** | Usage of `#[async_trait]` macro when native is preferred | Any | Info |
-| **Interior Mutability Abuse**| Excessive RefCell/Cell/OnceCell usage in a file | >5 cells | Warning |
-
-### Idiomaticity
-
-| Detector | What it detects | Default threshold | Severity |
-|---|---|---|---|
-| **Excessive Unwrap** | Functions with too many `.unwrap()` / `.expect()` calls | >3 calls | Warning |
-| **Unused Result Ignored** | `let _ = expr()` discarding Result/Option values | Any | Warning |
-| **Panic in Library** | `panic!`, `todo!`, `unimplemented!` in non-test library code | Any | Warning |
-| **Copy + Drop Conflict** | Types implementing both Copy and Drop (double-free risk) | Any | Critical |
-| **Deref Abuse** | Deref/DerefMut implementations for non-pointer semantics | Any | Warning |
-| **Manual Drop** | Manual `Drop` implementations that should be reviewed | Any | Info |
-
-### Concurrency
-
-| Detector | What it detects | Default threshold | Severity |
-|---|---|---|---|
-| **Blocking in Async** | Blocking calls (sleep, io) in async fns | Any | Warning |
-| **Sync Drop Blocking** | Potentially blocking operations inside `impl Drop` | Any | Critical |
-| **Deadlock Risk** | Nested locking patterns | Any | Critical |
-
-### Unsafe
-
-| Detector | What it detects | Default threshold | Severity |
-|---|---|---|---|
-| **Unsafe Without Comment** | `unsafe` without a `// SAFETY:` comment | Any | Warning |
-| **Inline Assembly** | Usage of `asm!` or `global_asm!` | Any | Warning |
-| **Transmute Usage** | Use of `mem::transmute` | Any | Warning |
-| **FFI Without Wrapper** | Naked FFI declarations without safe wrappers | Any | Warning |
+Several detectors use configurable numeric thresholds. Others report any matching pattern because the match is specific enough to warrant review.
 
 ### Magic Number Whitelist
 
@@ -310,14 +255,14 @@ QualiRS follows a clean layered architecture with strict dependency direction:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  CLI (clap, colored output)                             │
+│  CLI (clap, compact/table/LLM/JSON output)              │
 ├─────────────────────────────────────────────────────────┤
-│  Analysis Engine (Detector trait, parallel orchestrator) │
+│  Analysis Engine (Detector trait, policy, parallel run)  │
 ├──────────────┬──────────────────────────────────────────┤
 │  Detectors   │  Domain (Smell, SourceLocation, Config)  │
-│  (42 impls)  │                                         │
+│  (83 rules)  │                                          │
 ├──────────────┴──────────────────────────────────────────┤
-│  Infrastructure (file walker, config loader)            │
+│  Infrastructure (ignore-aware file walker)              │
 ├─────────────────────────────────────────────────────────┤
 │  Source (syn AST, proc_macro2 spans)                    │
 └─────────────────────────────────────────────────────────┘
@@ -330,38 +275,31 @@ QualiRS follows a clean layered architecture with strict dependency direction:
 
 ```
 src/
-├── main.rs                          Entry point, wires everything together
-├── domain/                          Core abstractions, zero external deps
+├── main.rs                          Entry point and command dispatch
+├── domain/                          Core data structures and config
 │   ├── smell.rs                     Smell, SmellCategory, Severity, SourceLocation
-│   ├── config.rs                    Config, Thresholds (TOML loading)
+│   ├── config.rs                    Config, Thresholds, PolicyConfig
 │   └── source.rs                    SourceFile (syn::File + metadata)
 ├── analysis/                        Analysis framework
 │   ├── detector.rs                  Detector trait (the core abstraction)
-│   ├── engine.rs                    Engine: registers & runs all detectors
+│   ├── engine.rs                    Engine: registers, filters, runs detectors
 │   └── visitor.rs                   AST visitor utilities
 ├── detectors/                       All smell detectors, organized by category
 │   ├── architecture/
-│   │   ├── god_module.rs
-│   │   └── public_api_explosion.rs
 │   ├── design/
-│   │   ├── large_trait.rs
-│   │   ├── excessive_generics.rs
-│   │   └── anemic_struct.rs
 │   ├── implementation/
-│   │   ├── long_function.rs
-│   │   ├── too_many_arguments.rs
-│   │   ├── excessive_unwrap.rs
-│   │   ├── deep_match.rs
-│   │   ├── excessive_clone.rs
-│   │   ├── magic_numbers.rs
-│   │   └── large_enum.rs
-│   └── unsafe/
-│       └── unsafe_without_comment.rs
+│   ├── concurrency/
+│   ├── unsafe/
+│   ├── mod.rs
+│   └── policy.rs                    Shared detector suppression policy
 ├── infrastructure/                  IO-bound adapters
 │   └── walker.rs                    RustFileWalker (ignore crate)
 └── cli/                             Presentation layer
     ├── args.rs                      CLI argument definitions (clap derive)
-    └── output.rs                    Colored table report formatting
+    ├── detector_list.rs             `--list-detectors`
+    ├── json_output.rs               `--format json`
+    ├── llm_snippet.rs               Source snippets for LLM mode
+    └── output.rs                    Compact, table, and LLM report formatting
 ```
 
 ### Writing a Custom Detector
@@ -416,94 +354,13 @@ Then register it in `engine.rs`:
 self.register(Box::new(MyCustomDetector));
 ```
 
-## Roadmap
-
-**53 of 53 detectors implemented.** 100% core coverage.
-
-### Architecture — 8/8 done
-
-| # | Detector | Status | Notes |
-|---|---|---|---|
-| 1 | God Module | Done | >1000 LOC or >20 top-level items |
-| 2 | Public API Explosion | Done | >70% pub ratio |
-| 3 | Feature Concentration | Done | >15 external crate deps per module |
-| 4 | Cyclic Crate Dependency | Done | Module importing itself or high internal coupling |
-| 5 | Unstable Dependency | Done | Dependency on unstable/internal layers |
-| 6 | Layer Violation | Done | `domain` depending on `infra` |
-
-### Design — 10/10 done
-
-| # | Detector | Status | Notes |
-|---|---|---|---|
-| 1 | Large Trait | Done | >15 methods |
-| 2 | Excessive Generics | Done | >5 type params, checks deep trait bounds |
-| 3 | Anemic Struct | Done | Struct with fields but no impl block |
-| 4 | Trait Impl Leakage | Done | 5+ std traits implemented with 0 domain traits |
-| 5 | Feature Envy | Done | Fn calls methods on param more than on Self |
-| 6 | Wide Hierarchy | Done | 10+ enum variants or struct fields |
-| 7 | Broken Constructor | Done | Pub fields + no `new()` constructor |
-| 8 | Rebellious Impl | Done | Methods inconsistent with type naming |
-| 9 | Deref Abuse | Done | `impl Deref` for non-pointer types |
-| 10 | Manual Drop | Done | Manual `Drop` implementation |
-
-### Implementation — 15/15 done
-
-| # | Detector | Status | Notes |
-|---|---|---|---|
-| 1 | Long Function | Done | >50 LOC, Critical if >100 |
-| 2 | Too Many Arguments | Done | >6 parameters |
-| 3 | Excessive Unwrap | Done | >3 unwrap/expect calls per fn |
-| 4 | Deep Match Nesting | Done | >3 levels of nested match |
-| 5 | Excessive Clone | Done | >10 .clone() calls per fn |
-| 6 | Magic Numbers | Done | Literals outside whitelist |
-| 7 | Large Enum | Done | >20 variants |
-| 8 | Cyclomatic Complexity | Done | CC >15; counts if/match/loop/&&/\|\|/? |
-| 9 | Deep If/Else | Done | >4 levels of if/else nesting |
-| 10 | Long Method Chain | Done | >=4 chained method calls |
-| 11 | Unused Result Ignored | Done | `let _ = ...` discarding values |
-| 12 | Panic in Library | Done | panic!/todo!/unimplemented! in lib code |
-| 13 | Unsafe Block Overuse | Done | >5 unsafe blocks per file |
-| 14 | Lifetime Explosion | Done | >4 lifetime params on fn/struct/enum |
-| 15 | Copy + Drop Conflict | Done | Types with both Copy and Drop |
-
-### Concurrency — 6/6 done
-
-| # | Detector | Status | Notes |
-|---|---|---|---|
-| 1 | Blocking in Async | Done | `sleep`, `io::Read`, `fs::*` inside `async fn` |
-| 2 | Large Future | Done | async fn >100 LOC |
-| 3 | Arc Mutex Overuse | Done | Excessive `Arc<Mutex<T>>` / `RwLock` primitives |
-| 4 | Deadlock Risk | Done | Multiple locks acquired in the same scope |
-| 5 | Spawn Without Join | Done | Result of `spawn` discarded or assigned to `_` |
-| 6 | Missing Send Bound | Done | Spawn used in generic async fn without `Send` |
-
-### Unsafe / Memory — 5/5 done
-
-| # | Detector | Status | Notes |
-|---|---|---|---|
-| 1 | Unsafe Without Comment | Done | No `// SAFETY:` comment |
-| 2 | Transmute Usage | Done | `std::mem::transmute` call detected |
-| 3 | Raw Pointer Arithmetic | Done | Pointer `.offset()`, `.add()` etc |
-| 4 | Multi Mutable Ref via Unsafe | Done | Aliased &mut from same pointer |
-| 5 | FFI Without Wrapper | Done | Extern fn without safe wrapper |
-
-### Infrastructure / Cross-Cutting — 0/5 done
-
-| # | Feature | Status | Notes |
-|---|---|---|---|
-| 1 | Structural Metrics Export | Todo | Compute LOC, CC, param count, trait count, impl count, pub API size per module; export as structured data |
-| 2 | JSON Output | Todo | `--format json` flag for machine-readable output |
-| 3 | SARIF Output | Todo | `--format sarif` for GitHub Advanced Security integration |
-| 4 | Diff Mode | Todo | `--diff main..HEAD` to only report smells in changed files |
-| 5 | Configurable Layer Map | Todo | `layers.toml` mapping module paths to architectural layers for Layer Violation detector |
-
 ## QualiRS vs Clippy
 
 | Aspect | Clippy | QualiRS |
 |---|---|---|
 | Focus | Correctness, idioms, style | Structure, architecture, design |
 | Granularity | Expression/statement level | Function/module/crate level |
-| Configurability | Lint levels (allow/warn/deny) | Numeric thresholds per smell |
+| Configurability | Lint levels (allow/warn/deny) | Numeric thresholds and suppression policy |
 | Unsafe analysis | Basic (`unsafe_removed_from_code`) | SAFETY comment enforcement |
 | Structural metrics | None | LOC, CC, item count, pub ratio, nesting depth, method chains, lifetimes |
 | Overlap | Minimal | Complementary |
