@@ -1,8 +1,9 @@
 use colored::*;
-use comfy_table::{presets::UTF8_FULL, Cell, Color as TableColor, Table};
+use comfy_table::{Cell, Color as TableColor, Table, presets::UTF8_FULL};
 
 use crate::analysis::engine::AnalysisReport;
-use crate::domain::smell::{Severity, SmellCategory, SourceLocation};
+use crate::cli::llm_snippet::{print_fenced_code, source_snippet};
+use crate::domain::smell::{Severity, SmellCategory};
 
 /// Print the full analysis report to stdout.
 pub fn print_report(report: &AnalysisReport) {
@@ -163,62 +164,6 @@ fn print_llm_smells(report: &AnalysisReport) {
     }
 }
 
-fn source_snippet(location: &SourceLocation) -> Option<String> {
-    let source = std::fs::read_to_string(&location.file).ok()?;
-    let start = location.line_start.max(1);
-    let end = location.line_end.max(start);
-    let mut snippet = String::new();
-
-    for (index, line) in source.lines().enumerate() {
-        let line_number = index + 1;
-        if line_number < start {
-            continue;
-        }
-        if line_number > end {
-            break;
-        }
-        if !snippet.is_empty() {
-            snippet.push('\n');
-        }
-        snippet.push_str(line);
-    }
-
-    (!snippet.is_empty()).then_some(snippet)
-}
-
-fn print_fenced_code(language: &str, code: &str) {
-    let fence = if code.contains("```") { "````" } else { "```" };
-    println!("{fence}{language}");
-    print!("{code}");
-    if !code.ends_with('\n') {
-        println!();
-    }
-    println!("{fence}");
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn source_snippet_extracts_exact_line_range() {
-        let dir = tempfile::tempdir().expect("create temp dir");
-        let path = dir.path().join("sample.rs");
-        std::fs::write(
-            &path,
-            "fn first() {}\nfn target() {\n    work();\n}\nfn last() {}\n",
-        )
-        .expect("write sample source");
-
-        let location = SourceLocation::new(path, 2, 4, None);
-
-        assert_eq!(
-            source_snippet(&location).as_deref(),
-            Some("fn target() {\n    work();\n}")
-        );
-    }
-}
-
 fn print_compact_smells(report: &AnalysisReport) {
     let categories = [
         SmellCategory::Architecture,
@@ -366,143 +311,6 @@ fn print_footer(report: &AnalysisReport) {
             println!("  Found {total} smell(s), {critical} critical — consider refactoring.",);
         } else {
             println!("  Found {total} smell(s). Review warnings above.");
-        }
-    }
-    println!();
-}
-
-/// Print the list of available detectors.
-pub fn print_detector_list() {
-    println!();
-    println!("{}", "Available detectors:".bright_cyan().bold());
-    println!("{}", "━".repeat(40).dimmed());
-
-    let detectors = [
-        (
-            "Architecture",
-            vec![
-                "God Module",
-                "Public API Explosion",
-                "Feature Concentration",
-                "Cyclic Crate Dependency",
-                "Layer Violation",
-                "Unstable Dependency",
-                "Leaky Error Abstraction",
-                "Hidden Global State",
-                "Public API Leak",
-                "Test-only Dependency in Production",
-                "Duplicate Dependency Versions",
-                "Feature Flag Sprawl",
-                "Circular Module Dependency",
-            ],
-        ),
-        (
-            "Design",
-            vec![
-                "Large Trait",
-                "Excessive Generics",
-                "Anemic Struct",
-                "Wide Hierarchy",
-                "Trait Impl Leakage",
-                "Feature Envy",
-                "Broken Constructor",
-                "Rebellious Impl",
-                "Fat Impl",
-                "Primitive Obsession",
-                "Data Clumps",
-                "Multiple Impl Blocks",
-                "God Struct",
-                "Boolean Flag Argument",
-                "Stringly Typed Domain",
-                "Large Error Enum",
-            ],
-        ),
-        (
-            "Implementation",
-            vec![
-                "Long Function",
-                "Too Many Arguments",
-                "Deep Match Nesting",
-                "Magic Numbers",
-                "Large Enum",
-                "High Cyclomatic Complexity",
-                "Deep If/Else Nesting",
-                "Long Method Chain",
-                "Unsafe Block Overuse",
-                "Lifetime Explosion",
-                "Deeply Nested Type",
-                "Duplicate Match Arms",
-                "Long Closure",
-                "Deep Closure Nesting",
-            ],
-        ),
-        (
-            "Performance",
-            vec![
-                "Excessive Clone",
-                "Arc Mutex Overuse",
-                "Large Future",
-                "Async Trait Overhead",
-                "Interior Mutability Abuse",
-                "Unnecessary Allocation in Loop",
-                "Collect Then Iterate",
-                "Repeated Regex Construction",
-                "Clone on Copy",
-                "Large Value Passed By Value",
-            ],
-        ),
-        (
-            "Idiomaticity",
-            vec![
-                "Excessive Unwrap",
-                "Unused Result Ignored",
-                "Panic in Library",
-                "Copy + Drop Conflict",
-                "Deref Abuse",
-                "Manual Drop",
-                "Manual Default Constructor",
-                "Manual Option/Result Mapping",
-                "Manual Find/Any Loop",
-                "Needless Explicit Lifetime",
-                "Derivable Impl",
-            ],
-        ),
-        (
-            "Concurrency",
-            vec![
-                "Blocking in Async",
-                "Deadlock Risk",
-                "Spawn Without Join",
-                "Missing Send Bound",
-                "Sync Drop Blocking",
-                "Std Mutex in Async",
-                "Blocking Channel in Async",
-                "Holding Lock Across Await",
-                "Dropped JoinHandle",
-            ],
-        ),
-        (
-            "Unsafe",
-            vec![
-                "Unsafe Without Comment",
-                "Transmute Usage",
-                "Raw Pointer Arithmetic",
-                "Multi Mut Ref Unsafe",
-                "FFI Without Wrapper",
-                "Inline Assembly",
-                "Unsafe Fn Missing Safety Docs",
-                "Unsafe Impl Missing Safety Docs",
-                "Large Unsafe Block",
-                "FFI Type Not repr(C)",
-            ],
-        ),
-    ];
-
-    for (category, names) in &detectors {
-        println!();
-        println!("  {} {}", "▸".bright_magenta(), category.bold());
-        for name in names {
-            println!("    • {name}");
         }
     }
     println!();

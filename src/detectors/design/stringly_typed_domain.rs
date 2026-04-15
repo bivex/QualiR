@@ -52,12 +52,10 @@ impl Detector for StringlyTypedDomainDetector {
 
 fn is_string_like(ty: &syn::Type) -> bool {
     match ty {
-        syn::Type::Path(path) => path
-            .path
-            .segments
-            .last()
-            .map(|seg| seg.ident == "String")
-            .unwrap_or(false),
+        syn::Type::Path(path) => {
+            let segment = path.path.segments.last();
+            segment.map(|seg| seg.ident == "String").unwrap_or(false)
+        }
         syn::Type::Reference(reference) => {
             matches!(&*reference.elem, syn::Type::Path(path) if path.path.is_ident("str"))
         }

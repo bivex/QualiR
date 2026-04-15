@@ -39,6 +39,7 @@ rayon = "1"
 # Error handling
 thiserror = "2"
 anyhow = "1"
+fixed-json = { version = "0.2.1", features = ["std"] }
 
 [dev-dependencies]
 tempfile = "3"

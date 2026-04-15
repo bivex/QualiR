@@ -1,5 +1,5 @@
 use quote::ToTokens;
-use syn::visit::{visit_expr_match, Visit};
+use syn::visit::{Visit, visit_expr_match};
 
 use crate::analysis::detector::Detector;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};

@@ -1,4 +1,4 @@
-use syn::visit::{visit_expr_closure, Visit};
+use syn::visit::{Visit, visit_expr_closure};
 
 use crate::analysis::detector::Detector;
 use crate::domain::config::Thresholds;

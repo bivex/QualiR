@@ -1,3 +1,5 @@
+use quote::ToTokens;
+
 use crate::analysis::detector::Detector;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
@@ -42,15 +44,14 @@ fn is_public(vis: &syn::Visibility) -> bool {
 }
 
 fn has_safety_docs(attrs: &[syn::Attribute]) -> bool {
-    attrs.iter().any(|attr| {
-        attr.path().is_ident("doc")
-            && attr
-                .meta
-                .to_token_stream()
-                .to_string()
-                .to_lowercase()
-                .contains("safety")
-    })
+    attrs
+        .iter()
+        .filter(|attr| attr.path().is_ident("doc"))
+        .any(doc_attr_mentions_safety)
 }
 
-use quote::ToTokens;
+fn doc_attr_mentions_safety(attr: &syn::Attribute) -> bool {
+    let tokens = attr.meta.to_token_stream();
+    let text = tokens.to_string();
+    text.to_lowercase().contains("safety")
+}

@@ -1,4 +1,4 @@
-use syn::visit::{visit_expr_for_loop, visit_expr_loop, visit_expr_while, Visit};
+use syn::visit::{Visit, visit_expr_for_loop, visit_expr_loop, visit_expr_while};
 
 use crate::analysis::detector::Detector;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};

@@ -1,9 +1,9 @@
 mod common;
 
-use std::path::PathBuf;
+use common::{assert_clean, assert_smell_count};
 use qualirs::analysis::detector::Detector;
 use qualirs::domain::source::SourceFile;
-use common::{assert_clean, assert_smell_count};
+use std::path::PathBuf;
 
 // ─── Architecture ──────────────────────────────────────────
 
@@ -155,7 +155,10 @@ mod long_function {
 
     #[test]
     fn detects_long_fn() {
-        let body: String = (0..55).map(|i| format!("let _ = {i};")).collect::<Vec<_>>().join("\n");
+        let body: String = (0..55)
+            .map(|i| format!("let _ = {i};"))
+            .collect::<Vec<_>>()
+            .join("\n");
         let code = format!("fn long() {{\n{body}\n}}");
         assert_smell_count(&DETECTOR, &code, "Long Function", 1);
     }
@@ -346,7 +349,10 @@ mod cyclomatic_complexity {
 
     #[test]
     fn counts_match_arms() {
-        let arms: String = (0..20).map(|i| format!("{i} => (),")).collect::<Vec<_>>().join(" ");
+        let arms: String = (0..20)
+            .map(|i| format!("{i} => (),"))
+            .collect::<Vec<_>>()
+            .join(" ");
         let code = format!("fn matchy(x: i32) {{ match x {{ {arms} _ => () }} }}");
         assert_smell_count(&DETECTOR, &code, "High Cyclomatic Complexity", 1);
     }
@@ -398,7 +404,11 @@ mod long_method_chain {
         let code = "fn chain(x: Vec<i32>) { x.iter().filter(|&&x| x > 0).map(|&x| x * 2).flatten().collect::<Vec<i32>>(); }";
         let file = SourceFile::from_source(PathBuf::from("main.rs"), code.to_string()).unwrap();
         let smells = DETECTOR.detect(&file);
-        assert!(smells.iter().any(|s| s.name == "Long Method Chain"), "Should detect long chain: {:?}", smells);
+        assert!(
+            smells.iter().any(|s| s.name == "Long Method Chain"),
+            "Should detect long chain: {:?}",
+            smells
+        );
     }
 
     #[test]
@@ -407,7 +417,11 @@ mod long_method_chain {
         let code = "fn short(x: Vec<i32>) { x.iter().count(); }";
         let file = SourceFile::from_source(PathBuf::from("main.rs"), code.to_string()).unwrap();
         let smells = DETECTOR.detect(&file);
-        assert!(smells.is_empty(), "Expected no smells, but found: {:?}", smells);
+        assert!(
+            smells.is_empty(),
+            "Expected no smells, but found: {:?}",
+            smells
+        );
     }
 }
 
@@ -442,7 +456,11 @@ mod panic_in_library {
         let code = "fn crash() { panic!(\"oops\"); }";
         let file = SourceFile::from_source(PathBuf::from("main.rs"), code.to_string()).unwrap();
         let smells = DETECTOR.detect(&file);
-        assert!(smells.iter().any(|s| s.name == "Panic in Library"), "Should detect panic!: {:?}", smells);
+        assert!(
+            smells.iter().any(|s| s.name == "Panic in Library"),
+            "Should detect panic!: {:?}",
+            smells
+        );
     }
 
     #[test]
@@ -450,7 +468,11 @@ mod panic_in_library {
         let code = "fn unfinished() { todo!(); }";
         let file = SourceFile::from_source(PathBuf::from("main.rs"), code.to_string()).unwrap();
         let smells = DETECTOR.detect(&file);
-        assert!(smells.iter().any(|s| s.name == "Panic in Library"), "Should detect todo!: {:?}", smells);
+        assert!(
+            smells.iter().any(|s| s.name == "Panic in Library"),
+            "Should detect todo!: {:?}",
+            smells
+        );
     }
 
     #[test]
@@ -586,7 +608,8 @@ mod blocking_in_async {
 
     #[test]
     fn clean_no_blocking_in_async() {
-        let code = "async fn foo() { tokio::time::sleep(std::time::Duration::from_secs(1)).await; }";
+        let code =
+            "async fn foo() { tokio::time::sleep(std::time::Duration::from_secs(1)).await; }";
         assert_clean(&DETECTOR, code);
     }
 }
@@ -665,7 +688,10 @@ mod large_future {
     #[test]
     fn detects_long_async_fn() {
         // Threshold is 100 lines by default
-        let body: String = (0..120).map(|i| format!("let _ = {i};")).collect::<Vec<_>>().join("\n");
+        let body: String = (0..120)
+            .map(|i| format!("let _ = {i};"))
+            .collect::<Vec<_>>()
+            .join("\n");
         let code = format!("async fn big() {{\n{body}\n}}");
         assert_smell_count(&DETECTOR, &code, "Large Future", 1);
     }
@@ -679,7 +705,10 @@ mod large_future {
     #[test]
     fn clean_long_sync_function() {
         // Long non-async functions are not flagged by LargeFutureDetector
-        let body: String = (0..120).map(|i| format!("let _ = {i};")).collect::<Vec<_>>().join("\n");
+        let body: String = (0..120)
+            .map(|i| format!("let _ = {i};"))
+            .collect::<Vec<_>>()
+            .join("\n");
         let code = format!("fn big_sync() {{\n{body}\n}}");
         assert_clean(&DETECTOR, &code);
     }
@@ -830,7 +859,8 @@ mod layer_violation {
     #[test]
     fn detects_domain_to_infra_violation() {
         let code = "use crate::infrastructure::db::UserRepo;";
-        let source = SourceFile::from_source("src/domain/user.rs".into(), code.to_string()).unwrap();
+        let source =
+            SourceFile::from_source("src/domain/user.rs".into(), code.to_string()).unwrap();
         let smells = DETECTOR.detect(&source);
         assert!(!smells.is_empty(), "Expected layer violation smell");
         assert_eq!(smells[0].name, "Layer Violation");
@@ -839,7 +869,8 @@ mod layer_violation {
     #[test]
     fn clean_layering() {
         let code = "use crate::domain::model::User;";
-        let source = SourceFile::from_source("src/infrastructure/db.rs".into(), code.to_string()).unwrap();
+        let source =
+            SourceFile::from_source("src/infrastructure/db.rs".into(), code.to_string()).unwrap();
         let smells = DETECTOR.detect(&source);
         assert!(smells.is_empty());
     }
@@ -848,18 +879,28 @@ mod layer_violation {
     fn clean_io_substring_domain() {
         // 'action' contains 'io', but it's not the 'io' module
         let code = "use crate::domain::action::UserAction;";
-        let source = SourceFile::from_source("src/domain/user.rs".into(), code.to_string()).unwrap();
+        let source =
+            SourceFile::from_source("src/domain/user.rs".into(), code.to_string()).unwrap();
         let smells = DETECTOR.detect(&source);
-        assert!(smells.is_empty(), "Should not flag 'action' as 'io' violation. Smells found: {:?}", smells);
+        assert!(
+            smells.is_empty(),
+            "Should not flag 'action' as 'io' violation. Smells found: {:?}",
+            smells
+        );
     }
 
     #[test]
     fn clean_option_domain() {
         // 'option' contains 'io', but it's std::option
         let code = "use std::option::Option;";
-        let source = SourceFile::from_source("src/domain/user.rs".into(), code.to_string()).unwrap();
+        let source =
+            SourceFile::from_source("src/domain/user.rs".into(), code.to_string()).unwrap();
         let smells = DETECTOR.detect(&source);
-        assert!(smells.is_empty(), "Should not flag 'option' as 'io' violation. Smells found: {:?}", smells);
+        assert!(
+            smells.is_empty(),
+            "Should not flag 'option' as 'io' violation. Smells found: {:?}",
+            smells
+        );
     }
 
     #[test]
@@ -867,9 +908,14 @@ mod layer_violation {
         // 'client' contains 'cli', but it's not the 'cli' module
         // 'HttpClient' contains 'http', but it's not the 'http' module
         let code = "use crate::app::client::HttpClient;";
-        let source = SourceFile::from_source("src/domain/user.rs".into(), code.to_string()).unwrap();
+        let source =
+            SourceFile::from_source("src/domain/user.rs".into(), code.to_string()).unwrap();
         let smells = DETECTOR.detect(&source);
-        assert!(smells.is_empty(), "Should not flag 'client' as 'cli' or 'HttpClient' as 'http'. Smells found: {:?}", smells);
+        assert!(
+            smells.is_empty(),
+            "Should not flag 'client' as 'cli' or 'HttpClient' as 'http'. Smells found: {:?}",
+            smells
+        );
     }
 }
 

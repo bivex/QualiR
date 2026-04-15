@@ -4,6 +4,8 @@ use crate::analysis::detector::Detector;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
 
+const LARGE_ARRAY_LENGTH: usize = 32;
+
 /// Detects large arrays and containers passed by value.
 pub struct LargeValuePassedByValueDetector;
 
@@ -44,22 +46,25 @@ fn is_large_by_value(ty: &syn::Type) -> bool {
     match ty {
         syn::Type::Array(arr) => match &arr.len {
             syn::Expr::Lit(lit) => match &lit.lit {
-                syn::Lit::Int(int) => int.base10_parse::<usize>().map(|n| n > 32).unwrap_or(false),
+                syn::Lit::Int(int) => int
+                    .base10_parse::<usize>()
+                    .map(|n| n > LARGE_ARRAY_LENGTH)
+                    .unwrap_or(false),
                 _ => false,
             },
             _ => false,
         },
-        syn::Type::Path(path) => path
-            .path
-            .segments
-            .last()
-            .map(|seg| {
-                matches!(
-                    seg.ident.to_string().as_str(),
-                    "Vec" | "String" | "HashMap" | "BTreeMap" | "HashSet" | "BTreeSet"
-                )
-            })
-            .unwrap_or(false),
+        syn::Type::Path(path) => {
+            let segment = path.path.segments.last();
+            segment
+                .map(|seg| {
+                    matches!(
+                        seg.ident.to_string().as_str(),
+                        "Vec" | "String" | "HashMap" | "BTreeMap" | "HashSet" | "BTreeSet"
+                    )
+                })
+                .unwrap_or(false)
+        }
         _ => false,
     }
 }
