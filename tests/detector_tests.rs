@@ -444,6 +444,57 @@ mod unused_result {
     }
 }
 
+mod repeated_regex_construction {
+    use super::*;
+    use qualirs::detectors::implementation::repeated_regex_construction::RepeatedRegexConstructionDetector;
+
+    static DETECTOR: RepeatedRegexConstructionDetector = RepeatedRegexConstructionDetector;
+
+    #[test]
+    fn detects_runtime_regex_construction() {
+        let code = r#"
+use regex::Regex;
+
+fn validate(value: &str) -> bool {
+    Regex::new(r"^[a-z]+$").unwrap().is_match(value)
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Repeated Regex Construction", 1);
+    }
+
+    #[test]
+    fn clean_lazy_lock_regex_initializer() {
+        let code = r#"
+use regex::Regex;
+use std::sync::LazyLock;
+
+fn validate(value: &str) -> bool {
+    static VALID: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"^[a-z]+$").expect("valid regex")
+    });
+    VALID.is_match(value)
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_once_lock_get_or_init_regex_initializer() {
+        let code = r#"
+use regex::Regex;
+use std::sync::OnceLock;
+
+fn validate(value: &str) -> bool {
+    static VALID: OnceLock<Regex> = OnceLock::new();
+    VALID
+        .get_or_init(|| Regex::new(r"^[a-z]+$").expect("valid regex"))
+        .is_match(value)
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
 mod panic_in_library {
     use super::*;
     use qualirs::detectors::implementation::panic_in_library::PanicInLibraryDetector;
@@ -1165,6 +1216,61 @@ mod spawn_without_join {
     fn clean_assigned_spawn() {
         // Spawn assigned to a named variable is safe
         let code = "fn foo() { let handle = std::thread::spawn(|| {}); handle.join().unwrap(); }";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod holding_lock_across_await {
+    use super::*;
+    use qualirs::detectors::concurrency::holding_lock_across_await::HoldingLockAcrossAwaitDetector;
+
+    static DETECTOR: HoldingLockAcrossAwaitDetector = HoldingLockAcrossAwaitDetector;
+
+    #[test]
+    fn detects_bound_guard_held_across_later_await() {
+        let code = r#"
+async fn foo(lock: &tokio::sync::Mutex<i32>) {
+    let guard = lock.lock().await;
+    do_work().await;
+    drop(guard);
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Holding Lock Across Await", 1);
+    }
+
+    #[test]
+    fn clean_lock_temporary_used_in_single_statement_before_await() {
+        let code = r#"
+async fn logout(state: State) {
+    let removed = state.sessions.write().await.remove("session-id");
+    if removed.is_some() {
+        record_audit_event().await;
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_bound_guard_without_later_await() {
+        let code = r#"
+async fn require_session(state: State) {
+    let mut sessions = state.sessions.write().await;
+    sessions.remove("session-id");
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_explicit_drop_before_await() {
+        let code = r#"
+async fn foo(lock: &tokio::sync::Mutex<i32>) {
+    let guard = lock.lock().await;
+    drop(guard);
+    do_work().await;
+}
+"#;
         assert_clean(&DETECTOR, code);
     }
 }
