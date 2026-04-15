@@ -1225,6 +1225,53 @@ pub struct FfiWithoutWrapperDetector;
     }
 }
 
+mod duplicate_match_arms {
+    use super::*;
+    use qualirs::detectors::implementation::duplicate_match_arms::DuplicateMatchArmsDetector;
+    static DETECTOR: DuplicateMatchArmsDetector = DuplicateMatchArmsDetector;
+
+    #[test]
+    fn detects_duplicate_match_arm_bodies() {
+        let code = r#"
+fn classify(value: i32) -> i32 {
+    match value {
+        1 => score(),
+        2 => score(),
+        _ => 0,
+    }
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Duplicate Match Arms", 1);
+    }
+
+    #[test]
+    fn clean_same_field_projection_from_different_variant_payloads() {
+        let code = r#"
+enum Item {
+    Const(ConstItem),
+    Enum(EnumItem),
+}
+
+struct ConstItem {
+    vis: bool,
+}
+
+struct EnumItem {
+    vis: bool,
+}
+
+fn is_pub(item: Item) -> bool {
+    let vis = match item {
+        Item::Const(i) => &i.vis,
+        Item::Enum(i) => &i.vis,
+    };
+    *vis
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
 mod inline_assembly {
     use super::*;
     use qualirs::detectors::r#unsafe::inline_assembly::InlineAssemblyDetector;

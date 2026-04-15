@@ -106,8 +106,7 @@ impl<'ast> Visit<'ast> for CcVisitor {
 
     fn visit_expr_binary(&mut self, node: &'ast syn::ExprBinary) {
         match node.op {
-            syn::BinOp::And(_) => self.cc += 1,
-            syn::BinOp::Or(_) => self.cc += 1,
+            syn::BinOp::And(_) | syn::BinOp::Or(_) => self.cc += 1,
             _ => {}
         }
         syn::visit::visit_expr_binary(self, node);
