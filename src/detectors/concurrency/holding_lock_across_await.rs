@@ -2,9 +2,13 @@ use std::collections::HashSet;
 
 use syn::visit::{Visit, visit_item_fn};
 
-use crate::analysis::detector::Detector;
-use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
-use crate::domain::source::SourceFile;
+use crate::{
+    analysis::detector::Detector,
+    domain::{
+        smell::{Severity, Smell, SmellCategory, SourceLocation},
+        source::SourceFile,
+    },
+};
 
 /// Heuristically detects lock guards that may live across an await point.
 pub struct HoldingLockAcrossAwaitDetector;
@@ -81,28 +85,17 @@ fn block_holds_lock_across_await(block: &syn::Block) -> bool {
 
         remove_explicitly_dropped_guards(stmt, &mut active_guards);
 
-        if let Some(init) = local_init(stmt)
-            && returns_lock_guard(init)
+        if let syn::Stmt::Local(local) = stmt
+            && local
+                .init
+                .as_ref()
+                .is_some_and(|init| returns_lock_guard(&init.expr))
         {
-            collect_pat_idents(&local_pat(stmt), &mut active_guards);
+            collect_pat_idents(&local.pat, &mut active_guards);
         }
     }
 
     false
-}
-
-fn local_init(stmt: &syn::Stmt) -> Option<&syn::Expr> {
-    match stmt {
-        syn::Stmt::Local(local) => local.init.as_ref().map(|init| &*init.expr),
-        _ => None,
-    }
-}
-
-fn local_pat(stmt: &syn::Stmt) -> syn::Pat {
-    match stmt {
-        syn::Stmt::Local(local) => local.pat.clone(),
-        _ => syn::parse_quote!(_),
-    }
 }
 
 fn collect_pat_idents(pat: &syn::Pat, idents: &mut HashSet<String>) {

@@ -44,7 +44,7 @@ impl<'ast> Visit<'ast> for DuplicateArmVisitor {
     fn visit_expr_match(&mut self, node: &'ast syn::ExprMatch) {
         let mut seen = std::collections::HashSet::new();
         for arm in &node.arms {
-            if is_bound_field_projection(&arm.pat, &arm.body) {
+            if body_uses_pattern_binding(&arm.pat, &arm.body) {
                 continue;
             }
             let body = normalized_body(&arm.body);
@@ -58,55 +58,90 @@ impl<'ast> Visit<'ast> for DuplicateArmVisitor {
     }
 }
 
-fn is_bound_field_projection(pat: &syn::Pat, body: &syn::Expr) -> bool {
-    field_projection_base_ident(body)
-        .map(|ident| pattern_binds_ident(pat, ident))
-        .unwrap_or(false)
+fn body_uses_pattern_binding(pat: &syn::Pat, body: &syn::Expr) -> bool {
+    let bindings = pattern_bindings(pat);
+    !bindings.is_empty() && expr_references_binding(body, &bindings)
 }
 
-fn field_projection_base_ident(expr: &syn::Expr) -> Option<&syn::Ident> {
-    match expr {
-        syn::Expr::Field(field) => match &*field.base {
-            syn::Expr::Path(path) => path.path.get_ident(),
-            expr => field_projection_base_ident(expr),
-        },
-        syn::Expr::Reference(reference) => field_projection_base_ident(&reference.expr),
-        syn::Expr::Paren(paren) => field_projection_base_ident(&paren.expr),
-        _ => None,
-    }
+fn pattern_bindings(pat: &syn::Pat) -> std::collections::HashSet<String> {
+    let mut bindings = std::collections::HashSet::new();
+    collect_pattern_bindings(pat, &mut bindings);
+    bindings
 }
 
-fn pattern_binds_ident(pat: &syn::Pat, ident: &syn::Ident) -> bool {
+fn collect_pattern_bindings(pat: &syn::Pat, bindings: &mut std::collections::HashSet<String>) {
     match pat {
-        syn::Pat::Ident(pat_ident) => pat_ident.ident == *ident,
-        syn::Pat::Or(or) => or.cases.iter().any(|pat| pattern_binds_ident(pat, ident)),
-        syn::Pat::Paren(paren) => pattern_binds_ident(&paren.pat, ident),
-        syn::Pat::Reference(reference) => pattern_binds_ident(&reference.pat, ident),
-        syn::Pat::Slice(slice) => pat_elems_bind_ident(&slice.elems, ident),
-        syn::Pat::Struct(strukt) => strukt
-            .fields
-            .iter()
-            .any(|field| pattern_binds_ident(&field.pat, ident)),
-        syn::Pat::Tuple(tuple) => tuple_pat_binds_ident(tuple, ident),
-        syn::Pat::TupleStruct(tuple) => tuple_struct_pat_binds_ident(tuple, ident),
-        syn::Pat::Type(typed) => pattern_binds_ident(&typed.pat, ident),
-        _ => false,
+        syn::Pat::Ident(pat_ident) => {
+            bindings.insert(pat_ident.ident.to_string());
+        }
+        syn::Pat::Or(or) => {
+            for pat in &or.cases {
+                collect_pattern_bindings(pat, bindings);
+            }
+        }
+        syn::Pat::Paren(paren) => collect_pattern_bindings(&paren.pat, bindings),
+        syn::Pat::Reference(reference) => collect_pattern_bindings(&reference.pat, bindings),
+        syn::Pat::Slice(slice) => collect_pat_elem_bindings(&slice.elems, bindings),
+        syn::Pat::Struct(strukt) => {
+            for field in &strukt.fields {
+                collect_pattern_bindings(&field.pat, bindings);
+            }
+        }
+        syn::Pat::Tuple(tuple) => collect_pat_elem_bindings(&tuple.elems, bindings),
+        syn::Pat::TupleStruct(tuple) => collect_pat_elem_bindings(&tuple.elems, bindings),
+        syn::Pat::Type(typed) => collect_pattern_bindings(&typed.pat, bindings),
+        _ => {}
     }
 }
 
-fn pat_elems_bind_ident(
+fn collect_pat_elem_bindings(
     elems: &syn::punctuated::Punctuated<syn::Pat, syn::token::Comma>,
-    ident: &syn::Ident,
-) -> bool {
-    elems.iter().any(|pat| pattern_binds_ident(pat, ident))
+    bindings: &mut std::collections::HashSet<String>,
+) {
+    for pat in elems {
+        collect_pattern_bindings(pat, bindings);
+    }
 }
 
-fn tuple_pat_binds_ident(tuple: &syn::PatTuple, ident: &syn::Ident) -> bool {
-    pat_elems_bind_ident(&tuple.elems, ident)
+fn expr_references_binding(expr: &syn::Expr, bindings: &std::collections::HashSet<String>) -> bool {
+    let mut visitor = BindingReferenceVisitor {
+        bindings,
+        found: false,
+    };
+    visitor.visit_expr(expr);
+    visitor.found
 }
 
-fn tuple_struct_pat_binds_ident(tuple: &syn::PatTupleStruct, ident: &syn::Ident) -> bool {
-    pat_elems_bind_ident(&tuple.elems, ident)
+struct BindingReferenceVisitor<'a> {
+    bindings: &'a std::collections::HashSet<String>,
+    found: bool,
+}
+
+impl<'ast> Visit<'ast> for BindingReferenceVisitor<'_> {
+    fn visit_expr_path(&mut self, node: &'ast syn::ExprPath) {
+        if node
+            .path
+            .get_ident()
+            .is_some_and(|ident| self.bindings.contains(&ident.to_string()))
+        {
+            self.found = true;
+            return;
+        }
+        syn::visit::visit_expr_path(self, node);
+    }
+
+    fn visit_expr_field(&mut self, node: &'ast syn::ExprField) {
+        if let syn::Expr::Path(path) = &*node.base
+            && path
+                .path
+                .get_ident()
+                .is_some_and(|ident| self.bindings.contains(&ident.to_string()))
+        {
+            self.found = true;
+            return;
+        }
+        syn::visit::visit_expr_field(self, node);
+    }
 }
 
 fn normalized_body(body: &syn::Expr) -> String {

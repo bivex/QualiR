@@ -49,14 +49,26 @@ impl<'ast> Visit<'ast> for ManualFindVisitor {
 }
 
 fn loop_has_direct_conditional_return(block: &syn::Block) -> bool {
-    block.stmts.iter().any(|stmt| match stmt {
+    let mut statements = block.stmts.iter();
+    let Some(stmt) = statements.next() else {
+        return false;
+    };
+    if statements.next().is_some() {
+        return false;
+    }
+
+    stmt_is_conditional_return(stmt)
+}
+
+fn stmt_is_conditional_return(stmt: &syn::Stmt) -> bool {
+    match stmt {
         syn::Stmt::Expr(expr, _) => expr_is_conditional_return(expr),
         syn::Stmt::Local(local) => local
             .init
             .as_ref()
             .is_some_and(|init| expr_is_conditional_return(&init.expr)),
         _ => false,
-    })
+    }
 }
 
 fn expr_is_conditional_return(expr: &syn::Expr) -> bool {

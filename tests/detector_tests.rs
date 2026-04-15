@@ -1591,6 +1591,28 @@ fn is_pub(item: Item) -> bool {
 "#;
         assert_clean(&DETECTOR, code);
     }
+
+    #[test]
+    fn clean_duplicate_body_that_depends_on_pattern_binding() {
+        let code = r#"
+fn collect_pat_idents(pat: &syn::Pat) {
+    match pat {
+        syn::Pat::Tuple(tuple) => {
+            for elem in &tuple.elems {
+                collect_pat_idents(elem);
+            }
+        }
+        syn::Pat::TupleStruct(tuple) => {
+            for elem in &tuple.elems {
+                collect_pat_idents(elem);
+            }
+        }
+        _ => {}
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
 }
 
 mod inline_assembly {
@@ -2253,6 +2275,26 @@ fn find_path(paths: &[&str]) -> Option<String> {
         }
     }
     None
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_stateful_loop_with_conditional_return() {
+        let code = "\
+fn block_holds_lock_across_await(block: &Block) -> bool {
+    let mut active_guards = HashSet::new();
+
+    for stmt in &block.stmts {
+        if !active_guards.is_empty() && contains_await_in_stmt(stmt) {
+            return true;
+        }
+
+        remove_explicitly_dropped_guards(stmt, &mut active_guards);
+    }
+
+    false
 }
 ";
         assert_clean(&DETECTOR, code);
