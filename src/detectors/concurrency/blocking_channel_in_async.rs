@@ -1,4 +1,4 @@
-use syn::visit::{Visit, visit_item_fn};
+use syn::visit::{Visit, visit_expr_closure, visit_item_fn};
 
 use crate::analysis::detector::Detector;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
@@ -52,13 +52,36 @@ impl<'ast> Visit<'ast> for BlockingChannelVisitor {
     fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
         if self.in_async {
             let method = node.method.to_string();
-            if matches!(
-                method.as_str(),
-                "recv" | "send" | "recv_timeout" | "send_timeout"
-            ) {
+            if is_channel_method(&method) {
                 self.findings.push(node.method.span().start().line);
             }
         }
         syn::visit::visit_expr_method_call(self, node);
     }
+
+    fn visit_expr_await(&mut self, node: &'ast syn::ExprAwait) {
+        if let syn::Expr::MethodCall(method_call) = &*node.base
+            && is_channel_method(&method_call.method.to_string())
+        {
+            self.visit_expr(&method_call.receiver);
+            for arg in &method_call.args {
+                self.visit_expr(arg);
+            }
+            return;
+        }
+        syn::visit::visit_expr_await(self, node);
+    }
+
+    fn visit_expr_closure(&mut self, node: &'ast syn::ExprClosure) {
+        let prev = self.in_async;
+        if node.asyncness.is_none() {
+            self.in_async = false;
+        }
+        visit_expr_closure(self, node);
+        self.in_async = prev;
+    }
+}
+
+fn is_channel_method(method: &str) -> bool {
+    matches!(method, "recv" | "recv_timeout" | "send_timeout")
 }

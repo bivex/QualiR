@@ -1218,6 +1218,24 @@ mod spawn_without_join {
         let code = "fn foo() { let handle = std::thread::spawn(|| {}); handle.join().unwrap(); }";
         assert_clean(&DETECTOR, code);
     }
+
+    #[test]
+    fn clean_regular_function_with_spawn_in_name() {
+        let code = "fn foo() { spawn_detached_mirror_refresh_job(); }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_spawn_handle_returned_from_function() {
+        let code = "fn foo() -> Option<JoinHandle> { Some(tokio::spawn(async {})) }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_rayon_spawn_without_join_handle() {
+        let code = "fn foo() { rayon::spawn(|| {}); }";
+        assert_clean(&DETECTOR, code);
+    }
 }
 
 mod holding_lock_across_await {
@@ -1269,6 +1287,57 @@ async fn foo(lock: &tokio::sync::Mutex<i32>) {
     let guard = lock.lock().await;
     drop(guard);
     do_work().await;
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod blocking_channel_in_async {
+    use super::*;
+    use qualirs::detectors::concurrency::blocking_channel_in_async::BlockingChannelInAsyncDetector;
+
+    static DETECTOR: BlockingChannelInAsyncDetector = BlockingChannelInAsyncDetector;
+
+    #[test]
+    fn detects_blocking_recv_in_async() {
+        let code = r#"
+async fn wait(receiver: std::sync::mpsc::Receiver<i32>) {
+    let _ = receiver.recv();
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Blocking Channel in Async", 1);
+    }
+
+    #[test]
+    fn clean_awaited_async_recv() {
+        let code = r#"
+async fn wait(mut signal: tokio::sync::watch::Receiver<bool>) {
+    signal.recv().await;
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_send_inside_non_async_worker_closure() {
+        let code = r#"
+async fn inspect() {
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    rayon::spawn(move || {
+        let _ = sender.send(1);
+    });
+    let _ = receiver.await;
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_nonblocking_send_in_async() {
+        let code = r#"
+async fn notify(sender: tokio::sync::watch::Sender<bool>) {
+    sender.send(true).expect("send shutdown");
 }
 "#;
         assert_clean(&DETECTOR, code);
@@ -1701,6 +1770,16 @@ fn migrate_user(name: String, age: i32, email: String) {}
 fn build_user(name: String, age: i32) {}
 fn update_user(name: String, age: i32) {}
 fn migrate_user(name: String, age: i32) {}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_destructured_arguments_do_not_create_one_param_clumps() {
+        let code = "\
+fn simple_index(State(state): State, Path(tenant): Path<String>, headers: HeaderMap) {}
+fn simple_project(State(state): State, Path(tenant): Path<String>, headers: HeaderMap) {}
+fn download_artifact(State(state): State, Path(tenant): Path<String>, headers: HeaderMap) {}
 ";
         assert_clean(&DETECTOR, code);
     }

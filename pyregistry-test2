@@ -1,0 +1,1150 @@
+
+QualiRS — Rust Code Smell Detector
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → 76 files analyzed, 564 smell(s) detected
+    0 critical  218 warning  346 info
+
+▸ Architecture
+  WARN God Module pyregistry-demo/crates/application/src/audit_ops.rs:1
+    Module has 1117 lines (threshold: 1000)
+  WARN God Module (items) pyregistry-demo/crates/application/src/audit_ops.rs:1
+    Module has 34 top-level items (threshold: 20)
+  WARN God Module (items) pyregistry-demo/crates/application/src/distribution_validation_ops.rs:1
+    Module has 22 top-level items (threshold: 20)
+  WARN God Module (items) pyregistry-demo/crates/application/src/models/commands.rs:1
+    Module has 24 top-level items (threshold: 20)
+  WARN Cyclic Dependency Risk pyregistry-demo/crates/application/src/models/mod.rs:1
+    Module `mod` has 8 internal dependencies — high cycle risk
+  WARN God Module (items) pyregistry-demo/crates/application/src/models/ports.rs:1
+    Module has 34 top-level items (threshold: 20)
+  WARN God Module (items) pyregistry-demo/crates/application/src/models/security.rs:1
+    Module has 21 top-level items (threshold: 20)
+  WARN Cyclic Dependency Risk pyregistry-demo/crates/application/src/publish_ops.rs:1
+    Module `publish_ops` has 6 internal dependencies — high cycle risk
+  WARN God Module (items) pyregistry-demo/crates/application/src/security_ops.rs:1
+    Module has 25 top-level items (threshold: 20)
+  WARN Cyclic Dependency Risk pyregistry-demo/crates/bootstrap/src/cli.rs:1
+    Module `cli` has 7 internal dependencies — high cycle risk
+  WARN God Module (items) pyregistry-demo/crates/bootstrap/src/logging.rs:1
+    Module has 30 top-level items (threshold: 20)
+  WARN God Module (items) pyregistry-demo/crates/bootstrap/src/server.rs:1
+    Module has 35 top-level items (threshold: 20)
+  WARN Cyclic Dependency Risk pyregistry-demo/crates/bootstrap/src/tests.rs:1
+    Module `tests` has 9 internal dependencies — high cycle risk
+  WARN God Module (items) pyregistry-demo/crates/domain/src/entities.rs:1
+    Module has 21 top-level items (threshold: 20)
+  WARN God Module (items) pyregistry-demo/crates/domain/src/value_objects.rs:1
+    Module has 29 top-level items (threshold: 20)
+  WARN Cyclic Dependency Risk pyregistry-demo/crates/infrastructure/src/distribution_validation.rs:1
+    Module `distribution_validation` has 6 internal dependencies — high cycle risk
+  WARN God Module (items) pyregistry-demo/crates/infrastructure/src/distribution_validation.rs:1
+    Module has 42 top-level items (threshold: 20)
+  WARN Cyclic Dependency Risk pyregistry-demo/crates/infrastructure/src/lib.rs:1
+    Module `lib` has 10 internal dependencies — high cycle risk
+  WARN Feature Concentration pyregistry-demo/crates/infrastructure/src/lib.rs:1
+    File imports from 19 different crates (threshold: 15)
+  WARN God Module (items) pyregistry-demo/crates/infrastructure/src/lib.rs:1
+    Module has 40 top-level items (threshold: 20)
+  WARN Cyclic Dependency Risk pyregistry-demo/crates/infrastructure/src/mirror.rs:1
+    Module `mirror` has 6 internal dependencies — high cycle risk
+  WARN God Module pyregistry-demo/crates/infrastructure/src/mirror.rs:1
+    Module has 1368 lines (threshold: 1000)
+  WARN God Module (items) pyregistry-demo/crates/infrastructure/src/mirror.rs:1
+    Module has 39 top-level items (threshold: 20)
+  WARN Cyclic Dependency Risk pyregistry-demo/crates/infrastructure/src/oidc.rs:1
+    Module `oidc` has 7 internal dependencies — high cycle risk
+  WARN God Module (items) pyregistry-demo/crates/infrastructure/src/oidc.rs:1
+    Module has 25 top-level items (threshold: 20)
+  WARN God Module pyregistry-demo/crates/infrastructure/src/postgres_store.rs:1
+    Module has 1780 lines (threshold: 1000)
+  WARN God Module (items) pyregistry-demo/crates/infrastructure/src/postgres_store.rs:1
+    Module has 47 top-level items (threshold: 20)
+  WARN God Module pyregistry-demo/crates/infrastructure/src/settings.rs:1
+    Module has 2496 lines (threshold: 1000)
+  WARN God Module (items) pyregistry-demo/crates/infrastructure/src/settings.rs:1
+    Module has 164 top-level items (threshold: 20)
+  WARN Cyclic Dependency Risk pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:1
+    Module `sql_server_store` has 7 internal dependencies — high cycle risk
+  WARN God Module pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:1
+    Module has 1646 lines (threshold: 1000)
+  WARN God Module (items) pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:1
+    Module has 56 top-level items (threshold: 20)
+  WARN God Module pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1
+    Module has 2362 lines (threshold: 1000)
+  WARN God Module (items) pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1
+    Module has 79 top-level items (threshold: 20)
+  WARN God Module (items) pyregistry-demo/crates/infrastructure/src/storage.rs:1
+    Module has 23 top-level items (threshold: 20)
+  WARN God Module (items) pyregistry-demo/crates/infrastructure/src/virus.rs:1
+    Module has 27 top-level items (threshold: 20)
+  WARN God Module (items) pyregistry-demo/crates/infrastructure/src/webhook.rs:1
+    Module has 22 top-level items (threshold: 20)
+  WARN Cyclic Dependency Risk pyregistry-demo/crates/infrastructure/src/wiring.rs:1
+    Module `wiring` has 7 internal dependencies — high cycle risk
+  WARN God Module pyregistry-demo/crates/web/src/admin.rs:1
+    Module has 2605 lines (threshold: 1000)
+  WARN God Module (items) pyregistry-demo/crates/web/src/admin.rs:1
+    Module has 89 top-level items (threshold: 20)
+  WARN God Module pyregistry-demo/crates/web/src/lib.rs:1
+    Module has 1943 lines (threshold: 1000)
+  WARN God Module (items) pyregistry-demo/crates/web/src/models.rs:1
+    Module has 39 top-level items (threshold: 20)
+  WARN God Module (items) pyregistry-demo/crates/web/src/network_source.rs:1
+    Module has 24 top-level items (threshold: 20)
+  WARN God Module (items) pyregistry-demo/crates/web/src/rate_limit.rs:1
+    Module has 23 top-level items (threshold: 20)
+  INFO Feature Flag Sprawl pyregistry-demo/crates/application/src/audit_ops.rs:1
+    File contains 12 feature-gated cfgs
+  INFO Public API Explosion pyregistry-demo/crates/application/src/models/audit.rs:1
+    82% of items are pub (9/11), threshold: 70%
+  INFO Public API Explosion pyregistry-demo/crates/application/src/models/commands.rs:1
+    100% of items are pub (19/19), threshold: 70%
+  INFO Public API Explosion pyregistry-demo/crates/application/src/models/overview.rs:1
+    100% of items are pub (7/7), threshold: 70%
+  INFO Public API Explosion pyregistry-demo/crates/application/src/models/package.rs:1
+    100% of items are pub (11/11), threshold: 70%
+  INFO Public API Explosion pyregistry-demo/crates/application/src/models/ports.rs:1
+    85% of items are pub (22/26), threshold: 70%
+  INFO Feature Flag Sprawl pyregistry-demo/crates/infrastructure/src/lib.rs:1
+    File contains 11 feature-gated cfgs
+  INFO Scattered Implementation pyregistry-demo/crates/infrastructure/src/oidc.rs:176
+    Struct `SimpleJwksOidcVerifier` has 2 inherent `impl` blocks in this file
+  INFO Scattered Implementation pyregistry-demo/crates/infrastructure/src/source_security.rs:58
+    Struct `FoxGuardWheelSourceSecurityScanner` has 2 inherent `impl` blocks in this file
+  INFO Feature Flag Sprawl pyregistry-demo/crates/infrastructure/src/storage.rs:1
+    File contains 13 feature-gated cfgs
+  INFO Public API Explosion pyregistry-demo/crates/web/src/state.rs:1
+    75% of items are pub (6/8), threshold: 70%
+
+▸ Design
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/audit.rs:104
+    Struct `WheelAuditFinding` has 4 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/audit.rs:3
+    Struct `WheelAuditReport` has 6 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/audit.rs:90
+    Struct `WheelVirusScanResult` has 4 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/commands.rs:105
+    Struct `MintOidcPublishTokenCommand` has 3 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/commands.rs:112
+    Struct `DeletionCommand` has 6 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/commands.rs:122
+    Struct `MirroredArtifactSnapshot` has 7 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/commands.rs:133
+    Struct `MirroredProjectSnapshot` has 4 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/commands.rs:147
+    Struct `AuditStoredWheelCommand` has 4 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/commands.rs:161
+    Struct `ValidateRegistryDistributionsCommand` has 3 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/commands.rs:17
+    Struct `AuditTrailEntry` has 6 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/commands.rs:27
+    Struct `CreateTenantCommand` has 5 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/commands.rs:36
+    Struct `CreatePackageCommand` has 4 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/commands.rs:44
+    Struct `UpdatePackageCommand` has 5 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/commands.rs:53
+    Struct `CreateReleaseCommand` has 3 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/commands.rs:60
+    Struct `UpdateReleaseCommand` has 5 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/commands.rs:69
+    Struct `IssueApiTokenCommand` has 4 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/commands.rs:77
+    Struct `IssuedApiToken` has 3 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/commands.rs:8
+    Struct `RecordAuditEventCommand` has 5 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/commands.rs:84
+    Struct `UploadArtifactCommand` has 7 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/commands.rs:95
+    Struct `RegisterTrustedPublisherCommand` has 6 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/distribution.rs:118
+    Struct `RegistryDistributionValidationItem` has 16 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/distribution.rs:23
+    Struct `DistributionInspection` has 5 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/distribution.rs:32
+    Struct `FileTypeInspection` has 9 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/distribution.rs:77
+    Struct `DistributionValidationReport` has 3 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/identity.rs:20
+    Struct `AdminSession` has 3 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/identity.rs:6
+    Struct `PublishTokenGrant` has 4 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/overview.rs:14
+    Struct `SearchHit` has 6 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/overview.rs:24
+    Struct `RecentActivity` has 4 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/overview.rs:4
+    Struct `RegistryOverview` has 6 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/overview.rs:41
+    Struct `MirrorRefreshFailure` has 3 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/overview.rs:48
+    Struct `DashboardMetrics` has 7 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/overview.rs:59
+    Struct `TenantDashboardStats` has 6 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/package.rs:19
+    Struct `SimpleArtifactLink` has 6 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/package.rs:29
+    Struct `SimpleProjectPage` has 3 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/package.rs:36
+    Struct `ProvenanceDescriptor` has 4 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/package.rs:44
+    Struct `PackageArtifactDetails` has 7 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/package.rs:56
+    Struct `PackageReleaseDetails` has 3 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/package.rs:63
+    Struct `TrustedPublisherDescriptor` has 5 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/package.rs:72
+    Struct `PackageDetails` has 9 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/package.rs:91
+    Struct `PackagePublishNotification` has 8 public fields but no `new()` constructor
+  WARN Large Trait pyregistry-demo/crates/application/src/models/ports.rs:21
+    Trait `RegistryStore` has 32 methods (threshold: 15)
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/security.rs:113
+    Struct `PackageVulnerabilityReport` has 4 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/security.rs:143
+    Struct `PackageVulnerability` has 7 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/security.rs:154
+    Struct `RegistrySecurityReport` has 6 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/security.rs:164
+    Struct `RegistryPackageSecurityReport` has 4 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/application/src/models/security.rs:189
+    Struct `DependencyVulnerabilityReport` has 4 public fields but no `new()` constructor
+  WARN Data Clumps pyregistry-demo/crates/application/src/package_ops.rs:21
+    Data Clump: Same 2 parameters appear in 3 functions: resolve_project_from_mirror, evict_mirror_cache, get_simple_project_index
+  WARN Data Clumps pyregistry-demo/crates/application/src/package_ops/tests.rs:3014
+    Data Clump: Same 2 parameters appear in 3 functions: inspect_distribution_bytes, inspect_distribution_bytes, inspect_distribution_bytes
+  WARN Broken Constructor pyregistry-demo/crates/domain/src/entities.rs:102
+    Struct `Release` has 5 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/domain/src/entities.rs:45
+    Struct `AdminUser` has 6 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/domain/src/entities.rs:55
+    Struct `ApiToken` has 8 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/domain/src/value_objects.rs:222
+    Struct `PublishIdentity` has 5 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/domain/src/value_objects.rs:237
+    Struct `AttestationBundle` has 5 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/domain/src/value_objects.rs:246
+    Struct `TrustedPublisher` has 8 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/infrastructure/src/settings.rs:1038
+    Struct `OidcIssuerConfig` has 4 public fields but no `new()` constructor
+  WARN Large Error Enum pyregistry-demo/crates/infrastructure/src/settings.rs:1046
+    Error enum `SettingsError` has 17 variants (threshold: 12)
+  WARN Wide Hierarchy pyregistry-demo/crates/infrastructure/src/settings.rs:1046
+    Enum `SettingsError` has 17 variants (threshold: 10)
+  WARN Broken Constructor pyregistry-demo/crates/infrastructure/src/settings.rs:554
+    Struct `PypiConfig` has 11 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/infrastructure/src/settings.rs:589
+    Struct `PostgresConfig` has 4 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/infrastructure/src/settings.rs:635
+    Struct `SecurityConfig` has 4 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/infrastructure/src/settings.rs:643
+    Struct `SqlServerConfig` has 4 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/infrastructure/src/settings.rs:719
+    Struct `VulnerabilityWebhookConfig` has 3 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/infrastructure/src/settings.rs:827
+    Struct `PackagePublishWebhookConfig` has 3 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/infrastructure/src/settings.rs:849
+    Struct `RateLimitConfig` has 5 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/infrastructure/src/settings.rs:891
+    Struct `NetworkSourceConfig` has 3 public fields but no `new()` constructor
+  WARN Broken Constructor pyregistry-demo/crates/infrastructure/src/settings.rs:953
+    Struct `LoggingConfig` has 6 public fields but no `new()` constructor
+  WARN Data Clumps pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:211
+    Data Clump: Same 2 parameters appear in 4 functions: execute, query, query_one, query_opt
+  WARN Data Clumps pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:81
+    Data Clump: Same 3 parameters appear in 3 functions: query_one, query_optional, query_all
+  WARN Data Clumps pyregistry-demo/crates/web/src/admin.rs:119
+    Data Clump: Same 1 parameters appear in 21 functions: login_submit, dashboard, search, create_tenant, revoke_token, cache_mirror_project, register_publisher, package_list, create_package, update_package, create_release, update_release, remove_package, yank_release, unyank_release, purge_release, yank_artifact, unyank_artifact, purge_artifact, download_artifact, scan_artifact
+  WARN Broken Constructor pyregistry-demo/crates/web/src/network_source.rs:15
+    Struct `NetworkSourceConfig` has 3 public fields but no `new()` constructor
+  WARN Data Clumps pyregistry-demo/crates/web/src/package_api.rs:22
+    Data Clump: Same 1 parameters appear in 4 functions: simple_index, simple_project, download_artifact, get_provenance
+  WARN Broken Constructor pyregistry-demo/crates/web/src/rate_limit.rs:19
+    Struct `RateLimitConfig` has 5 public fields but no `new()` constructor
+  INFO Anemic Struct pyregistry-demo/crates/application/src/distribution_validation_ops.rs:201
+    Struct `RegistryDistributionValidationOutcome` has fields but no impl block in this file
+  INFO Anemic Struct pyregistry-demo/crates/application/src/models/audit.rs:3
+    Struct `WheelAuditReport` has fields but no impl block in this file
+  INFO Primitive Obsession pyregistry-demo/crates/application/src/models/commands.rs:27
+    Struct `CreateTenantCommand` has 5 fields, and all of them are primitive types (threshold: 4)
+  INFO Primitive Obsession pyregistry-demo/crates/application/src/models/commands.rs:44
+    Struct `UpdatePackageCommand` has 5 fields, and all of them are primitive types (threshold: 4)
+  INFO Wide Hierarchy pyregistry-demo/crates/application/src/models/distribution.rs:118
+    Struct `RegistryDistributionValidationItem` has 16 fields (threshold: 10)
+  INFO Wide Hierarchy pyregistry-demo/crates/application/src/models/distribution.rs:138
+    Struct `RegistryDistributionValidationReport` has 13 fields (threshold: 10)
+  INFO Anemic Struct pyregistry-demo/crates/application/src/models/overview.rs:4
+    Struct `RegistryOverview` has fields but no impl block in this file
+  INFO Primitive Obsession pyregistry-demo/crates/application/src/models/overview.rs:4
+    Struct `RegistryOverview` has 6 fields, and all of them are primitive types (threshold: 4)
+  INFO Anemic Struct pyregistry-demo/crates/application/src/package_ops.rs:673
+    Struct `MirroredArtifactCacheCandidate` has fields but no impl block in this file
+  INFO Wide Hierarchy pyregistry-demo/crates/application/src/service.rs:13
+    Struct `PyregistryApp` has 19 fields (threshold: 10)
+  INFO Boolean Flag Argument pyregistry-demo/crates/bootstrap/src/server.rs:22
+    Function `serve` takes boolean flag argument(s): allow_insecure
+  INFO Boolean Flag Argument pyregistry-demo/crates/bootstrap/src/server.rs:96
+    Function `build_web_state` takes boolean flag argument(s): allow_insecure
+  INFO Wide Hierarchy pyregistry-demo/crates/domain/src/entities.rs:124
+    Struct `Artifact` has 11 fields (threshold: 10)
+  INFO Wide Hierarchy pyregistry-demo/crates/infrastructure/src/settings.rs:1092
+    Struct `SettingsFile` has 18 fields (threshold: 10)
+  INFO Wide Hierarchy pyregistry-demo/crates/infrastructure/src/settings.rs:1127
+    Struct `PypiConfigFile` has 11 fields (threshold: 10)
+  INFO Primitive Obsession pyregistry-demo/crates/infrastructure/src/settings.rs:1196
+    Struct `RateLimitConfigFile` has 5 fields, and all of them are primitive types (threshold: 4)
+  INFO Wide Hierarchy pyregistry-demo/crates/infrastructure/src/settings.rs:19
+    Struct `Settings` has 18 fields (threshold: 10)
+  INFO Primitive Obsession pyregistry-demo/crates/infrastructure/src/settings.rs:554
+    Struct `PypiConfig` has 11 fields, and all of them are primitive types (threshold: 4)
+  INFO Wide Hierarchy pyregistry-demo/crates/infrastructure/src/settings.rs:554
+    Struct `PypiConfig` has 11 fields (threshold: 10)
+  INFO Primitive Obsession pyregistry-demo/crates/infrastructure/src/settings.rs:849
+    Struct `RateLimitConfig` has 5 fields, and all of them are primitive types (threshold: 4)
+  INFO Anemic Struct pyregistry-demo/crates/infrastructure/src/virus.rs:176
+    Struct `CompiledYaraRules` has fields but no impl block in this file
+  INFO Wide Hierarchy pyregistry-demo/crates/web/src/models.rs:119
+    Struct `PackageDetailView` has 12 fields (threshold: 10)
+  INFO Wide Hierarchy pyregistry-demo/crates/web/src/models.rs:157
+    Struct `PackageSecuritySummaryView` has 12 fields (threshold: 10)
+  INFO Wide Hierarchy pyregistry-demo/crates/web/src/models.rs:173
+    Struct `ArtifactSecurityView` has 11 fields (threshold: 10)
+  INFO Wide Hierarchy pyregistry-demo/crates/web/src/models.rs:23
+    Struct `DashboardTemplate` has 13 fields (threshold: 10)
+  INFO Anemic Struct pyregistry-demo/crates/web/src/models.rs:258
+    Struct `IssueTokenFormData` has fields but no impl block in this file
+  INFO Primitive Obsession pyregistry-demo/crates/web/src/models.rs:75
+    Struct `DashboardView` has 6 fields, and all of them are primitive types (threshold: 4)
+  INFO Primitive Obsession pyregistry-demo/crates/web/src/rate_limit.rs:19
+    Struct `RateLimitConfig` has 5 fields, and all of them are primitive types (threshold: 4)
+  INFO Anemic Struct pyregistry-demo/crates/web/src/rate_limit.rs:57
+    Struct `RateLimiterInner` has fields but no impl block in this file
+  INFO Wide Hierarchy pyregistry-demo/fuzz/fuzz_targets/domain_inputs.rs:14
+    Struct `DomainInput` has 15 fields (threshold: 10)
+
+▸ Implementation
+  WARN Long Function pyregistry-demo/crates/application/src/audit_ops.rs:325
+    Function `python_ast_findings` is ~54 lines long (threshold: 50)
+  WARN High Cyclomatic Complexity pyregistry-demo/crates/application/src/audit_ops.rs:836
+    Function `call_evidence` has cyclomatic complexity of 27 (threshold: 15)
+  WARN Long Function pyregistry-demo/crates/application/src/audit_ops.rs:836
+    Function `call_evidence` is ~69 lines long (threshold: 50)
+  WARN Long Function pyregistry-demo/crates/application/src/audit_ops.rs:939
+    Function `suspicious_dependency_findings` is ~70 lines long (threshold: 50)
+  WARN High Cyclomatic Complexity pyregistry-demo/crates/bootstrap/src/cli.rs:181
+    Function `execute` has cyclomatic complexity of 28 (threshold: 15)
+  WARN Long Function pyregistry-demo/crates/bootstrap/src/cli.rs:181
+    Function `execute` is ~99 lines long (threshold: 50)
+  WARN Long Function pyregistry-demo/crates/bootstrap/src/commands.rs:179
+    Function `ensure_wheel_is_available` is ~53 lines long (threshold: 50)
+  WARN Too Many Arguments pyregistry-demo/crates/bootstrap/src/commands.rs:74
+    Function `create_tenant` has 7 arguments (threshold: 6)
+  WARN Long Function pyregistry-demo/crates/bootstrap/src/logging.rs:293
+    Function `redact_log_message` is ~55 lines long (threshold: 50)
+  WARN Long Function pyregistry-demo/crates/infrastructure/src/distribution_validation.rs:381
+    Function `inspect_zip_archive` is ~59 lines long (threshold: 50)
+  WARN High Cyclomatic Complexity pyregistry-demo/crates/infrastructure/src/postgres_store.rs:1284
+    Function `map_artifact` has cyclomatic complexity of 17 (threshold: 15)
+  WARN High Cyclomatic Complexity pyregistry-demo/crates/infrastructure/src/postgres_store.rs:1331
+    Function `map_artifact_alias` has cyclomatic complexity of 17 (threshold: 15)
+  WARN Long Function pyregistry-demo/crates/infrastructure/src/postgres_store.rs:1331
+    Function `map_artifact_alias` is ~51 lines long (threshold: 50)
+  WARN High Cyclomatic Complexity pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:1227
+    Function `map_artifact` has cyclomatic complexity of 17 (threshold: 15)
+  WARN High Cyclomatic Complexity pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:1256
+    Function `map_artifact_alias` has cyclomatic complexity of 17 (threshold: 15)
+  WARN High Cyclomatic Complexity pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1324
+    Function `map_api_token` has cyclomatic complexity of 19 (threshold: 15)
+  WARN High Cyclomatic Complexity pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1378
+    Function `map_artifact_at` has cyclomatic complexity of 21 (threshold: 15)
+  WARN Long Function pyregistry-demo/crates/infrastructure/src/virus.rs:182
+    Function `compile_rules_dir` is ~52 lines long (threshold: 50)
+  WARN Long Function pyregistry-demo/crates/infrastructure/src/wiring.rs:117
+    Function `build_registry_store` is ~89 lines long (threshold: 50)
+  WARN Long Function pyregistry-demo/crates/infrastructure/src/wiring.rs:28
+    Function `build_application` is ~84 lines long (threshold: 50)
+  WARN Long Function pyregistry-demo/crates/web/src/admin.rs:1119
+    Function `render_dashboard` is ~59 lines long (threshold: 50)
+  WARN Long Function pyregistry-demo/crates/web/src/admin.rs:123
+    Function `login_submit` is ~65 lines long (threshold: 50)
+  WARN Long Function pyregistry-demo/crates/web/src/admin.rs:1429
+    Function `package_detail_view` is ~84 lines long (threshold: 50)
+  WARN Long Function pyregistry-demo/crates/web/src/admin.rs:249
+    Function `create_tenant` is ~52 lines long (threshold: 50)
+  WARN Long Function pyregistry-demo/crates/web/src/admin.rs:524
+    Function `register_publisher` is ~56 lines long (threshold: 50)
+  WARN Long Function pyregistry-demo/crates/web/src/lib.rs:46
+    Function `admin_routes` is ~76 lines long (threshold: 50)
+  WARN High Cyclomatic Complexity pyregistry-demo/crates/web/src/package_api.rs:81
+    Function `legacy_upload` has cyclomatic complexity of 19 (threshold: 15)
+  WARN Long Function pyregistry-demo/crates/web/src/package_api.rs:86
+    Function `legacy_upload` is ~58 lines long (threshold: 50)
+  INFO Magic Numbers pyregistry-demo/crates/application/src/audit_ops.rs:1030
+    Function `looks_like_executable_binary` contains magic numbers: 186, 190, 202, 206, 207, 237, 250, 254
+  INFO Magic Numbers pyregistry-demo/crates/application/src/audit_ops.rs:1039
+    Function `is_binary_content` contains magic numbers: 5
+  INFO Magic Numbers pyregistry-demo/crates/application/src/audit_ops.rs:1054
+    Function `ascii_strings` contains magic numbers: 4
+  INFO Long Method Chain pyregistry-demo/crates/application/src/audit_ops.rs:1108
+    Function `dependency_name` has a method chain of length 5 (threshold: 4)
+  INFO Magic Numbers pyregistry-demo/crates/application/src/audit_ops.rs:228
+    Function `network_string_findings` contains magic numbers: 4
+  INFO Magic Numbers pyregistry-demo/crates/application/src/audit_ops.rs:272
+    Function `post_install_findings` contains magic numbers: 4
+  INFO Duplicate Match Arms pyregistry-demo/crates/application/src/audit_ops.rs:413
+    Match expression has duplicate arm bodies
+  INFO Duplicate Match Arms pyregistry-demo/crates/application/src/audit_ops.rs:598
+    Match expression has duplicate arm bodies
+  INFO Duplicate Match Arms pyregistry-demo/crates/application/src/audit_ops.rs:740
+    Match expression has duplicate arm bodies
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/application/src/distribution_validation_ops.rs:436
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `Mutex`
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/application/src/distribution_validation_ops.rs:450
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `Result`
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/application/src/models/ports.rs:216
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `Result`
+  INFO Magic Numbers pyregistry-demo/crates/application/src/models/security.rs:299
+    Function `severity_rank` contains magic numbers: 3, 4, 5
+  INFO Magic Numbers pyregistry-demo/crates/application/src/models/tests.rs:140
+    Function `notification_models_are_derived_from_application_reports` contains magic numbers: 3, 4, 8
+  INFO Magic Numbers pyregistry-demo/crates/application/src/models/tests.rs:193
+    Function `noop_notifiers_and_never_cancelled_are_boundary_defaults` contains magic numbers: 64
+  INFO Magic Numbers pyregistry-demo/crates/application/src/models/tests.rs:280
+    Function `distribution_validation_report_validity_tracks_checksum_status` contains magic numbers: 64
+  INFO Magic Numbers pyregistry-demo/crates/application/src/models/tests.rs:324
+    Function `registry_distribution_report_counts_each_invalid_status` contains magic numbers: 64
+  INFO Magic Numbers pyregistry-demo/crates/application/src/models/tests.rs:368
+    Function `wheel_scan_summaries_can_be_created_from_results_or_errors` contains magic numbers: 3, 4
+  INFO Magic Numbers pyregistry-demo/crates/application/src/package_ops/tests.rs:186
+    Function `refresh_mirrored_projects_updates_existing_mirrors_only` contains magic numbers: 3
+  INFO Magic Numbers pyregistry-demo/crates/application/src/package_ops/tests.rs:1863
+    Function `package_artifact` contains magic numbers: 42, 64
+  INFO Magic Numbers pyregistry-demo/crates/application/src/package_ops/tests.rs:213
+    Function `refresh_mirrored_projects_skips_disabled_tenants` contains magic numbers: 3
+  INFO Magic Numbers pyregistry-demo/crates/application/src/package_ops/tests.rs:232
+    Function `refresh_mirrored_projects_stops_before_work_when_cancelled` contains magic numbers: 3
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/application/src/package_ops/tests.rs:2494
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `Mutex`
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/application/src/package_ops/tests.rs:2513
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `Result`
+  INFO Magic Numbers pyregistry-demo/crates/application/src/package_ops/tests.rs:2772
+    Function `fixed_now` contains magic numbers: 4, 11, 12, 2026
+  INFO Magic Numbers pyregistry-demo/crates/application/src/package_ops/tests.rs:2778
+    Function `cache_candidate` contains magic numbers: 4, 42, 43
+  INFO Magic Numbers pyregistry-demo/crates/application/src/package_ops/tests.rs:386
+    Function `mirrored_project_preserves_provenance_and_skips_already_cached_payloads` contains magic numbers: 4
+  INFO Magic Numbers pyregistry-demo/crates/application/src/package_ops/tests.rs:39
+    Function `mirrored_project_caches_artifacts_with_bounded_parallelism` contains magic numbers: 6
+  INFO Magic Numbers pyregistry-demo/crates/application/src/package_ops/tests.rs:566
+    Function `mirrored_artifact_payload_validation_checks_size_and_sha256` contains magic numbers: 64, 900, 901
+  INFO Magic Numbers pyregistry-demo/crates/application/src/package_ops/tests.rs:64
+    Function `mirrored_project_eagerly_caches_only_newest_release_percent` contains magic numbers: 4, 5, 20
+  INFO Magic Numbers pyregistry-demo/crates/application/src/package_ops/tests.rs:645
+    Function `validate_registry_distributions_reports_checksum_and_missing_blob_failures` contains magic numbers: 42, 64, 101, 200, 300, 301, 302, 303
+  INFO Magic Numbers pyregistry-demo/crates/application/src/package_ops/tests.rs:788
+    Function `validate_registry_distributions_inspects_files_in_parallel` contains magic numbers: 4, 101, 210, 400
+  INFO Long Method Chain pyregistry-demo/crates/application/src/security_ops.rs:637
+    Function `pinned_requirement` has a method chain of length 5 (threshold: 4)
+  INFO Long Method Chain pyregistry-demo/crates/application/src/security_ops.rs:643
+    Function `pinned_requirement` has a method chain of length 7 (threshold: 4)
+  INFO Magic Numbers pyregistry-demo/crates/bootstrap/src/logging.rs:293
+    Function `redact_log_message` contains magic numbers: 3
+  INFO Long Method Chain pyregistry-demo/crates/bootstrap/src/reports.rs:28
+    Function `print_distribution_validation_report` has a method chain of length 5 (threshold: 4)
+  INFO Magic Numbers pyregistry-demo/crates/bootstrap/src/tests.rs:438
+    Function `validate_distribution_accepts_matching_checksum_and_rejects_mismatch` contains magic numbers: 64
+  INFO Magic Numbers pyregistry-demo/crates/bootstrap/src/tests.rs:452
+    Function `mirror_updater_respects_disabled_config_and_shutdown_signal` contains magic numbers: 3600
+  INFO Magic Numbers pyregistry-demo/crates/bootstrap/src/tests.rs:472
+    Function `force_http_shutdown_returns_when_shutdown_channel_closes` contains magic numbers: 60
+  INFO Magic Numbers pyregistry-demo/crates/bootstrap/src/tests.rs:484
+    Function `prints_distribution_validation_reports_for_all_checksum_states` contains magic numbers: 64, 123
+  INFO Magic Numbers pyregistry-demo/crates/bootstrap/src/tests.rs:520
+    Function `prints_registry_distribution_validation_reports_for_empty_valid_and_invalid_sets` contains magic numbers: 5, 64, 321
+  INFO Magic Numbers pyregistry-demo/crates/bootstrap/src/tests.rs:551
+    Function `registry_validation_item` contains magic numbers: 64, 123
+  INFO Magic Numbers pyregistry-demo/crates/bootstrap/src/tests.rs:579
+    Function `prints_wheel_audit_report_for_clean_and_findings_cases` contains magic numbers: 7
+  INFO Magic Numbers pyregistry-demo/crates/bootstrap/src/tests.rs:633
+    Function `prints_registry_security_report_for_empty_and_vulnerable_packages` contains magic numbers: 3
+  INFO Magic Numbers pyregistry-demo/crates/bootstrap/src/tests.rs:666
+    Function `mirror_refresh_report_logging_and_build_mode_logging_are_callable` contains magic numbers: 25
+  INFO Magic Numbers pyregistry-demo/crates/domain/src/tests.rs:145
+    Function `detects_duplicate_artifact_filenames` contains magic numbers: 64
+  INFO Magic Numbers pyregistry-demo/crates/domain/src/tests.rs:235
+    Function `validates_and_normalizes_digest_sets` contains magic numbers: 64
+  INFO Long Method Chain pyregistry-demo/crates/infrastructure/src/distribution_validation.rs:112
+    Function `distribution_kind_from_path` has a method chain of length 5 (threshold: 4)
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/distribution_validation.rs:148
+    Function `inspect_file_type_from_path` contains magic numbers: 8
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/distribution_validation.rs:193
+    Function `inspect_file_type_from_bytes` contains magic numbers: 8
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/infrastructure/src/distribution_validation.rs:23
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `LazyLock`
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/distribution_validation.rs:247
+    Function `file_type_inspection_from_magic` contains magic numbers: 31, 139
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/distribution_validation.rs:341
+    Function `sha256_file` contains magic numbers: 8192
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/infrastructure/src/oidc.rs:26
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `Arc`
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/infrastructure/src/postgres_store.rs:1
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `ComplexType`
+  INFO Long Method Chain pyregistry-demo/crates/infrastructure/src/security.rs:333
+    Function `map_vulnerability` has a method chain of length 5 (threshold: 4)
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/settings.rs:1930
+    Function `default_mirror_download_concurrency` contains magic numbers: 4
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/settings.rs:1938
+    Function `default_artifact_download_max_attempts` contains magic numbers: 3
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/settings.rs:1942
+    Function `default_artifact_download_initial_backoff_millis` contains magic numbers: 250
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/settings.rs:1958
+    Function `default_mirror_update_interval_seconds` contains magic numbers: 60
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/settings.rs:2004
+    Function `default_postgres_config` contains magic numbers: 20
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/settings.rs:2013
+    Function `default_sql_server_config` contains magic numbers: 20
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/settings.rs:2063
+    Function `default_rate_limit_config` contains magic numbers: 60, 120, 10000
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/settings.rs:2094
+    Function `default_validation_parallelism` contains magic numbers: 4
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/settings.rs:2197
+    Function `validate_ip_or_cidr` contains magic numbers: 32, 128
+  INFO Long Method Chain pyregistry-demo/crates/infrastructure/src/settings.rs:2269
+    Function `artifact_storage_from_env` has a method chain of length 5 (threshold: 4)
+  INFO Long Method Chain pyregistry-demo/crates/infrastructure/src/settings.rs:2345
+    Function `require_opendal_option` has a method chain of length 5 (threshold: 4)
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/settings.rs:2436
+    Function `random_cookie_secret` contains magic numbers: 64
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/infrastructure/src/settings/tests.rs:1349
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `Vec`
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/settings/tests.rs:155
+    Function `rejects_mirror_eager_download_percent_above_one_hundred` contains magic numbers: 101
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/settings/tests.rs:295
+    Function `rejects_zero_rate_limit_values` contains magic numbers: 60, 10000
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/settings/tests.rs:624
+    Function `log_safe_summaries_are_human_readable_and_redact_secrets` contains magic numbers: 5
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/settings/tests.rs:689
+    Function `component_log_summaries_include_operational_knobs` contains magic numbers: 4, 5, 8, 9, 30, 125, 12345, 67890
+  INFO Long Method Chain pyregistry-demo/crates/infrastructure/src/source_security.rs:196
+    Function `relative_finding_path` has a method chain of length 7 (threshold: 4)
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:1
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `ComplexType`
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:1
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `ComplexType`
+  INFO Long Method Chain pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:1046
+    Function `migrate` has a method chain of length 8 (threshold: 4)
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:1056
+    Function `sql_server_config_from_ado_string` contains magic numbers: 1433
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:168
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `Mutex`
+  INFO Long Method Chain pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1237
+    Function `execute_batch` has a method chain of length 5 (threshold: 4)
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1298
+    Function `map_tenant` contains magic numbers: 3, 4
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1311
+    Function `map_admin_user` contains magic numbers: 3, 4, 5
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1324
+    Function `map_api_token` contains magic numbers: 3, 4, 5, 6, 7, 8, 9, 11
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1347
+    Function `map_project` contains magic numbers: 3, 4, 5, 6, 7
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1360
+    Function `map_release` contains magic numbers: 3, 4, 5
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1378
+    Function `map_artifact_at` contains magic numbers: 3, 4, 5, 6, 7, 8, 9, 11, 12
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1412
+    Function `map_attestation` contains magic numbers: 3, 4
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1422
+    Function `map_trusted_publisher` contains magic numbers: 3, 4, 5, 6, 7
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1435
+    Function `map_audit_event` contains magic numbers: 3, 4, 5, 6
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1448
+    Function `parse_publish_identity` contains magic numbers: 5, 8, 9
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/infrastructure/src/storage.rs:143
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `Result`
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/infrastructure/src/storage.rs:462
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `Result`
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/infrastructure/src/storage.rs:87
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `Result`
+  INFO Duplicate Match Arms pyregistry-demo/crates/infrastructure/src/virus.rs:418
+    Match expression has duplicate arm bodies
+  INFO Long Method Chain pyregistry-demo/crates/infrastructure/src/webhook.rs:102
+    Function `post_webhook_payload` has a method chain of length 5 (threshold: 4)
+  INFO Magic Numbers pyregistry-demo/crates/infrastructure/src/webhook.rs:315
+    Function `severity_color` contains magic numbers: 3447003, 8359053, 9807270, 15105570, 15158332, 15844367
+  INFO Long Method Chain pyregistry-demo/crates/infrastructure/src/wiring.rs:264
+    Function `pysentry_cache_dir` has a method chain of length 5 (threshold: 4)
+  INFO Long Method Chain pyregistry-demo/crates/web/src/admin.rs:1062
+    Function `download_artifact` has a method chain of length 6 (threshold: 4)
+  INFO Long Method Chain pyregistry-demo/crates/web/src/admin.rs:1182
+    Function `dashboard_tenants` has a method chain of length 7 (threshold: 4)
+  INFO Magic Numbers pyregistry-demo/crates/web/src/admin.rs:119
+    Function `login_submit` contains magic numbers: 8
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/web/src/admin.rs:1219
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `Result`
+  INFO Long Method Chain pyregistry-demo/crates/web/src/admin.rs:1253
+    Function `dashboard_mirror_jobs` has a method chain of length 7 (threshold: 4)
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/web/src/admin.rs:1281
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `Result`
+  INFO Long Method Chain pyregistry-demo/crates/web/src/admin.rs:1283
+    Function `dashboard_audit_events` has a method chain of length 7 (threshold: 4)
+  INFO Long Method Chain pyregistry-demo/crates/web/src/admin.rs:1470
+    Function `package_detail_view` has a method chain of length 5 (threshold: 4)
+  INFO Long Closure pyregistry-demo/crates/web/src/admin.rs:1474
+    Closure spans 37 lines (threshold: 25)
+  INFO Magic Numbers pyregistry-demo/crates/web/src/admin.rs:1556
+    Function `artifact_security_view` contains magic numbers: 3
+  INFO Long Method Chain pyregistry-demo/crates/web/src/admin.rs:1560
+    Function `artifact_security_view` has a method chain of length 5 (threshold: 4)
+  INFO Magic Numbers pyregistry-demo/crates/web/src/admin.rs:1610
+    Function `dependency_vulnerability_view` contains magic numbers: 3
+  INFO Long Method Chain pyregistry-demo/crates/web/src/admin.rs:1614
+    Function `dependency_vulnerability_view` has a method chain of length 5 (threshold: 4)
+  INFO Long Method Chain pyregistry-demo/crates/web/src/admin.rs:171
+    Function `login_submit` has a method chain of length 6 (threshold: 4)
+  INFO Long Method Chain pyregistry-demo/crates/web/src/admin.rs:1838
+    Function `forwarded_value` has a method chain of length 5 (threshold: 4)
+  INFO Long Method Chain pyregistry-demo/crates/web/src/admin.rs:784
+    Function `upload_release_artifact` has a method chain of length 5 (threshold: 4)
+  INFO Magic Numbers pyregistry-demo/crates/web/src/auth.rs:112
+    Function `human_bytes` contains magic numbers: 5
+  INFO Long Method Chain pyregistry-demo/crates/web/src/lib.rs:126
+    Function `package_routes` has a method chain of length 5 (threshold: 4)
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/web/src/lib.rs:183
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `RwLock`
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/web/src/lib.rs:193
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `Result`
+  INFO Long Method Chain pyregistry-demo/crates/web/src/lib.rs:33
+    Function `router` has a method chain of length 10 (threshold: 4)
+  INFO Long Method Chain pyregistry-demo/crates/web/src/lib.rs:47
+    Function `admin_routes` has a method chain of length 24 (threshold: 4)
+  INFO Long Method Chain pyregistry-demo/crates/web/src/network_source.rs:147
+    Function `forwarded_client_ip` has a method chain of length 6 (threshold: 4)
+  INFO Magic Numbers pyregistry-demo/crates/web/src/network_source.rs:179
+    Function `sanitize_forwarded_client_ip` contains magic numbers: 128
+  INFO Long Method Chain pyregistry-demo/crates/web/src/network_source.rs:180
+    Function `sanitize_forwarded_client_ip` has a method chain of length 5 (threshold: 4)
+  INFO Long Method Chain pyregistry-demo/crates/web/src/package_api.rs:103
+    Function `legacy_upload` has a method chain of length 5 (threshold: 4)
+  INFO Long Method Chain pyregistry-demo/crates/web/src/package_api.rs:28
+    Function `simple_index` has a method chain of length 7 (threshold: 4)
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/web/src/state.rs:76
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `Arc`
+  INFO Type Alias Explosion (Deep Nesting) pyregistry-demo/crates/web/src/state.rs:96
+    Type parameter nesting is 4 levels deep (threshold: 3). Approx type: `Arc`
+  INFO Magic Numbers pyregistry-demo/fuzz/fuzz_targets/distribution_validation.rs:38
+    Function `dynamic_filename` contains magic numbers: 6, 96
+
+▸ Performance
+  WARN Arc Mutex Overuse pyregistry-demo/crates/application/src/audit_ops.rs:21
+    File uses Arc<Mutex<...>> 6 times (threshold: 3)
+  WARN Arc Mutex Overuse pyregistry-demo/crates/application/src/distribution_validation_ops.rs:15
+    File uses Arc<Mutex<...>> 9 times (threshold: 3)
+  WARN Large Future pyregistry-demo/crates/application/src/package_ops/tests.rs:645
+    Async function `validate_registry_distributions_reports_checksum_and_missing_blob_failures` is ~139 lines (threshold: 100)
+  WARN Arc Mutex Overuse pyregistry-demo/crates/application/src/package_ops/tests.rs:829
+    File uses Arc<Mutex<...>> 29 times (threshold: 3)
+  WARN Arc Mutex Overuse pyregistry-demo/crates/application/src/service.rs:14
+    File uses Arc<Mutex<...>> 34 times (threshold: 3)
+  WARN Arc Mutex Overuse pyregistry-demo/crates/bootstrap/src/server.rs:77
+    File uses Arc<Mutex<...>> 4 times (threshold: 3)
+  WARN Arc Mutex Overuse pyregistry-demo/crates/infrastructure/src/wiring.rs:28
+    File uses Arc<Mutex<...>> 13 times (threshold: 3)
+  WARN Arc Mutex Overuse pyregistry-demo/crates/web/src/state.rs:76
+    File uses Arc<Mutex<...>> 6 times (threshold: 3)
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/application/src/audit_ops.rs:954
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/application/src/audit_ops.rs:972
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/application/src/audit_ops.rs:995
+    Allocation-like call `format!` appears inside a loop
+  INFO Large Value Passed By Value pyregistry-demo/crates/application/src/distribution_validation_ops.rs:323
+    Function `inspect_distribution_bytes_on_rayon` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/application/src/distribution_validation_ops.rs:324
+    Function `inspect_distribution_bytes_on_rayon` takes a potentially large value by value
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/distribution_validation_ops.rs:440
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/application/src/models/ports.rs:141
+    Allocation-like call `format!` appears inside a loop
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/models/ports.rs:20
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/models/ports.rs:213
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/models/ports.rs:221
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/models/ports.rs:230
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/models/ports.rs:239
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/models/ports.rs:259
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/models/ports.rs:272
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/models/ports.rs:282
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/models/ports.rs:292
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/models/ports.rs:302
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/models/ports.rs:312
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/models/ports.rs:322
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/models/ports.rs:340
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/models/ports.rs:348
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/application/src/package_ops.rs:247
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/application/src/package_ops.rs:254
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/application/src/package_ops.rs:423
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/application/src/package_ops.rs:434
+    Allocation-like call `format!` appears inside a loop
+  INFO Large Value Passed By Value pyregistry-demo/crates/application/src/package_ops.rs:679
+    Function `select_eager_cache_candidates` takes a potentially large value by value
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/application/src/package_ops/tests.rs:1052
+    Allocation-like call `format!` appears inside a loop
+  INFO Large Value Passed By Value pyregistry-demo/crates/application/src/package_ops/tests.rs:1855
+    Function `package_release` takes a potentially large value by value
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/package_ops/tests.rs:1886
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/package_ops/tests.rs:1943
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/package_ops/tests.rs:1968
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/package_ops/tests.rs:1993
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/package_ops/tests.rs:2096
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/package_ops/tests.rs:2503
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/application/src/package_ops/tests.rs:2556
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/application/src/package_ops/tests.rs:2557
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/application/src/package_ops/tests.rs:2558
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/application/src/package_ops/tests.rs:2562
+    Allocation-like call `format!` appears inside a loop
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/package_ops/tests.rs:2673
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/package_ops/tests.rs:2710
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/package_ops/tests.rs:2726
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/package_ops/tests.rs:2813
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/package_ops/tests.rs:2837
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/package_ops/tests.rs:2863
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/package_ops/tests.rs:2898
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/application/src/package_ops/tests.rs:2923
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/application/src/package_ops/tests.rs:803
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/application/src/package_ops/tests.rs:805
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/application/src/package_ops/tests.rs:806
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/application/src/security_ops.rs:262
+    Allocation-like call `format!` appears inside a loop
+  INFO Large Value Passed By Value pyregistry-demo/crates/application/src/security_ops.rs:379
+    Function `registry_security_report` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/application/src/security_ops.rs:552
+    Function `pinned_requirements_from_wheel_bytes_on_rayon` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/application/src/security_ops.rs:553
+    Function `pinned_requirements_from_wheel_bytes_on_rayon` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/bootstrap/src/commands.rs:129
+    Function `validate_registry_distributions` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/bootstrap/src/commands.rs:22
+    Function `audit_wheel` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/bootstrap/src/commands.rs:51
+    Function `check_registry` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/bootstrap/src/commands.rs:76
+    Function `create_tenant` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/bootstrap/src/commands.rs:77
+    Function `create_tenant` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/bootstrap/src/commands.rs:78
+    Function `create_tenant` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/bootstrap/src/commands.rs:79
+    Function `create_tenant` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/bootstrap/src/commands.rs:80
+    Function `create_tenant` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/bootstrap/src/server.rs:24
+    Function `serve` takes a potentially large value by value
+  INFO Async Trait Overhead pyregistry-demo/crates/bootstrap/src/server.rs:308
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Large Value Passed By Value pyregistry-demo/crates/domain/src/entities.rs:255
+    Function `required_audit_text` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/domain/src/entities.rs:277
+    Function `normalize_audit_metadata` takes a potentially large value by value
+  INFO Repeated Regex Construction pyregistry-demo/crates/domain/src/value_objects.rs:13
+    Regex is constructed at runtime
+  INFO Repeated Regex Construction pyregistry-demo/crates/domain/src/value_objects.rs:173
+    Regex is constructed at runtime
+  INFO Repeated Regex Construction pyregistry-demo/crates/domain/src/value_objects.rs:40
+    Regex is constructed at runtime
+  INFO Repeated Regex Construction pyregistry-demo/crates/domain/src/value_objects.rs:70
+    Regex is constructed at runtime
+  INFO Repeated Regex Construction pyregistry-demo/crates/domain/src/value_objects.rs:83
+    Regex is constructed at runtime
+  INFO Async Trait Overhead pyregistry-demo/crates/infrastructure/src/crypto.rs:14
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/distribution_validation.rs:394
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/distribution_validation.rs:407
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/distribution_validation.rs:413
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/distribution_validation.rs:462
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/distribution_validation.rs:473
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/distribution_validation.rs:479
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/distribution_validation.rs:512
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/distribution_validation.rs:524
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/distribution_validation.rs:530
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/mirror.rs:267
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/mirror.rs:389
+    Allocation-like call `format!` appears inside a loop
+  INFO Async Trait Overhead pyregistry-demo/crates/infrastructure/src/mirror.rs:524
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/mirror.rs:565
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/oidc.rs:222
+    Allocation-like call `format!` appears inside a loop
+  INFO Async Trait Overhead pyregistry-demo/crates/infrastructure/src/oidc.rs:76
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/postgres_store.rs:1109
+    Function `latest_release_version_from_values` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/postgres_store.rs:1478
+    Function `parse_scopes_json` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/postgres_store.rs:1483
+    Function `parse_claims_json` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/postgres_store.rs:1487
+    Function `parse_json` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/postgres_store.rs:1506
+    Function `parse_project_source` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/postgres_store.rs:1514
+    Function `parse_artifact_kind` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/postgres_store.rs:1522
+    Function `parse_token_scope` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/postgres_store.rs:1531
+    Function `parse_provider` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/postgres_store.rs:1539
+    Function `parse_attestation_source` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/postgres_store.rs:1547
+    Function `invalid_enum` takes a potentially large value by value
+  INFO Async Trait Overhead pyregistry-demo/crates/infrastructure/src/postgres_store.rs:181
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/security.rs:223
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/security.rs:236
+    Allocation-like call `format!` appears inside a loop
+  INFO Async Trait Overhead pyregistry-demo/crates/infrastructure/src/security.rs:46
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/security.rs:84
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/security.rs:97
+    Allocation-like call `format!` appears inside a loop
+  INFO Async Trait Overhead pyregistry-demo/crates/infrastructure/src/security_unavailable.rs:35
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/settings.rs:2172
+    Function `clean_ignore_values` takes a potentially large value by value
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/settings.rs:2191
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/settings.rs:2374
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/source_security.rs:132
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/source_security.rs:139
+    Allocation-like call `format!` appears inside a loop
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:1119
+    Function `latest_release_version_from_values` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:1345
+    Function `parse_scopes_json` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:1350
+    Function `parse_claims_json` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:1354
+    Function `parse_json` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:1373
+    Function `parse_project_source` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:1381
+    Function `parse_artifact_kind` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:1389
+    Function `parse_token_scope` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:1398
+    Function `parse_provider` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:1406
+    Function `parse_attestation_source` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:1414
+    Function `invalid_enum` takes a potentially large value by value
+  INFO Async Trait Overhead pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:259
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1470
+    Function `parse_scopes_json` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1478
+    Function `parse_claims_json` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1482
+    Function `parse_json` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1486
+    Function `parse_uuid` takes a potentially large value by value
+  INFO Async Trait Overhead pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:149
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1490
+    Function `parse_datetime` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1521
+    Function `parse_project_source` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1529
+    Function `parse_artifact_kind` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1537
+    Function `parse_token_scope` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1546
+    Function `parse_provider` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1554
+    Function `parse_attestation_source` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:1562
+    Function `invalid_enum` takes a potentially large value by value
+  INFO Async Trait Overhead pyregistry-demo/crates/infrastructure/src/storage.rs:135
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/infrastructure/src/storage.rs:442
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/infrastructure/src/storage.rs:70
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/store.rs:166
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/store.rs:180
+    Allocation-like call `format!` appears inside a loop
+  INFO Async Trait Overhead pyregistry-demo/crates/infrastructure/src/store.rs:29
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/virus.rs:124
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/virus.rs:149
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/virus.rs:155
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/virus.rs:254
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/virus.rs:337
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/virus.rs:375
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/virus.rs:392
+    Allocation-like call `format!` appears inside a loop
+  INFO Async Trait Overhead pyregistry-demo/crates/infrastructure/src/webhook.rs:43
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/infrastructure/src/webhook.rs:73
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/infrastructure/src/webhook.rs:85
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/wheel_archive.rs:164
+    Allocation-like call `format!` appears inside a loop
+  INFO Large Value Passed By Value pyregistry-demo/crates/infrastructure/src/wheel_archive.rs:48
+    Function `read_zip_archive` takes a potentially large value by value
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/wheel_archive.rs:54
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/wheel_archive.rs:67
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/wheel_archive.rs:74
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/infrastructure/src/wheel_archive.rs:84
+    Allocation-like call `format!` appears inside a loop
+  INFO Large Value Passed By Value pyregistry-demo/crates/web/src/admin.rs:474
+    Function `store_mirror_job` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/web/src/admin.rs:480
+    Function `spawn_detached_mirror_refresh_job` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/web/src/admin.rs:481
+    Function `spawn_detached_mirror_refresh_job` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/web/src/admin.rs:482
+    Function `spawn_detached_mirror_refresh_job` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/web/src/audit.rs:24
+    Function `record_audit_event` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/web/src/audit.rs:28
+    Function `record_audit_event` takes a potentially large value by value
+  INFO Large Value Passed By Value pyregistry-demo/crates/web/src/auth.rs:96
+    Function `parse_scopes` takes a potentially large value by value
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/web/src/lib.rs:1508
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/web/src/lib.rs:1510
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/web/src/lib.rs:1511
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/web/src/lib.rs:1513
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/web/src/lib.rs:1522
+    Allocation-like call `format!` appears inside a loop
+  INFO Unnecessary Allocation in Loop pyregistry-demo/crates/web/src/lib.rs:1524
+    Allocation-like call `format!` appears inside a loop
+  INFO Async Trait Overhead pyregistry-demo/crates/web/src/lib.rs:186
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/web/src/lib.rs:214
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/web/src/lib.rs:233
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/web/src/lib.rs:246
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/web/src/lib.rs:270
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+  INFO Async Trait Overhead pyregistry-demo/crates/web/src/lib.rs:311
+    Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead
+
+▸ Idiomaticity
+  WARN Excessive Unwrap pyregistry-demo/crates/application/src/package_ops/tests.rs:1011
+    Function `upload_artifact_notifies_when_package_or_version_is_new` has 4 unwrap/expect calls (threshold: 3)
+  WARN Excessive Unwrap pyregistry-demo/crates/application/src/package_ops/tests.rs:1167
+    Function `admin_and_publish_use_cases_report_missing_expired_and_oidc_edges` has 6 unwrap/expect calls (threshold: 3)
+  WARN Excessive Unwrap pyregistry-demo/crates/application/src/package_ops/tests.rs:1285
+    Function `bootstrap_admin_tenant` has 5 unwrap/expect calls (threshold: 3)
+  WARN Excessive Unwrap pyregistry-demo/crates/application/src/package_ops/tests.rs:1431
+    Function `publish_with_trusted_publisher` has 4 unwrap/expect calls (threshold: 3)
+  WARN Excessive Unwrap pyregistry-demo/crates/application/src/package_ops/tests.rs:1476
+    Function `assert_governance_read_models` has 9 unwrap/expect calls (threshold: 3)
+  WARN Excessive Unwrap pyregistry-demo/crates/application/src/package_ops/tests.rs:1562
+    Function `exercise_governance_yank_flows` has 6 unwrap/expect calls (threshold: 3)
+  WARN Excessive Unwrap pyregistry-demo/crates/application/src/package_ops/tests.rs:1639
+    Function `purge_governance_fixture` has 4 unwrap/expect calls (threshold: 3)
+  WARN Excessive Unwrap pyregistry-demo/crates/application/src/package_ops/tests.rs:249
+    Function `mirror_resolution_reports_local_disabled_missing_and_failed_paths` has 4 unwrap/expect calls (threshold: 3)
+  WARN Unused Result Ignored pyregistry-demo/crates/application/src/package_ops/tests.rs:2759
+    Function `init_test_logger` discards a Result/Option with `let _ = ...` (call to `log::set_logger`)
+  WARN Excessive Unwrap pyregistry-demo/crates/application/src/package_ops/tests.rs:325
+    Function `mirrored_artifact_download_refetches_and_recaches_missing_payload` has 4 unwrap/expect calls (threshold: 3)
+  WARN Excessive Unwrap pyregistry-demo/crates/application/src/package_ops/tests.rs:386
+    Function `mirrored_project_preserves_provenance_and_skips_already_cached_payloads` has 5 unwrap/expect calls (threshold: 3)
+  WARN Excessive Unwrap pyregistry-demo/crates/application/src/package_ops/tests.rs:420
+    Function `evict_mirror_cache_purges_mirrored_projects_but_ignores_local_projects` has 6 unwrap/expect calls (threshold: 3)
+  WARN Excessive Unwrap pyregistry-demo/crates/application/src/package_ops/tests.rs:465
+    Function `remove_package_purges_local_packages_and_evicts_mirrored_packages` has 6 unwrap/expect calls (threshold: 3)
+  WARN Excessive Unwrap pyregistry-demo/crates/application/src/package_ops/tests.rs:566
+    Function `mirrored_artifact_payload_validation_checks_size_and_sha256` has 4 unwrap/expect calls (threshold: 3)
+  WARN Excessive Unwrap pyregistry-demo/crates/application/src/package_ops/tests.rs:645
+    Function `validate_registry_distributions_reports_checksum_and_missing_blob_failures` has 18 unwrap/expect calls (threshold: 3)
+  WARN Excessive Unwrap pyregistry-demo/crates/application/src/package_ops/tests.rs:788
+    Function `validate_registry_distributions_inspects_files_in_parallel` has 7 unwrap/expect calls (threshold: 3)
+  WARN Excessive Unwrap pyregistry-demo/crates/application/src/package_ops/tests.rs:86
+    Function `registry_overview_counts_only_cached_artifact_storage` has 5 unwrap/expect calls (threshold: 3)
+  WARN Excessive Unwrap pyregistry-demo/crates/application/src/package_ops/tests.rs:945
+    Function `registry_security_check_notifies_for_vulnerable_packages_only` has 5 unwrap/expect calls (threshold: 3)
+  WARN Unused Result Ignored pyregistry-demo/crates/application/src/security_ops.rs:560
+    Function `pinned_requirements_from_wheel_bytes_on_rayon` discards a Result/Option with `let _ = ...` (`.send()` call)
+  WARN Excessive Unwrap pyregistry-demo/crates/bootstrap/src/logging.rs:293
+    Function `redact_log_message` has 6 unwrap/expect calls (threshold: 3)
+  WARN Excessive Unwrap pyregistry-demo/crates/bootstrap/src/tests.rs:240
+    Function `init_config_writes_toml_and_honors_force` has 4 unwrap/expect calls (threshold: 3)
+  WARN Unused Result Ignored pyregistry-demo/crates/bootstrap/src/tests.rs:275
+    Function `init_config_writes_toml_and_honors_force` discards a Result/Option with `let _ = ...` (call to `std::fs::remove_file`)
+  WARN Unused Result Ignored pyregistry-demo/crates/bootstrap/src/tests.rs:374
+    Function `registry_commands_succeed_for_empty_in_memory_registry` discards a Result/Option with `let _ = ...` (call to `std::fs::remove_dir_all`)
+  WARN Unused Result Ignored pyregistry-demo/crates/bootstrap/src/tests.rs:412
+    Function `create_tenant_command_creates_tenant_and_admin` discards a Result/Option with `let _ = ...` (call to `std::fs::remove_file`)
+  WARN Unused Result Ignored pyregistry-demo/crates/bootstrap/src/tests.rs:413
+    Function `create_tenant_command_creates_tenant_and_admin` discards a Result/Option with `let _ = ...` (call to `std::fs::remove_dir_all`)
+  WARN Unused Result Ignored pyregistry-demo/crates/bootstrap/src/tests.rs:425
+    Function `ensure_wheel_is_available_accepts_existing_local_file` discards a Result/Option with `let _ = ...` (call to `std::fs::remove_file`)
+  WARN Unused Result Ignored pyregistry-demo/crates/bootstrap/src/tests.rs:448
+    Function `validate_distribution_accepts_matching_checksum_and_rejects_mismatch` discards a Result/Option with `let _ = ...` (call to `std::fs::remove_file`)
+  WARN Unused Result Ignored pyregistry-demo/crates/bootstrap/src/tests.rs:468
+    Function `mirror_updater_respects_disabled_config_and_shutdown_signal` discards a Result/Option with `let _ = ...` (call to `std::fs::remove_dir_all`)
+  WARN Excessive Unwrap pyregistry-demo/crates/bootstrap/src/tests.rs:97
+    Function `cli_parses_subcommands_and_global_config` has 7 unwrap/expect calls (threshold: 3)
+  WARN Excessive Unwrap pyregistry-demo/crates/domain/src/tests.rs:220
+    Function `orders_release_versions_using_pep_440_rules` has 6 unwrap/expect calls (threshold: 3)
+  WARN Unused Result Ignored pyregistry-demo/crates/infrastructure/src/settings/tests.rs:1093
+    Function `write_config_refuses_overwrite_without_force_and_loads_parse_errors` discards a Result/Option with `let _ = ...` (call to `fs::remove_file`)
+  WARN Unused Result Ignored pyregistry-demo/crates/infrastructure/src/settings/tests.rs:417
+    Function `write_local_config_includes_minio_s3_help` discards a Result/Option with `let _ = ...` (call to `fs::remove_file`)
+  WARN Unused Result Ignored pyregistry-demo/crates/infrastructure/src/settings/tests.rs:437
+    Function `write_minio_config_uses_active_s3_fields` discards a Result/Option with `let _ = ...` (call to `fs::remove_file`)
+  WARN Unused Result Ignored pyregistry-demo/crates/infrastructure/src/settings/tests.rs:461
+    Function `rejects_non_toml_config_paths` discards a Result/Option with `let _ = ...` (call to `fs::remove_file`)
+  WARN Unused Result Ignored pyregistry-demo/crates/web/src/admin.rs:1722
+    Function `format_wheel_audit_report_text` discards a Result/Option with `let _ = ...` (expression)
+  WARN Unused Result Ignored pyregistry-demo/crates/web/src/admin.rs:1723
+    Function `format_wheel_audit_report_text` discards a Result/Option with `let _ = ...` (expression)
+  WARN Unused Result Ignored pyregistry-demo/crates/web/src/admin.rs:1724
+    Function `format_wheel_audit_report_text` discards a Result/Option with `let _ = ...` (expression)
+  WARN Unused Result Ignored pyregistry-demo/crates/web/src/admin.rs:1729
+    Function `format_wheel_audit_report_text` discards a Result/Option with `let _ = ...` (expression)
+  WARN Unused Result Ignored pyregistry-demo/crates/web/src/admin.rs:1730
+    Function `format_wheel_audit_report_text` discards a Result/Option with `let _ = ...` (expression)
+  WARN Unused Result Ignored pyregistry-demo/crates/web/src/admin.rs:1755
+    Function `format_wheel_audit_report_text` discards a Result/Option with `let _ = ...` (expression)
+  WARN Unused Result Ignored pyregistry-demo/crates/web/src/admin.rs:1756
+    Function `format_wheel_audit_report_text` discards a Result/Option with `let _ = ...` (expression)
+  WARN Unused Result Ignored pyregistry-demo/crates/web/src/admin.rs:1766
+    Function `format_source_security_scan_summary` discards a Result/Option with `let _ = ...` (expression)
+  WARN Unused Result Ignored pyregistry-demo/crates/web/src/admin.rs:1775
+    Function `format_source_security_scan_summary` discards a Result/Option with `let _ = ...` (expression)
+  WARN Unused Result Ignored pyregistry-demo/crates/web/src/admin.rs:1781
+    Function `format_source_security_scan_summary` discards a Result/Option with `let _ = ...` (expression)
+  WARN Unused Result Ignored pyregistry-demo/crates/web/src/admin.rs:1786
+    Function `format_virus_scan_summary` discards a Result/Option with `let _ = ...` (expression)
+  WARN Unused Result Ignored pyregistry-demo/crates/web/src/admin.rs:1795
+    Function `format_virus_scan_summary` discards a Result/Option with `let _ = ...` (expression)
+  WARN Unused Result Ignored pyregistry-demo/crates/web/src/admin.rs:1800
+    Function `format_virus_scan_summary` discards a Result/Option with `let _ = ...` (expression)
+  WARN Unused Result Ignored pyregistry-demo/crates/web/src/admin.rs:1806
+    Function `format_virus_scan_summary` discards a Result/Option with `let _ = ...` (expression)
+  WARN Unused Result Ignored pyregistry-demo/crates/web/src/admin.rs:1813
+    Function `format_wheel_finding` discards a Result/Option with `let _ = ...` (expression)
+  WARN Unused Result Ignored pyregistry-demo/crates/web/src/admin.rs:1816
+    Function `format_wheel_finding` discards a Result/Option with `let _ = ...` (expression)
+  WARN Unused Result Ignored pyregistry-demo/crates/web/src/admin.rs:1821
+    Function `format_wheel_finding` discards a Result/Option with `let _ = ...` (expression)
+  INFO Manual Option/Result Mapping pyregistry-demo/crates/infrastructure/src/postgres_store.rs:411
+    Match expression manually maps Option or Result variants
+  INFO Manual Drop pyregistry-demo/crates/infrastructure/src/settings/tests.rs:1377
+    Type `EnvGuard` implements Drop manually — review for safety
+  INFO Manual Option/Result Mapping pyregistry-demo/crates/infrastructure/src/sql_server_store.rs:439
+    Match expression manually maps Option or Result variants
+  INFO Manual Option/Result Mapping pyregistry-demo/crates/infrastructure/src/sqlite_store.rs:346
+    Match expression manually maps Option or Result variants
+  INFO Manual Option/Result Mapping pyregistry-demo/crates/infrastructure/src/virus.rs:37
+    Match expression manually maps Option or Result variants
+  INFO Manual Find/Any Loop pyregistry-demo/crates/web/src/admin.rs:72
+    Loop returns early based on a predicate
+
+▸ Concurrency
+  WARN Blocking Channel in Async pyregistry-demo/crates/application/src/distribution_validation_ops.rs:329
+    Blocking channel operation appears inside an async function
+  WARN Spawn Without Join pyregistry-demo/crates/application/src/security_ops.rs:556
+    Function `pinned_requirements_from_wheel_bytes_on_rayon` spawns with `rayon::spawn` but discards JoinHandle
+  WARN Blocking Channel in Async pyregistry-demo/crates/application/src/security_ops.rs:560
+    Blocking channel operation appears inside an async function
+  WARN Spawn Without Join pyregistry-demo/crates/bootstrap/src/server.rs:217
+    Function `spawn_mirror_updater` spawns with `tokio::spawn` but discards JoinHandle
+  WARN Blocking Channel in Async pyregistry-demo/crates/bootstrap/src/server.rs:360
+    Blocking channel operation appears inside an async function
+  WARN Blocking Channel in Async pyregistry-demo/crates/bootstrap/src/tests.rs:298
+    Blocking channel operation appears inside an async function
+  WARN Blocking Channel in Async pyregistry-demo/crates/bootstrap/src/tests.rs:312
+    Blocking channel operation appears inside an async function
+  WARN Blocking in Async pyregistry-demo/crates/bootstrap/src/tests.rs:358
+    Async function `registry_commands_succeed_for_empty_in_memory_registry` contains blocking calls: std::fs::remove_dir_all
+  WARN Blocking in Async pyregistry-demo/crates/bootstrap/src/tests.rs:378
+    Async function `create_tenant_command_creates_tenant_and_admin` contains blocking calls: std::fs::remove_file, std::fs::remove_dir_all
+  WARN Blocking in Async pyregistry-demo/crates/bootstrap/src/tests.rs:417
+    Async function `ensure_wheel_is_available_accepts_existing_local_file` contains blocking calls: std::fs::write, std::fs::remove_file
+  WARN Blocking in Async pyregistry-demo/crates/bootstrap/src/tests.rs:452
+    Async function `mirror_updater_respects_disabled_config_and_shutdown_signal` contains blocking calls: std::fs::remove_dir_all
+  WARN Spawn Without Join pyregistry-demo/crates/bootstrap/src/tests.rs:464
+    Function `mirror_updater_respects_disabled_config_and_shutdown_signal` spawns with `spawn_mirror_updater` but discards JoinHandle
+  WARN Blocking Channel in Async pyregistry-demo/crates/bootstrap/src/tests.rs:465
+    Blocking channel operation appears inside an async function
+  WARN Blocking Channel in Async pyregistry-demo/crates/infrastructure/src/webhook.rs:105
+    Blocking channel operation appears inside an async function
+  WARN Spawn Without Join pyregistry-demo/crates/web/src/admin.rs:437
+    Function `cache_mirror_project` spawns with `spawn_detached_mirror_refresh_job` but discards JoinHandle
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Found 564 smell(s). Review warnings above.
+

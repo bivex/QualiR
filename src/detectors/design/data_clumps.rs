@@ -30,9 +30,8 @@ impl Detector for DataClumpsDetector {
 
         for item in &file.ast.items {
             if let syn::Item::Fn(fn_item) = item {
-                let args_len = fn_item.sig.inputs.len();
-                if args_len >= thresholds.design.data_clumps_args {
-                    let sig_string = signature_to_string(&fn_item.sig.inputs);
+                let sig_string = signature_to_string(&fn_item.sig.inputs);
+                if signature_part_count(&sig_string) >= thresholds.design.data_clumps_args {
                     let line = fn_item.sig.ident.span().start().line;
                     param_groups
                         .entry(sig_string)
@@ -45,9 +44,8 @@ impl Detector for DataClumpsDetector {
             } else if let syn::Item::Impl(imp) = item {
                 for impl_item in &imp.items {
                     if let syn::ImplItem::Fn(method) = impl_item {
-                        let args_len = method.sig.inputs.len();
-                        if args_len >= thresholds.design.data_clumps_args {
-                            let sig_string = signature_to_string(&method.sig.inputs);
+                        let sig_string = signature_to_string(&method.sig.inputs);
+                        if signature_part_count(&sig_string) >= thresholds.design.data_clumps_args {
                             let line = method.sig.ident.span().start().line;
                             param_groups
                                 .entry(sig_string)
@@ -67,6 +65,7 @@ impl Detector for DataClumpsDetector {
                 // We'll report it on the first found occurrence for simplicity
                 let first_line = usages[0].line;
                 let fn_names: Vec<String> = usages.into_iter().map(|u| u.fn_name).collect();
+                let param_count = signature_part_count(&sig_string);
 
                 smells.push(Smell::new(
                     SmellCategory::Design,
@@ -75,7 +74,7 @@ impl Detector for DataClumpsDetector {
                     SourceLocation::new(file.path.clone(), first_line, first_line, None),
                     format!(
                         "Data Clump: Same {} parameters appear in {} functions: {}",
-                        sig_string.split(',').count(),
+                        param_count,
                         fn_names.len(),
                         fn_names.join(", ")
                     ),
@@ -85,6 +84,14 @@ impl Detector for DataClumpsDetector {
         }
 
         smells
+    }
+}
+
+fn signature_part_count(sig_string: &str) -> usize {
+    if sig_string.is_empty() {
+        0
+    } else {
+        sig_string.split(", ").count()
     }
 }
 

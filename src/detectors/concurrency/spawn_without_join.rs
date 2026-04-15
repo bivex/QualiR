@@ -53,6 +53,23 @@ struct SpawnVisitor {
 }
 
 impl<'ast> Visit<'ast> for SpawnVisitor {
+    fn visit_stmt(&mut self, stmt: &'ast syn::Stmt) {
+        if let syn::Stmt::Expr(expr, _) = stmt
+            && let syn::Expr::Call(call) = expr
+            && let syn::Expr::Path(path) = &*call.func
+        {
+            let func_str = path_to_string(&path.path);
+            if is_spawn(&func_str) {
+                let line = call.paren_token.span.open().start().line;
+                if !self.spawns.iter().any(|(_, l)| *l == line) {
+                    self.spawns.push((func_str, line));
+                }
+                return;
+            }
+        }
+        syn::visit::visit_stmt(self, stmt);
+    }
+
     fn visit_local(&mut self, local: &'ast syn::Local) {
         if let Some(init) = &local.init {
             if let syn::Expr::Call(call) = &*init.expr {
@@ -74,23 +91,6 @@ impl<'ast> Visit<'ast> for SpawnVisitor {
         }
         syn::visit::visit_local(self, local);
     }
-
-    fn visit_expr(&mut self, expr: &'ast syn::Expr) {
-        // Check for bare spawn(...) calls
-        if let syn::Expr::Call(call) = expr {
-            if let syn::Expr::Path(path) = &*call.func {
-                let func_str = path_to_string(&path.path);
-                if is_spawn(&func_str) {
-                    let line = call.paren_token.span.open().start().line;
-                    // Check if we already have this line (simple heuristic to avoid double counts)
-                    if !self.spawns.iter().any(|(_, l)| *l == line) {
-                        self.spawns.push((func_str, line));
-                    }
-                }
-            }
-        }
-        syn::visit::visit_expr(self, expr);
-    }
 }
 
 fn is_underscore_binding(pat: &syn::Pat) -> bool {
@@ -102,12 +102,17 @@ fn is_underscore_binding(pat: &syn::Pat) -> bool {
 }
 
 fn is_spawn(func: &str) -> bool {
-    let lower = func.to_lowercase();
-    lower.contains("spawn")
-        || lower.contains("thread::spawn")
-        || lower.contains("tokio::spawn")
-        || lower.contains("async_std::task::spawn")
-        || lower.contains("std::thread::spawn")
+    matches!(
+        func,
+        "spawn"
+            | "tokio::spawn"
+            | "tokio::task::spawn"
+            | "tokio::task::spawn_blocking"
+            | "async_std::task::spawn"
+            | "async_std::task::spawn_blocking"
+            | "std::thread::spawn"
+            | "thread::spawn"
+    )
 }
 
 fn path_to_string(path: &syn::Path) -> String {
