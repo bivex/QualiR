@@ -49,7 +49,9 @@ impl<'ast, 'a> Visit<'ast> for UnsafeVisitor<'a> {
                     column: None,
                 },
                 String::from("Unsafe block without a SAFETY comment explaining why it is sound"),
-                String::from("Add a '// SAFETY:' comment explaining why this unsafe code is correct."),
+                String::from(
+                    "Add a '// SAFETY:' comment explaining why this unsafe code is correct.",
+                ),
             ));
         }
 
@@ -72,7 +74,9 @@ impl<'ast, 'a> Visit<'ast> for UnsafeVisitor<'a> {
                         column: None,
                     },
                     String::from("Unsafe impl without a SAFETY comment"),
-                    String::from("Add a '// SAFETY:' comment explaining why this unsafe impl is correct."),
+                    String::from(
+                        "Add a '// SAFETY:' comment explaining why this unsafe impl is correct.",
+                    ),
                 ));
             }
         }

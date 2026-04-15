@@ -7,7 +7,7 @@ use crate::domain::source::SourceFile;
 
 /// Detects Data Clumps: sequences of identical parameters repeated across multiple functions.
 ///
-/// If multiple functions take the same group of parameters, they likely belong together 
+/// If multiple functions take the same group of parameters, they likely belong together
 /// in a struct to encapsulate their relationship.
 pub struct DataClumpsDetector;
 
@@ -19,7 +19,7 @@ impl Detector for DataClumpsDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let thresholds = Thresholds::default();
         let mut smells = Vec::new();
-        
+
         struct ClumpOccurrence {
             fn_name: String,
             line: usize,
@@ -75,7 +75,9 @@ impl Detector for DataClumpsDetector {
                     SourceLocation::new(file.path.clone(), first_line, first_line, None),
                     format!(
                         "Data Clump: Same {} parameters appear in {} functions: {}",
-                        sig_string.split(',').count(), fn_names.len(), fn_names.join(", ")
+                        sig_string.split(',').count(),
+                        fn_names.len(),
+                        fn_names.join(", ")
                     ),
                     "Combine these parameters into a single struct/DTO.",
                 ));
@@ -86,14 +88,16 @@ impl Detector for DataClumpsDetector {
     }
 }
 
-fn signature_to_string(inputs: &syn::punctuated::Punctuated<syn::FnArg, syn::token::Comma>) -> String {
+fn signature_to_string(
+    inputs: &syn::punctuated::Punctuated<syn::FnArg, syn::token::Comma>,
+) -> String {
     let mut parts = Vec::new();
     for input in inputs {
         if let syn::FnArg::Typed(pat_type) = input {
             // Include both name and type roughly, as data clumps usually have the same names too
             if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
                 let name = pat_ident.ident.to_string();
-                parts.push(format!("{}:[type]", name)); 
+                parts.push(format!("{}:[type]", name));
             }
         }
     }

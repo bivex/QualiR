@@ -31,7 +31,11 @@ impl Detector for SyncDropBlockingDetector {
 
                         if !visitor.violations.is_empty() {
                             let type_name = if let syn::Type::Path(tp) = &*imp.self_ty {
-                                tp.path.segments.last().map(|s| s.ident.to_string()).unwrap_or_else(|| "Unknown".to_string())
+                                tp.path
+                                    .segments
+                                    .last()
+                                    .map(|s| s.ident.to_string())
+                                    .unwrap_or_else(|| "Unknown".to_string())
                             } else {
                                 "Unknown".to_string()
                             };
@@ -66,8 +70,15 @@ impl<'ast> Visit<'ast> for BlockingDropVisitor {
     fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
         let method = node.method.to_string();
         let blocking_methods = [
-            "read", "read_to_end", "read_to_string", "write", "write_all", "flush",
-            "lock", "recv", "send",
+            "read",
+            "read_to_end",
+            "read_to_string",
+            "write",
+            "write_all",
+            "flush",
+            "lock",
+            "recv",
+            "send",
         ];
 
         if blocking_methods.contains(&method.as_str()) {

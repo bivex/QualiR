@@ -6,7 +6,7 @@ use crate::domain::source::SourceFile;
 
 /// Detects if the same struct has multiple `impl` blocks in the same file.
 ///
-/// Scattering the implementation of a single type across multiple blocks makes it 
+/// Scattering the implementation of a single type across multiple blocks makes it
 /// harder to understand the type's full capabilities and behavior.
 pub struct MultipleImplBlocksDetector;
 
@@ -36,7 +36,7 @@ impl Detector for MultipleImplBlocksDetector {
 
         for (type_name, lines) in impl_counts {
             if lines.len() > 1 {
-                let first_line = lines[1]; // Report on the second occurrence 
+                let first_line = lines[1]; // Report on the second occurrence
                 smells.push(Smell::new(
                     SmellCategory::Architecture,
                     "Scattered Implementation",

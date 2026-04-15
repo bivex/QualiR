@@ -18,13 +18,21 @@ impl Detector for LeakyErrorAbstractionDetector {
         let mut smells = Vec::new();
 
         let known_leaky_crates = [
-            "sqlx", "reqwest", "hyper", "serde_json", "tokio", "tungstenite", "redis"
+            "sqlx",
+            "reqwest",
+            "hyper",
+            "serde_json",
+            "tokio",
+            "tungstenite",
+            "redis",
         ];
 
         for item in &file.ast.items {
             if let syn::Item::Enum(e) = item {
                 // Must be public and likely an error type
-                if matches!(e.vis, syn::Visibility::Public(_)) && e.ident.to_string().ends_with("Error") {
+                if matches!(e.vis, syn::Visibility::Public(_))
+                    && e.ident.to_string().ends_with("Error")
+                {
                     for variant in &e.variants {
                         match &variant.fields {
                             syn::Fields::Unnamed(fields) => {

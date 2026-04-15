@@ -5,12 +5,16 @@ mod domain;
 mod infrastructure;
 
 use analysis::engine::Engine;
-use cli::args::Args;
+use cli::args::{Args, Command};
 use domain::config::Config;
 use domain::smell::{Severity, SmellCategory};
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse_args();
+
+    if let Some(command) = &args.command {
+        return run_command(command);
+    }
 
     if args.list_detectors {
         cli::output::print_detector_list();
@@ -22,7 +26,9 @@ fn main() -> anyhow::Result<()> {
     let mut report = engine.analyze(&args.path);
 
     if let Some(category) = &args.category {
-        let category = category.parse::<SmellCategory>().map_err(anyhow::Error::msg)?;
+        let category = category
+            .parse::<SmellCategory>()
+            .map_err(anyhow::Error::msg)?;
         report.smells.retain(|smell| smell.category == category);
     }
 
@@ -30,10 +36,10 @@ fn main() -> anyhow::Result<()> {
         print_summary(&report);
     } else if args.llm {
         cli::output::print_llm_report(&report);
-    } else if args.compact {
-        cli::output::print_compact_report(&report);
-    } else {
+    } else if args.table {
         cli::output::print_report(&report);
+    } else {
+        cli::output::print_compact_report(&report);
     }
 
     if report.count_by_severity(Severity::Critical) > 0 {
@@ -43,8 +49,21 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+fn run_command(command: &Command) -> anyhow::Result<()> {
+    match command {
+        Command::InitConfig { output, force } => {
+            Config::write_default_file(output, *force)?;
+            println!("Created {}", output.display());
+            Ok(())
+        }
+    }
+}
+
 fn get_config(args: &Args) -> anyhow::Result<Config> {
-    let path = args.path.canonicalize().unwrap_or_else(|_| args.path.clone());
+    let path = args
+        .path
+        .canonicalize()
+        .unwrap_or_else(|_| args.path.clone());
     let mut config = if let Some(config_path) = &args.config {
         Config::load_from_file(config_path)?
     } else {

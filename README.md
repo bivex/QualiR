@@ -28,6 +28,9 @@ qualirs ~/projects/my-crate
 # List all detectors
 qualirs --list-detectors
 
+# Create a default configuration file
+qualirs init-config
+
 # Only show warnings and critical
 qualirs --min-severity warning .
 
@@ -38,22 +41,37 @@ qualirs --quiet .
 ## CLI Reference
 
 ```
-qualirs [OPTIONS] [PATH]
+qualirs [OPTIONS] [PATH] [COMMAND]
 
 Arguments:
   [PATH]  Path to the Rust project or file to analyze [default: .]
 
+Commands:
+  init-config  Generate a default qualirs.toml configuration file
+  help         Print this message or the help of the given subcommand(s)
+
 Options:
-  -c, --config <FILE>          Configuration file path (default: qualirs.toml)
-  -m, --min-severity <LEVEL>   Minimum severity to report [default: info]
-                               Values: info, warning, critical
-  -t, --category <CATEGORY>    Filter by smell category
-                               Values: architecture, design, implementation, performance,
-                                       idiomaticity, concurrency, unsafe
-  -q, --quiet                  Summary only: file count, smell counts by severity
-      --list-detectors         List available detectors and exit
-  -h, --help                   Print help
-  -V, --version                Print version
+  -c, --config <CONFIG>              Configuration file path (default: qualirs.toml in project root)
+  -m, --min-severity <MIN_SEVERITY>  Minimum severity to report: info, warning, critical [default: info]
+  -t, --category <CATEGORY>          Show only smells of a specific category
+  -q, --quiet                        Quiet mode: only show summary counts
+      --compact                      Compact mode: show findings as a categorized list (default)
+      --table                        Table mode: show findings in the legacy table layout
+      --llm                          LLM mode: show compact Markdown with fenced finding blocks for coding assistants
+      --list-detectors               List available detectors and exit
+  -h, --help                         Print help
+  -V, --version                      Print version
+```
+
+### Generate Configuration
+
+```
+qualirs init-config [OPTIONS]
+
+Options:
+  -o, --output <OUTPUT>  Config file to create [default: qualirs.toml]
+  -f, --force            Overwrite an existing config file
+  -h, --help             Print help
 ```
 
 ## Detectors
@@ -141,20 +159,42 @@ The following numbers are **not** flagged as magic: `0`, `1`, `-1`, `2`, `10`, `
 
 Create a `qualirs.toml` in your project root. All fields are optional — missing values use defaults.
 
+```bash
+qualirs init-config
+```
+
 ```toml
-[thresholds]
-# Architecture
+exclude_paths = [
+    "target",
+    ".git",
+    "node_modules",
+]
+min_severity = "info"
+
+[thresholds.arch]
 god_module_loc = 1000
 god_module_items = 20
 public_api_ratio = 0.7
+feature_concentration = 15
+hidden_global_state = 3
 
-# Design
+[thresholds.design]
 large_trait_methods = 15
 excessive_generics = 5
 deep_trait_bounds = 4
+wide_hierarchy = 10
+fat_impl_methods = 20
+god_struct_fields = 20
+primitive_obsession_fields = 4
+data_clumps_args = 3
+data_clumps_occurrences = 3
+stringly_typed_fields = 3
+large_error_enum_variants = 12
 
-# Implementation
+[thresholds.impl]
 long_function_loc = 50
+long_closure_loc = 25
+deep_closure_nesting = 3
 cyclomatic_complexity = 15
 too_many_arguments = 6
 deep_match_nesting = 3
@@ -167,21 +207,12 @@ unsafe_block_overuse = 5
 deeply_nested_type = 3
 interior_mutability_abuse = 5
 
-# Concurrency
+[thresholds.concurrency]
 large_future_loc = 100
+arc_mutex_overuse = 3
 
-# Unsafe
+[thresholds.unsafe]
 unsafe_without_comment = true
-
-[config]
-min_severity = "info"
-
-exclude_paths = [
-    "target",
-    ".git",
-    "node_modules",
-    "generated",
-]
 ```
 
 ## Severity Levels

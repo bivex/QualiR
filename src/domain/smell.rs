@@ -47,10 +47,16 @@ impl std::str::FromStr for SmellCategory {
 }
 
 /// How severe a detected smell is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
+#[serde(rename_all = "lowercase")]
 pub enum Severity {
+    #[serde(alias = "Info")]
     Info,
+    #[serde(alias = "Warning")]
     Warning,
+    #[serde(alias = "Critical")]
     Critical,
 }
 
@@ -128,21 +134,51 @@ mod tests {
 
     #[test]
     fn parses_all_smell_categories() {
-        assert_eq!("architecture".parse::<SmellCategory>(), Ok(SmellCategory::Architecture));
+        assert_eq!(
+            "architecture".parse::<SmellCategory>(),
+            Ok(SmellCategory::Architecture)
+        );
         assert_eq!("design".parse::<SmellCategory>(), Ok(SmellCategory::Design));
-        assert_eq!("implementation".parse::<SmellCategory>(), Ok(SmellCategory::Implementation));
-        assert_eq!("performance".parse::<SmellCategory>(), Ok(SmellCategory::Performance));
-        assert_eq!("idiomaticity".parse::<SmellCategory>(), Ok(SmellCategory::Idiomaticity));
-        assert_eq!("concurrency".parse::<SmellCategory>(), Ok(SmellCategory::Concurrency));
+        assert_eq!(
+            "implementation".parse::<SmellCategory>(),
+            Ok(SmellCategory::Implementation)
+        );
+        assert_eq!(
+            "performance".parse::<SmellCategory>(),
+            Ok(SmellCategory::Performance)
+        );
+        assert_eq!(
+            "idiomaticity".parse::<SmellCategory>(),
+            Ok(SmellCategory::Idiomaticity)
+        );
+        assert_eq!(
+            "concurrency".parse::<SmellCategory>(),
+            Ok(SmellCategory::Concurrency)
+        );
         assert_eq!("unsafe".parse::<SmellCategory>(), Ok(SmellCategory::Unsafe));
     }
 
     #[test]
     fn parses_common_category_aliases() {
-        assert_eq!("arch".parse::<SmellCategory>(), Ok(SmellCategory::Architecture));
-        assert_eq!("impl".parse::<SmellCategory>(), Ok(SmellCategory::Implementation));
-        assert_eq!("perf".parse::<SmellCategory>(), Ok(SmellCategory::Performance));
-        assert_eq!("idiom".parse::<SmellCategory>(), Ok(SmellCategory::Idiomaticity));
-        assert_eq!("idiomatic".parse::<SmellCategory>(), Ok(SmellCategory::Idiomaticity));
+        assert_eq!(
+            "arch".parse::<SmellCategory>(),
+            Ok(SmellCategory::Architecture)
+        );
+        assert_eq!(
+            "impl".parse::<SmellCategory>(),
+            Ok(SmellCategory::Implementation)
+        );
+        assert_eq!(
+            "perf".parse::<SmellCategory>(),
+            Ok(SmellCategory::Performance)
+        );
+        assert_eq!(
+            "idiom".parse::<SmellCategory>(),
+            Ok(SmellCategory::Idiomaticity)
+        );
+        assert_eq!(
+            "idiomatic".parse::<SmellCategory>(),
+            Ok(SmellCategory::Idiomaticity)
+        );
     }
 }

@@ -42,7 +42,10 @@ impl Detector for CyclicDependencyDetector {
                     line_end: file.line_count,
                     column: None,
                 },
-                format!("Module `{}` imports from itself (self-referential dependency)", module_name),
+                format!(
+                    "Module `{}` imports from itself (self-referential dependency)",
+                    module_name
+                ),
                 "Remove the self-referential import and restructure the module.",
             ));
         }

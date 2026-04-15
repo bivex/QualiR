@@ -59,8 +59,7 @@ impl<'ast> Visit<'ast> for MutRefVisitor {
                     if let syn::UnOp::Deref(_) = u.op {
                         let line = r.and_token.span.start().line;
                         let inner = expr_to_short_string(&u.expr);
-                        self.mut_ref_casts
-                            .push((line, format!("&mut *{}", inner)));
+                        self.mut_ref_casts.push((line, format!("&mut *{}", inner)));
                     }
                 }
             }
@@ -84,7 +83,8 @@ fn expr_to_short_string(expr: &syn::Expr) -> String {
     match expr {
         syn::Expr::Path(p) => {
             let last_seg = p.path.segments.last();
-            last_seg.map(|s| s.ident.to_string())
+            last_seg
+                .map(|s| s.ident.to_string())
                 .unwrap_or_else(|| "_".into())
         }
         syn::Expr::Field(f) => {

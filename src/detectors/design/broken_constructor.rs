@@ -65,16 +65,16 @@ impl Detector for BrokenConstructorDetector {
                     if let syn::Type::Path(tp) = &*imp.self_ty {
                         if let Some(seg) = tp.path.segments.last() {
                             let type_name = seg.ident.to_string();
-                            
+
                             // Check for new() or other constructors
                             if imp.trait_.is_none() {
                                 for item in &imp.items {
                                     if let syn::ImplItem::Fn(method) = item {
                                         let method_name = method.sig.ident.to_string();
-                                        if method_name == "new" 
-                                            || method_name.starts_with("from_") 
+                                        if method_name == "new"
+                                            || method_name.starts_with("from_")
                                             || method_name.starts_with("with_")
-                                            || method_name.starts_with("parse_") 
+                                            || method_name.starts_with("parse_")
                                         {
                                             has_new.insert(type_name.clone());
                                         }
@@ -95,7 +95,11 @@ impl Detector for BrokenConstructorDetector {
 
         for s in &structs {
             // Flag structs with all pub fields and no constructor/Default
-            if s.all_pub && s.field_count >= 3 && !has_new.contains(&s.id.name) && !s.has_default_derive {
+            if s.all_pub
+                && s.field_count >= 3
+                && !has_new.contains(&s.id.name)
+                && !s.has_default_derive
+            {
                 smells.push(Smell::new(
                     SmellCategory::Design,
                     "Broken Constructor",

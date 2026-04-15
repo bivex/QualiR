@@ -19,7 +19,9 @@ impl Detector for AsyncTraitOverheadDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let mut smells = Vec::new();
 
-        let mut visitor = MacroAttributeVisitor { violations: Vec::new() };
+        let mut visitor = MacroAttributeVisitor {
+            violations: Vec::new(),
+        };
         visitor.visit_file(&file.ast);
 
         for line in visitor.violations {
@@ -28,7 +30,8 @@ impl Detector for AsyncTraitOverheadDetector {
                 "Async Trait Overhead",
                 Severity::Info,
                 SourceLocation::new(file.path.clone(), line, line, None),
-                "Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead".to_string(),
+                "Usage of `#[async_trait]` macro incurs unnecessary Future boxing overhead"
+                    .to_string(),
                 "Migrate to native async fn in traits (stabilized in Rust 1.75) if possible.",
             ));
         }

@@ -1,10 +1,10 @@
-pub mod unsafe_without_comment;
-pub mod transmute_usage;
-pub mod raw_pointer_arithmetic;
-pub mod multi_mut_ref_unsafe;
+pub mod ffi_type_not_repr_c;
 pub mod ffi_without_wrapper;
 pub mod inline_assembly;
+pub mod large_unsafe_block;
+pub mod multi_mut_ref_unsafe;
+pub mod raw_pointer_arithmetic;
+pub mod transmute_usage;
 pub mod unsafe_fn_missing_safety_docs;
 pub mod unsafe_impl_safety_docs;
-pub mod large_unsafe_block;
-pub mod ffi_type_not_repr_c;
+pub mod unsafe_without_comment;

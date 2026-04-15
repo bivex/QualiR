@@ -18,9 +18,7 @@ impl Detector for TransmuteUsageDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let mut smells = Vec::new();
 
-        let mut visitor = TransmuteVisitor {
-            usages: Vec::new(),
-        };
+        let mut visitor = TransmuteVisitor { usages: Vec::new() };
         visitor.visit_file(&file.ast);
 
         for (line, context) in &visitor.usages {
@@ -61,10 +59,7 @@ impl<'ast> Visit<'ast> for TransmuteVisitor {
 }
 
 fn path_to_string(path: &syn::Path) -> String {
-    let segments: Vec<String> = path.segments
-        .iter()
-        .map(|s| s.ident.to_string())
-        .collect();
-    
+    let segments: Vec<String> = path.segments.iter().map(|s| s.ident.to_string()).collect();
+
     segments.join("::")
 }

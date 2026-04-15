@@ -92,8 +92,6 @@ fn extract_path_string(expr: &syn::Expr) -> String {
 }
 
 fn path_to_string(path: &syn::Path) -> String {
-    let idents: Vec<String> = path.segments.iter()
-        .map(|s| s.ident.to_string())
-        .collect();
+    let idents: Vec<String> = path.segments.iter().map(|s| s.ident.to_string()).collect();
     idents.join("::")
 }

@@ -20,9 +20,7 @@ impl Detector for SpawnWithoutJoinDetector {
 
         for item in &file.ast.items {
             if let syn::Item::Fn(fn_item) = item {
-                let mut visitor = SpawnVisitor {
-                    spawns: Vec::new(),
-                };
+                let mut visitor = SpawnVisitor { spawns: Vec::new() };
                 visitor.visit_item_fn(fn_item);
 
                 for (spawn_call, line) in &visitor.spawns {
@@ -105,13 +103,14 @@ fn is_underscore_binding(pat: &syn::Pat) -> bool {
 
 fn is_spawn(func: &str) -> bool {
     let lower = func.to_lowercase();
-    lower.contains("spawn") || lower.contains("thread::spawn") || lower.contains("tokio::spawn")
-        || lower.contains("async_std::task::spawn") || lower.contains("std::thread::spawn")
+    lower.contains("spawn")
+        || lower.contains("thread::spawn")
+        || lower.contains("tokio::spawn")
+        || lower.contains("async_std::task::spawn")
+        || lower.contains("std::thread::spawn")
 }
 
 fn path_to_string(path: &syn::Path) -> String {
-    let idents: Vec<String> = path.segments.iter()
-        .map(|s| s.ident.to_string())
-        .collect();
+    let idents: Vec<String> = path.segments.iter().map(|s| s.ident.to_string()).collect();
     idents.join("::")
 }
