@@ -1,9 +1,14 @@
+use std::collections::HashSet;
+
 use syn::visit::{
-    Visit, visit_expr_for_loop, visit_expr_loop, visit_expr_while, visit_item_fn, visit_item_mod,
-    visit_local,
+    Visit, visit_arm, visit_expr_for_loop, visit_expr_loop, visit_expr_while, visit_item_fn,
+    visit_item_mod, visit_local,
 };
 
 use crate::analysis::detector::Detector;
+use crate::detectors::implementation::perf_utils::{
+    collect_pat_idents, expr_contains_any_ident, macro_mentions_any_ident, path_to_string,
+};
 use crate::detectors::policy::has_test_cfg;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
@@ -19,6 +24,7 @@ impl Detector for UnnecessaryAllocationInLoopDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let mut visitor = AllocationLoopVisitor {
             loop_depth: 0,
+            loop_bindings: Vec::new(),
             findings: Vec::new(),
         };
         visitor.visit_file(&file.ast);
@@ -42,6 +48,7 @@ impl Detector for UnnecessaryAllocationInLoopDetector {
 
 struct AllocationLoopVisitor {
     loop_depth: usize,
+    loop_bindings: Vec<HashSet<String>>,
     findings: Vec<(usize, String)>,
 }
 
@@ -61,21 +68,41 @@ impl<'ast> Visit<'ast> for AllocationLoopVisitor {
     }
 
     fn visit_expr_for_loop(&mut self, node: &'ast syn::ExprForLoop) {
+        let mut bindings = HashSet::new();
+        collect_pat_idents(&node.pat, &mut bindings);
         self.loop_depth += 1;
+        self.loop_bindings.push(bindings);
         visit_expr_for_loop(self, node);
+        self.loop_bindings.pop();
         self.loop_depth -= 1;
     }
 
     fn visit_expr_while(&mut self, node: &'ast syn::ExprWhile) {
         self.loop_depth += 1;
+        self.loop_bindings.push(HashSet::new());
         visit_expr_while(self, node);
+        self.loop_bindings.pop();
         self.loop_depth -= 1;
     }
 
     fn visit_expr_loop(&mut self, node: &'ast syn::ExprLoop) {
         self.loop_depth += 1;
+        self.loop_bindings.push(HashSet::new());
         visit_expr_loop(self, node);
+        self.loop_bindings.pop();
         self.loop_depth -= 1;
+    }
+
+    fn visit_arm(&mut self, node: &'ast syn::Arm) {
+        if self.loop_depth > 0 {
+            let mut bindings = HashSet::new();
+            collect_pat_idents(&node.pat, &mut bindings);
+            self.loop_bindings.push(bindings);
+            visit_arm(self, node);
+            self.loop_bindings.pop();
+        } else {
+            visit_arm(self, node);
+        }
     }
 
     fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
@@ -89,7 +116,7 @@ impl<'ast> Visit<'ast> for AllocationLoopVisitor {
 
         if self.loop_depth > 0 {
             let method = node.method.to_string();
-            if method == "to_owned" {
+            if method == "to_owned" && !self.expr_depends_on_loop_binding(&node.receiver) {
                 self.findings
                     .push((node.method.span().start().line, method));
             }
@@ -105,14 +132,13 @@ impl<'ast> Visit<'ast> for AllocationLoopVisitor {
         if self.loop_depth > 0
             && let syn::Expr::Path(path) = &*node.func
         {
-            let call = path
-                .path
-                .segments
-                .iter()
-                .map(|s| s.ident.to_string())
-                .collect::<Vec<_>>()
-                .join("::");
-            if call == "String::from" {
+            let call = path_to_string(&path.path);
+            if call == "String::from"
+                && !node
+                    .args
+                    .iter()
+                    .any(|arg| self.expr_depends_on_loop_binding(arg))
+            {
                 self.findings.push((
                     path.path.segments.last().unwrap().ident.span().start().line,
                     call,
@@ -128,6 +154,11 @@ impl<'ast> Visit<'ast> for AllocationLoopVisitor {
         }
 
         visit_local(self, node);
+        if self.loop_depth > 0
+            && let Some(bindings) = self.loop_bindings.last_mut()
+        {
+            collect_pat_idents(&node.pat, bindings);
+        }
     }
 
     fn visit_expr_reference(&mut self, node: &'ast syn::ExprReference) {
@@ -149,13 +180,33 @@ impl<'ast> Visit<'ast> for AllocationLoopVisitor {
     }
 
     fn visit_macro(&mut self, node: &'ast syn::Macro) {
-        if self.loop_depth > 0 && node.path.is_ident("format") {
+        if self.loop_depth > 0
+            && node.path.is_ident("format")
+            && !self.macro_depends_on_loop_binding(node)
+        {
             self.findings.push((
                 node.path.segments[0].ident.span().start().line,
                 "format!".into(),
             ));
         }
         syn::visit::visit_macro(self, node);
+    }
+}
+
+impl AllocationLoopVisitor {
+    fn active_loop_bindings(&self) -> HashSet<String> {
+        self.loop_bindings
+            .iter()
+            .flat_map(|bindings| bindings.iter().cloned())
+            .collect()
+    }
+
+    fn expr_depends_on_loop_binding(&self, expr: &syn::Expr) -> bool {
+        expr_contains_any_ident(expr, &self.active_loop_bindings())
+    }
+
+    fn macro_depends_on_loop_binding(&self, mac: &syn::Macro) -> bool {
+        macro_mentions_any_ident(mac, &self.active_loop_bindings())
     }
 }
 

@@ -86,6 +86,17 @@ pub(super) fn macro_first_expr_ident(mac: &syn::Macro) -> Option<String> {
     expr_path_tail(args.first()?)
 }
 
+pub(super) fn macro_mentions_any_ident(mac: &syn::Macro, targets: &HashSet<String>) -> bool {
+    if targets.is_empty() {
+        return false;
+    }
+
+    let tokens = mac.tokens.to_string();
+    targets
+        .iter()
+        .any(|target| macro_tokens_mention_ident(&tokens, target))
+}
+
 pub(super) fn type_path_tail(ty: &syn::Type) -> Option<String> {
     match ty {
         syn::Type::Path(path) => path
