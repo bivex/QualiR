@@ -54,17 +54,7 @@ fn is_large_by_value(ty: &syn::Type) -> bool {
             },
             _ => false,
         },
-        syn::Type::Path(path) => {
-            let segment = path.path.segments.last();
-            segment
-                .map(|seg| {
-                    matches!(
-                        seg.ident.to_string().as_str(),
-                        "Vec" | "String" | "HashMap" | "BTreeMap" | "HashSet" | "BTreeSet"
-                    )
-                })
-                .unwrap_or(false)
-        }
+        syn::Type::Tuple(tuple) => tuple.elems.iter().any(is_large_by_value),
         _ => false,
     }
 }

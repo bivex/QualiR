@@ -1,6 +1,7 @@
-use syn::visit::Visit;
+use syn::visit::{Visit, visit_item_mod};
 
 use crate::analysis::detector::Detector;
+use crate::detectors::policy::{has_test_cfg, is_test_path};
 use crate::domain::config::Thresholds;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
@@ -19,6 +20,10 @@ impl Detector for DeeplyNestedTypeDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let thresholds = Thresholds::default();
         let mut smells = Vec::new();
+
+        if is_test_path(&file.path) {
+            return smells;
+        }
 
         let mut visitor = TypeVisitor {
             max_depth_threshold: thresholds.r#impl.type_safety.deeply_nested_type,
@@ -62,6 +67,13 @@ struct TypeVisitor {
 }
 
 impl<'ast> Visit<'ast> for TypeVisitor {
+    fn visit_item_mod(&mut self, node: &'ast syn::ItemMod) {
+        if has_test_cfg(&node.attrs) {
+            return;
+        }
+        visit_item_mod(self, node);
+    }
+
     fn visit_type(&mut self, node: &'ast syn::Type) {
         let depth = get_type_depth(node);
         if depth > self.max_depth_threshold {
@@ -105,7 +117,11 @@ fn get_type_depth(ty: &syn::Type) -> usize {
                             _ => 0,
                         });
                         let inner_max = depths.max().unwrap_or(0);
-                        1 + inner_max
+                        if is_transparent_wrapper(&seg.ident) {
+                            inner_max.max(1)
+                        } else {
+                            1 + inner_max
+                        }
                     }
                     _ => 1,
                 }
@@ -113,12 +129,19 @@ fn get_type_depth(ty: &syn::Type) -> usize {
                 1
             }
         }
-        syn::Type::Reference(tr) => 1 + get_type_depth(&tr.elem),
+        syn::Type::Reference(tr) => get_type_depth(&tr.elem),
+        syn::Type::Slice(slice) => get_type_depth(&slice.elem),
+        syn::Type::Array(array) => get_type_depth(&array.elem),
         syn::Type::Tuple(tup) => {
             let depths = tup.elems.iter().map(get_type_depth);
-            let inner_max = depths.max().unwrap_or(0);
-            1 + inner_max
+            depths.max().unwrap_or(1)
         }
+        syn::Type::Paren(paren) => get_type_depth(&paren.elem),
+        syn::Type::Group(group) => get_type_depth(&group.elem),
         _ => 1,
     }
+}
+
+fn is_transparent_wrapper(ident: &syn::Ident) -> bool {
+    matches!(ident.to_string().as_str(), "Option" | "Result")
 }

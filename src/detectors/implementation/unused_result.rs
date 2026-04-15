@@ -1,3 +1,6 @@
+use std::collections::HashSet;
+
+use syn::punctuated::Punctuated;
 use syn::visit::Visit;
 
 use crate::analysis::detector::Detector;
@@ -26,6 +29,7 @@ impl Detector for UnusedResultDetector {
             if let syn::Item::Fn(fn_item) = item {
                 let mut visitor = UnusedResultVisitor {
                     findings: Vec::new(),
+                    string_writers: collect_string_writer_params(&fn_item.sig),
                 };
                 visitor.visit_block(&fn_item.block);
 
@@ -56,13 +60,19 @@ impl Detector for UnusedResultDetector {
 
 struct UnusedResultVisitor {
     findings: Vec<(usize, String)>,
+    string_writers: HashSet<String>,
 }
 
 impl<'ast> Visit<'ast> for UnusedResultVisitor {
     fn visit_local(&mut self, local: &'ast syn::Local) {
+        if let Some(name) = local_string_writer_binding(local) {
+            self.string_writers.insert(name);
+        }
+
         // Check for `let _ = expr;` pattern
         if let syn::Pat::Wild(wild) = &local.pat
             && let Some(init) = &local.init
+            && !is_intentional_discard(&init.expr, &self.string_writers)
         {
             let description = describe_expr(&init.expr);
             let line = wild.underscore_token.span.start().line;
@@ -70,6 +80,114 @@ impl<'ast> Visit<'ast> for UnusedResultVisitor {
         }
         syn::visit::visit_local(self, local);
     }
+}
+
+fn collect_string_writer_params(sig: &syn::Signature) -> HashSet<String> {
+    sig.inputs
+        .iter()
+        .filter_map(|input| match input {
+            syn::FnArg::Typed(arg) if type_is_string_writer(&arg.ty) => pat_ident(&arg.pat),
+            _ => None,
+        })
+        .collect()
+}
+
+fn local_string_writer_binding(local: &syn::Local) -> Option<String> {
+    let init = local.init.as_ref()?;
+    if is_string_constructor(&init.expr) {
+        pat_ident(&local.pat)
+    } else {
+        None
+    }
+}
+
+fn is_intentional_discard(expr: &syn::Expr, string_writers: &HashSet<String>) -> bool {
+    is_infallible_string_write(expr, string_writers) || is_channel_send_discard(expr)
+}
+
+fn is_infallible_string_write(expr: &syn::Expr, string_writers: &HashSet<String>) -> bool {
+    let syn::Expr::Macro(expr_macro) = expr else {
+        return false;
+    };
+    if !expr_macro.mac.path.is_ident("write") && !expr_macro.mac.path.is_ident("writeln") {
+        return false;
+    }
+
+    macro_first_expr_ident(&expr_macro.mac)
+        .is_some_and(|target| string_writers.contains(target.as_str()))
+}
+
+fn is_channel_send_discard(expr: &syn::Expr) -> bool {
+    let syn::Expr::MethodCall(call) = expr else {
+        return false;
+    };
+    call.method == "send"
+        && receiver_path_tail(&call.receiver).is_some_and(|name| {
+            name == "sender" || name == "tx" || name.ends_with("_sender") || name.ends_with("_tx")
+        })
+}
+
+fn macro_first_expr_ident(mac: &syn::Macro) -> Option<String> {
+    let args = mac
+        .parse_body_with(Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated)
+        .ok()?;
+    expr_ident(args.first()?)
+}
+
+fn expr_ident(expr: &syn::Expr) -> Option<String> {
+    match expr {
+        syn::Expr::Path(path) => path.path.get_ident().map(ToString::to_string),
+        syn::Expr::Reference(reference) => expr_ident(&reference.expr),
+        syn::Expr::Paren(paren) => expr_ident(&paren.expr),
+        _ => None,
+    }
+}
+
+fn receiver_path_tail(expr: &syn::Expr) -> Option<String> {
+    match expr {
+        syn::Expr::Path(path) => path
+            .path
+            .segments
+            .last()
+            .map(|segment| segment.ident.to_string()),
+        syn::Expr::Field(field) => match &field.member {
+            syn::Member::Named(name) => Some(name.to_string()),
+            syn::Member::Unnamed(_) => None,
+        },
+        syn::Expr::Reference(reference) => receiver_path_tail(&reference.expr),
+        _ => None,
+    }
+}
+
+fn pat_ident(pat: &syn::Pat) -> Option<String> {
+    match pat {
+        syn::Pat::Ident(ident) => Some(ident.ident.to_string()),
+        _ => None,
+    }
+}
+
+fn type_is_string_writer(ty: &syn::Type) -> bool {
+    match ty {
+        syn::Type::Path(path) => path.path.is_ident("String"),
+        syn::Type::Reference(reference) => type_is_string_writer(&reference.elem),
+        _ => false,
+    }
+}
+
+fn is_string_constructor(expr: &syn::Expr) -> bool {
+    let syn::Expr::Call(call) = expr else {
+        return false;
+    };
+    let syn::Expr::Path(path) = &*call.func else {
+        return false;
+    };
+    let mut segments = path.path.segments.iter().rev();
+    matches!(
+        (segments.next(), segments.next()),
+        (Some(method), Some(receiver))
+            if receiver.ident == "String"
+                && matches!(method.ident.to_string().as_str(), "new" | "with_capacity")
+    )
 }
 
 fn describe_expr(expr: &syn::Expr) -> String {

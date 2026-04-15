@@ -1,5 +1,7 @@
 use colored::*;
 
+use crate::domain::smell::rule_code_for;
+
 struct DetectorGroup {
     category: &'static str,
     names: &'static [&'static str],
@@ -81,8 +83,21 @@ const DETECTOR_GROUPS: &[DetectorGroup] = &[
             "Unnecessary Allocation in Loop",
             "Collect Then Iterate",
             "Repeated Regex Construction",
+            "Missing Collection Preallocation",
+            "Repeated String Conversion in Hot Path",
+            "Needless Intermediate String Formatting",
+            "Vec Contains in Loop",
+            "Sort Before Min or Max",
+            "Full Sort for Single Element",
+            "Clone Before Move Into Collection",
+            "Inefficient Iterator Step",
+            "Chars Count Length Check",
+            "Repeated Expensive Construction in Loop",
+            "Needless Dynamic Dispatch",
+            "Local Lock in Single-Threaded Scope",
             "Clone on Copy",
             "Large Value Passed By Value",
+            "Inline Candidate",
         ],
     ),
     DetectorGroup::new(
@@ -151,6 +166,7 @@ fn print_group(group: &DetectorGroup) {
     println!();
     println!("  {} {}", "▸".bright_magenta(), group.category.bold());
     for name in group.names {
-        println!("    • {name}");
+        let code = rule_code_for(name).unwrap_or("Q0000");
+        println!("    • {} {name}", code.cyan().bold());
     }
 }

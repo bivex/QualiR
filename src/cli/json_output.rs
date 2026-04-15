@@ -46,6 +46,8 @@ fn write_smells_json(report: &AnalysisReport, json: &mut String) -> std::fmt::Re
 
 fn write_smell_json(smell: &Smell, json: &mut String) -> std::fmt::Result {
     write!(json, "{{")?;
+    write_json_field(json, "code", &smell.code)?;
+    write!(json, ",")?;
     write_json_field(json, "severity", severity_json(smell.severity))?;
     write!(json, ",")?;
     write_json_field(json, "category", &smell.category.to_string())?;
@@ -175,6 +177,7 @@ mod tests {
         let json = render_json_report(&report).expect("render JSON report");
 
         assert!(json.contains(r#""name":"Quoted \"Name\"""#));
+        assert!(json.contains(r#""code":"Q0000""#));
         assert!(json.contains(r#""file":"src\\main.rs""#));
         assert!(fixed_json::validate_json(json.as_bytes()).is_ok());
     }
