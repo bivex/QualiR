@@ -71,6 +71,44 @@ pub fn e() {}
     }
 }
 
+mod cyclic_crate_dependency {
+    use super::*;
+    use qualirs::detectors::architecture::cyclic_crate_dependency::CyclicDependencyDetector;
+
+    static DETECTOR: CyclicDependencyDetector = CyclicDependencyDetector;
+
+    #[test]
+    fn clean_same_file_name_in_different_module() {
+        let code = "\
+use crate::de::Deserialize;
+use crate::ser::Serialize;
+";
+        let source = SourceFile::from_source("src/private/de.rs".into(), code.to_string()).unwrap();
+        let smells = DETECTOR.detect(&source);
+        assert!(
+            smells.iter().all(|smell| smell.name != "Cyclic Dependency"),
+            "Should not treat crate::de as private::de importing itself. Smells found: {smells:?}"
+        );
+    }
+
+    #[test]
+    fn detects_exact_self_import() {
+        let code = "\
+use crate::private::de::Helper;
+use crate::ser::Serialize;
+";
+        let source = SourceFile::from_source("src/private/de.rs".into(), code.to_string()).unwrap();
+        let smells = DETECTOR.detect(&source);
+        assert_eq!(
+            smells
+                .iter()
+                .filter(|smell| smell.name == "Cyclic Dependency")
+                .count(),
+            1
+        );
+    }
+}
+
 // ─── Design ────────────────────────────────────────────────
 
 mod large_trait {
@@ -1749,6 +1787,32 @@ pub struct Pair {
     }
 
     #[test]
+    fn clean_phantom_data_seed_struct() {
+        let code = "\
+use std::marker::PhantomData;
+
+pub struct AdjacentlyTaggedEnumVariantSeed<F> {
+    pub enum_name: &'static str,
+    pub variants: &'static [&'static str],
+    pub fields_enum: PhantomData<F>,
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_variant_data_carrier() {
+        let code = "\
+pub struct AdjacentlyTaggedEnumVariant {
+    pub enum_name: &'static str,
+    pub variant_index: u32,
+    pub variant_name: &'static str,
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
     fn clean_dto_template_and_config_structs() {
         let code = r#"
 pub struct CreateUserCommand {
@@ -2423,6 +2487,31 @@ fn update_user(name: String, age: i32, email: String) {}
 ";
         assert_clean(&DETECTOR, code);
     }
+
+    #[test]
+    fn clean_trait_required_method_signatures() {
+        let code = "\
+trait Deserialize {
+    fn deserialize_enum(self, name: &str, variants: &'static [&'static str], visitor: Visitor);
+}
+
+struct U8;
+impl Deserialize for U8 {
+    fn deserialize_enum(self, name: &str, variants: &'static [&'static str], visitor: Visitor) {}
+}
+
+struct U16;
+impl Deserialize for U16 {
+    fn deserialize_enum(self, name: &str, variants: &'static [&'static str], visitor: Visitor) {}
+}
+
+struct U32;
+impl Deserialize for U32 {
+    fn deserialize_enum(self, name: &str, variants: &'static [&'static str], visitor: Visitor) {}
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
 }
 
 mod multiple_impl_blocks {
@@ -2988,6 +3077,73 @@ impl Default for State {
 }
 ";
         assert_smell_count(&DETECTOR, code, "Derivable Impl", 1);
+    }
+
+    #[test]
+    fn clean_generic_clone_that_avoids_derive_bounds() {
+        let code = "\
+use std::marker::PhantomData;
+
+struct StringDeserializer<E> {
+    value: String,
+    marker: PhantomData<E>,
+}
+
+impl<E> Clone for StringDeserializer<E> {
+    fn clone(&self) -> Self {
+        StringDeserializer {
+            value: self.value.clone(),
+            marker: PhantomData,
+        }
+    }
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_cfg_sensitive_debug_impl() {
+        let code = "\
+struct Error {
+    err: String,
+}
+
+impl Debug for Error {
+    fn fmt(&self, formatter: &mut Formatter) -> Result {
+        let mut debug = formatter.debug_tuple(\"Error\");
+        #[cfg(feature = \"std\")]
+        debug.field(&self.err);
+        debug.finish()
+    }
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod needless_explicit_lifetime {
+    use super::*;
+    use qualirs::detectors::implementation::needless_explicit_lifetime::NeedlessExplicitLifetimeDetector;
+    static DETECTOR: NeedlessExplicitLifetimeDetector = NeedlessExplicitLifetimeDetector;
+
+    #[test]
+    fn detects_lifetime_elidable_from_single_reference_input() {
+        let code = "fn name<'a>(value: &'a str) -> &'a str { value }";
+        assert_smell_count(&DETECTOR, code, "Needless Explicit Lifetime", 1);
+    }
+
+    #[test]
+    fn clean_lifetime_used_in_where_bound() {
+        let code = "\
+fn missing_field<'de, V, E>(field: &'static str) -> Result<V, E>
+where
+    V: Deserialize<'de>,
+    E: Error,
+{
+    todo!()
+}
+";
+        assert_clean(&DETECTOR, code);
     }
 }
 

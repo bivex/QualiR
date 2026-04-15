@@ -1,3 +1,5 @@
+use quote::ToTokens;
+
 use crate::analysis::detector::Detector;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
@@ -18,7 +20,9 @@ impl Detector for DerivableImplDetector {
                 && let Some((_, trait_path, _)) = &imp.trait_
                 && let Some(trait_ident) = trait_path.segments.last().map(|seg| &seg.ident)
             {
-                if !is_derivable_trait(trait_ident) || imp.items.len() > 2 {
+                if !is_derivable_trait(trait_ident)
+                    || !is_low_risk_derivable_candidate(imp, trait_ident)
+                {
                     continue;
                 }
                 if trait_ident == "Default" && !is_derived_equivalent_default_impl(imp) {
@@ -40,6 +44,36 @@ fn is_derivable_trait(ident: &syn::Ident) -> bool {
         || ident == "PartialEq"
         || ident == "Eq"
         || ident == "Hash"
+}
+
+fn is_low_risk_derivable_candidate(imp: &syn::ItemImpl, trait_ident: &syn::Ident) -> bool {
+    if trait_ident == "Default" {
+        return imp.items.len() <= 2;
+    }
+
+    if !imp.generics.params.is_empty() || imp.generics.where_clause.is_some() {
+        return false;
+    }
+
+    if imp.to_token_stream().to_string().contains("# [cfg") {
+        return false;
+    }
+
+    match trait_ident.to_string().as_str() {
+        "Eq" => imp.items.is_empty(),
+        "Debug" => has_single_method_named(imp, "fmt"),
+        "Clone" => has_single_method_named(imp, "clone"),
+        "PartialEq" => has_single_method_named(imp, "eq"),
+        "Hash" => has_single_method_named(imp, "hash"),
+        _ => false,
+    }
+}
+
+fn has_single_method_named(imp: &syn::ItemImpl, method_name: &str) -> bool {
+    matches!(
+        imp.items.as_slice(),
+        [syn::ImplItem::Fn(method)] if method.sig.ident == method_name
+    )
 }
 
 fn derivable_impl_smell(file: &SourceFile, trait_ident: &syn::Ident, line: usize) -> Smell {

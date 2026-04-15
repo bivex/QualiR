@@ -387,6 +387,7 @@ fn default_data_carrier_struct_suffixes() -> Vec<String> {
         "Stats".into(),
         "Summary".into(),
         "Template".into(),
+        "Variant".into(),
         "View".into(),
         "Vulnerability".into(),
     ]

@@ -63,6 +63,7 @@ impl Detector for BrokenConstructorDetector {
                         all_pub,
                         field_count,
                         has_default_derive,
+                        has_phantom_data_field: has_phantom_data_field(s),
                     });
                 }
                 syn::Item::Impl(imp) => {
@@ -103,6 +104,7 @@ impl Detector for BrokenConstructorDetector {
                 && s.field_count >= 3
                 && !has_new.contains(&s.id.name)
                 && !s.has_default_derive
+                && !s.has_phantom_data_field
             {
                 smells.push(Smell::new(
                     SmellCategory::Design,
@@ -139,6 +141,7 @@ struct StructInfo {
     all_pub: bool,
     field_count: usize,
     has_default_derive: bool,
+    has_phantom_data_field: bool,
 }
 
 fn line_of_struct(s: &syn::ItemStruct) -> usize {
@@ -146,5 +149,30 @@ fn line_of_struct(s: &syn::ItemStruct) -> usize {
         syn::Fields::Named(f) => f.brace_token.span.open().start().line,
         syn::Fields::Unnamed(f) => f.paren_token.span.open().start().line,
         syn::Fields::Unit => s.ident.span().start().line,
+    }
+}
+
+fn has_phantom_data_field(s: &syn::ItemStruct) -> bool {
+    match &s.fields {
+        syn::Fields::Named(named) => named
+            .named
+            .iter()
+            .any(|field| type_contains_ident(&field.ty, "PhantomData")),
+        syn::Fields::Unnamed(unnamed) => unnamed
+            .unnamed
+            .iter()
+            .any(|field| type_contains_ident(&field.ty, "PhantomData")),
+        syn::Fields::Unit => false,
+    }
+}
+
+fn type_contains_ident(ty: &syn::Type, ident: &str) -> bool {
+    match ty {
+        syn::Type::Path(path) => path
+            .path
+            .segments
+            .iter()
+            .any(|segment| segment.ident == ident),
+        _ => false,
     }
 }
