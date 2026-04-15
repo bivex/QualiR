@@ -28,6 +28,15 @@ mod god_module {
         let code = "fn main() {}";
         assert_clean(&DETECTOR, code);
     }
+
+    #[test]
+    fn clean_module_registry_file() {
+        let mods: String = (0..25)
+            .map(|i| format!("pub mod detector_{i};"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert_clean(&DETECTOR, &mods);
+    }
 }
 
 mod public_api_explosion {
@@ -999,6 +1008,17 @@ enum Huge {
         let code = "pub struct Wrapper(pub i32, pub i32, pub i32, pub i32, pub i32, pub i32, pub i32, pub i32, pub i32, pub i32, pub i32);";
         assert_clean(&DETECTOR, code);
     }
+
+    #[test]
+    fn clean_threshold_config_struct() {
+        let code = "\
+struct DesignThresholds {
+    a: usize, b: usize, c: usize, d: usize, e: usize, f: usize,
+    g: usize, h: usize, i: usize, j: usize, k: usize,
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
 }
 
 mod broken_constructor {
@@ -1829,6 +1849,125 @@ fn report(items: &[i32]) {
 }
 "#;
         assert_clean(&DETECTOR, code);
+    }
+}
+
+mod manual_default_constructor {
+    use super::*;
+    use qualirs::detectors::implementation::manual_default_constructor::ManualDefaultConstructorDetector;
+    static DETECTOR: ManualDefaultConstructorDetector = ManualDefaultConstructorDetector;
+
+    #[test]
+    fn detects_no_arg_defaultish_new() {
+        let code = "\
+struct Bag { items: Vec<String> }
+impl Bag {
+    fn new() -> Self {
+        Self { items: Vec::new() }
+    }
+}
+";
+        assert_smell_count(&DETECTOR, code, "Manual Default Constructor", 1);
+    }
+
+    #[test]
+    fn clean_constructor_uses_parameter() {
+        let code = "\
+struct Engine { detectors: Vec<String>, config: Config }
+struct Config;
+impl Engine {
+    fn new(config: Config) -> Self {
+        Self { detectors: Vec::new(), config }
+    }
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod manual_find_loop {
+    use super::*;
+    use qualirs::detectors::implementation::manual_find_loop::ManualFindLoopDetector;
+    static DETECTOR: ManualFindLoopDetector = ManualFindLoopDetector;
+
+    #[test]
+    fn detects_direct_conditional_return_in_loop() {
+        let code = "\
+fn has_even(values: &[i32]) -> bool {
+    for value in values {
+        if *value % 2 == 0 {
+            return true;
+        }
+    }
+    false
+}
+";
+        assert_smell_count(&DETECTOR, code, "Manual Find/Any Loop", 1);
+    }
+
+    #[test]
+    fn clean_return_inside_nested_closure() {
+        let code = "\
+pub fn process(items: &[i32]) {
+    for item in items {
+        let selected = [1, 2, 3].iter().filter_map(|value| {
+            if *value == *item {
+                return Some(value);
+            }
+            None
+        });
+        let _ = selected.count();
+    }
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_loop_returning_constructed_value() {
+        let code = "\
+fn find_path(paths: &[&str]) -> Option<String> {
+    for path in paths {
+        if path.ends_with(\".rs\") {
+            return Some(path.to_string());
+        }
+    }
+    None
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod derivable_impl {
+    use super::*;
+    use qualirs::detectors::implementation::derivable_impl::DerivableImplDetector;
+    static DETECTOR: DerivableImplDetector = DerivableImplDetector;
+
+    #[test]
+    fn clean_custom_default_values() {
+        let code = "\
+struct Thresholds { limit: usize }
+impl Default for Thresholds {
+    fn default() -> Self {
+        Self { limit: 50 }
+    }
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn detects_mechanical_default_impl() {
+        let code = "\
+struct State { name: String, items: Vec<String> }
+impl Default for State {
+    fn default() -> Self {
+        Self { name: String::new(), items: Vec::new() }
+    }
+}
+";
+        assert_smell_count(&DETECTOR, code, "Derivable Impl", 1);
     }
 }
 
