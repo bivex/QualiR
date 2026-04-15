@@ -37,7 +37,7 @@ impl Detector for CyclicDependencyDetector {
         {
             smells.push(Smell::new(
                 SmellCategory::Architecture,
-                "Cyclic Dependency",
+                "Cyclic Crate Dependency",
                 Severity::Critical,
                 SourceLocation {
                     file: file.path.clone(),
@@ -65,7 +65,7 @@ impl Detector for CyclicDependencyDetector {
         if internal_deps.len() > 5 {
             smells.push(Smell::new(
                 SmellCategory::Architecture,
-                "Cyclic Dependency Risk",
+                "Cyclic Crate Dependency",
                 Severity::Warning,
                 SourceLocation {
                     file: file.path.clone(),

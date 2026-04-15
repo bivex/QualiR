@@ -12,7 +12,7 @@ pub struct InlineAssemblyDetector;
 
 impl Detector for InlineAssemblyDetector {
     fn name(&self) -> &str {
-        "Inline Assembly Usage"
+        "Inline Assembly"
     }
 
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
@@ -24,7 +24,7 @@ impl Detector for InlineAssemblyDetector {
         for (line, macro_name) in visitor.usages {
             smells.push(Smell::new(
                 SmellCategory::Unsafe,
-                "Inline Assembly Usage",
+                "Inline Assembly",
                 Severity::Warning,
                 SourceLocation::new(file.path.clone(), line, line, None),
                 format!("Use of highly-platform specific `{}` macro", macro_name),

@@ -12,7 +12,7 @@ pub struct MultipleImplBlocksDetector;
 
 impl Detector for MultipleImplBlocksDetector {
     fn name(&self) -> &str {
-        "Scattered Implementation"
+        "Multiple Impl Blocks"
     }
 
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
@@ -37,7 +37,7 @@ impl Detector for MultipleImplBlocksDetector {
                 let first_line = lines[1]; // Report on the second occurrence
                 smells.push(Smell::new(
                     SmellCategory::Architecture,
-                    "Scattered Implementation",
+                    "Multiple Impl Blocks",
                     Severity::Info,
                     SourceLocation::new(file.path.clone(), first_line, first_line, None),
                     format!("Struct `{}` has {} inherent `impl` blocks in this file", type_name, lines.len()),

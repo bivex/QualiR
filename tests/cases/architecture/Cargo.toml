@@ -1,0 +1,12 @@
+[package]
+name = "qualirs-architecture-case"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+duplicate_helper_old = { package = "duplicate_helper", path = "duplicate_helper_old" }
+duplicate_helper_new = { package = "duplicate_helper", path = "duplicate_helper_new" }
+serde = "1"
+
+[dev-dependencies]
+pretty_assertions = "1"
