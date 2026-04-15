@@ -161,7 +161,7 @@ unsafe_without_comment = true
 
 [policy]
 skip_tests = true
-test_path_markers = ["tests", "test", "tests.rs", "_tests.rs"]
+test_path_markers = ["tests", "test", "tests.rs", "_tests.rs", "fuzz", "fuzz_targets"]
 skip_data_carrier_structs = true
 skip_template_structs = true
 data_carrier_struct_suffixes = [
@@ -196,6 +196,7 @@ data_carrier_struct_suffixes = [
     "Result",
     "Settings",
     "SettingsFile",
+    "Session",
     "Snapshot",
     "Stats",
     "Summary",

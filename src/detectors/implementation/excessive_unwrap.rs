@@ -70,9 +70,34 @@ impl<'ast> Visit<'ast> for UnwrapCounter {
     fn visit_expr(&mut self, expr: &'ast syn::Expr) {
         if let syn::Expr::MethodCall(call) = expr
             && (call.method == "unwrap" || call.method == "expect")
+            && !is_regex_literal_constructor(&call.receiver)
         {
             self.unwrap_count += 1;
         }
         visit_expr(self, expr);
     }
+}
+
+fn is_regex_literal_constructor(expr: &syn::Expr) -> bool {
+    let syn::Expr::Call(call) = expr else {
+        return false;
+    };
+    let syn::Expr::Path(path) = &*call.func else {
+        return false;
+    };
+    let Some(last) = path.path.segments.last() else {
+        return false;
+    };
+
+    last.ident == "new"
+        && path
+            .path
+            .segments
+            .iter()
+            .rev()
+            .nth(1)
+            .is_some_and(|segment| segment.ident == "Regex")
+        && call.args.first().is_some_and(
+            |arg| matches!(arg, syn::Expr::Lit(lit) if matches!(lit.lit, syn::Lit::Str(_))),
+        )
 }
