@@ -1,5 +1,5 @@
 pub mod architecture;
+pub mod concurrency;
 pub mod design;
 pub mod implementation;
-pub mod concurrency;
 pub mod r#unsafe;

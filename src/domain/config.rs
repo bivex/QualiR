@@ -49,8 +49,10 @@ pub(crate) struct TypeSafetyThresholds {
 /// Combined implementation thresholds composed of focused sub-groups.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct ImplThresholds {
-    #[serde(default, flatten)] pub(crate) control_flow: ControlFlowThresholds,
-    #[serde(default, flatten)] pub(crate) type_safety: TypeSafetyThresholds,
+    #[serde(default, flatten)]
+    pub(crate) control_flow: ControlFlowThresholds,
+    #[serde(default, flatten)]
+    pub(crate) type_safety: TypeSafetyThresholds,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
@@ -67,11 +69,16 @@ pub struct UnsafeThresholds {
 /// Thresholds that control when a smell is reported.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Thresholds {
-    #[serde(default)] pub arch: ArchThresholds,
-    #[serde(default)] pub design: DesignThresholds,
-    #[serde(default)] pub r#impl: ImplThresholds,
-    #[serde(default)] pub concurrency: ConcurrencyThresholds,
-    #[serde(default)] pub r#unsafe: UnsafeThresholds,
+    #[serde(default)]
+    pub arch: ArchThresholds,
+    #[serde(default)]
+    pub design: DesignThresholds,
+    #[serde(default)]
+    pub r#impl: ImplThresholds,
+    #[serde(default)]
+    pub concurrency: ConcurrencyThresholds,
+    #[serde(default)]
+    pub r#unsafe: UnsafeThresholds,
 }
 
 #[cfg(test)]
@@ -84,13 +91,26 @@ mod tests {
         assert_eq!(config.thresholds.r#impl.control_flow.long_function_loc, 50);
         assert_eq!(config.thresholds.r#impl.control_flow.too_many_arguments, 6);
         assert_eq!(config.thresholds.r#impl.control_flow.excessive_unwrap, 3);
-        assert_eq!(config.thresholds.r#impl.control_flow.cyclomatic_complexity, 15);
+        assert_eq!(
+            config.thresholds.r#impl.control_flow.cyclomatic_complexity,
+            15
+        );
         assert_eq!(config.thresholds.r#impl.control_flow.deep_match_nesting, 3);
         assert_eq!(config.thresholds.r#impl.control_flow.deep_if_else, 4);
-        assert_eq!(config.thresholds.r#impl.control_flow.large_enum_variants, 20);
+        assert_eq!(
+            config.thresholds.r#impl.control_flow.large_enum_variants,
+            20
+        );
         assert_eq!(config.thresholds.r#impl.control_flow.lifetime_explosion, 4);
         assert_eq!(config.thresholds.r#impl.type_safety.deeply_nested_type, 3);
-        assert_eq!(config.thresholds.r#impl.type_safety.interior_mutability_abuse, 5);
+        assert_eq!(
+            config
+                .thresholds
+                .r#impl
+                .type_safety
+                .interior_mutability_abuse,
+            5
+        );
 
         // Arch
         assert_eq!(config.thresholds.arch.hidden_global_state, 3);
@@ -100,6 +120,54 @@ mod tests {
         assert_eq!(config.thresholds.design.primitive_obsession_fields, 4);
         assert_eq!(config.thresholds.design.data_clumps_args, 3);
         assert_eq!(config.thresholds.design.data_clumps_occurrences, 3);
+    }
+
+    #[test]
+    fn default_toml_round_trips() {
+        let toml = Config::default_toml().expect("serialize default config");
+        let config: Config = toml::from_str(&toml).expect("parse default config");
+
+        assert!(toml.contains("min_severity = \"info\""));
+        assert_eq!(config.min_severity, crate::domain::smell::Severity::Info);
+        assert_eq!(config.thresholds.arch.god_module_loc, 1000);
+        assert!(config.exclude_paths.iter().any(|path| path == "target"));
+    }
+
+    #[test]
+    fn config_accepts_legacy_title_case_severity() {
+        let toml = Config::default_toml()
+            .expect("serialize default config")
+            .replace("min_severity = \"info\"", "min_severity = \"Info\"");
+        let config: Config = toml::from_str(&toml).expect("parse default config");
+
+        assert_eq!(config.min_severity, crate::domain::smell::Severity::Info);
+    }
+
+    #[test]
+    fn write_default_file_refuses_to_overwrite_without_force() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let path = dir.path().join("qualirs.toml");
+        std::fs::write(&path, "existing = true\n").expect("write existing config");
+
+        let err = Config::write_default_file(&path, false).expect_err("should refuse overwrite");
+        assert!(err.to_string().contains("already exists"));
+        assert_eq!(
+            std::fs::read_to_string(&path).expect("read existing config"),
+            "existing = true\n"
+        );
+    }
+
+    #[test]
+    fn write_default_file_can_force_overwrite() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let path = dir.path().join("qualirs.toml");
+        std::fs::write(&path, "existing = true\n").expect("write existing config");
+
+        Config::write_default_file(&path, true).expect("force write default config");
+        let config = Config::load_from_file(&path).expect("load written config");
+
+        assert_eq!(config.min_severity, crate::domain::smell::Severity::Info);
+        assert_eq!(config.thresholds.r#impl.control_flow.long_function_loc, 50);
     }
 }
 
@@ -169,17 +237,36 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             thresholds: Thresholds::default(),
-            exclude_paths: vec![
-                "target".into(),
-                ".git".into(),
-                "node_modules".into(),
-            ],
+            exclude_paths: vec!["target".into(), ".git".into(), "node_modules".into()],
             min_severity: crate::domain::smell::Severity::Info,
         }
     }
 }
 
 impl Config {
+    pub fn default_toml() -> anyhow::Result<String> {
+        toml::to_string_pretty(&Self::default()).map_err(Into::into)
+    }
+
+    pub fn write_default_file(path: &std::path::Path, force: bool) -> anyhow::Result<()> {
+        if path.exists() && !force {
+            anyhow::bail!(
+                "{} already exists. Use --force to overwrite it.",
+                path.display()
+            );
+        }
+
+        if let Some(parent) = path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+        {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        std::fs::write(path, Self::default_toml()?)?;
+        Ok(())
+    }
+
     pub fn load_from_file(path: &std::path::Path) -> anyhow::Result<Self> {
         let content = std::fs::read_to_string(path)?;
         let config: Config = toml::from_str(&content)?;

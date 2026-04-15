@@ -27,19 +27,28 @@ impl Detector for LayerViolationDetector {
 
         let forbidden = match layer {
             Layer::Domain => &[
-                "infra", "infrastructure", "io", "db", "http", "cli", "presentation",
-                "transport", "network", "filesystem", "sql", "redis", "kafka",
+                "infra",
+                "infrastructure",
+                "io",
+                "db",
+                "http",
+                "cli",
+                "presentation",
+                "transport",
+                "network",
+                "filesystem",
+                "sql",
+                "redis",
+                "kafka",
             ][..],
-            Layer::Application => &[
-                "cli", "presentation", "http", "transport",
-            ][..],
+            Layer::Application => &["cli", "presentation", "http", "transport"][..],
             _ => &[],
         };
 
         for item in &file.ast.items {
             if let syn::Item::Use(use_item) = item {
                 let use_path = use_tree_to_string(&use_item.tree).to_lowercase();
-                
+
                 // Split path into segments, ignoring punctuation like {, }, and *
                 let segments: Vec<String> = use_path
                     .split(|c: char| !c.is_alphanumeric() && c != '_')
@@ -101,7 +110,10 @@ fn determine_layer(path: &str) -> Layer {
     let lower = path.to_lowercase();
     if lower.contains("domain") || lower.contains("model") || lower.contains("entity") {
         Layer::Domain
-    } else if lower.contains("application") || lower.contains("usecase") || lower.contains("service") {
+    } else if lower.contains("application")
+        || lower.contains("usecase")
+        || lower.contains("service")
+    {
         Layer::Application
     } else if lower.contains("infra") || lower.contains("db") || lower.contains("http") {
         Layer::Infrastructure

@@ -40,9 +40,7 @@ impl Detector for AnemicStructDetector {
             .items
             .iter()
             .filter_map(|item| match item {
-                syn::Item::Impl(imp) => {
-                    extract_type_ident(&imp.self_ty)
-                }
+                syn::Item::Impl(imp) => extract_type_ident(&imp.self_ty),
                 _ => None,
             })
             .collect();

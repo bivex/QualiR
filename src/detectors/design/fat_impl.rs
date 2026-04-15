@@ -22,11 +22,19 @@ impl Detector for FatImplDetector {
             if let syn::Item::Impl(imp) = item {
                 // Focus on inherent impls (no trait)
                 if imp.trait_.is_none() {
-                    let method_count = imp.items.iter().filter(|i| matches!(i, syn::ImplItem::Fn(_))).count();
+                    let method_count = imp
+                        .items
+                        .iter()
+                        .filter(|i| matches!(i, syn::ImplItem::Fn(_)))
+                        .count();
 
                     if method_count > thresholds.design.fat_impl_methods {
                         let type_name = if let syn::Type::Path(tp) = &*imp.self_ty {
-                            tp.path.segments.last().map(|s| s.ident.to_string()).unwrap_or_else(|| "Unknown".to_string())
+                            tp.path
+                                .segments
+                                .last()
+                                .map(|s| s.ident.to_string())
+                                .unwrap_or_else(|| "Unknown".to_string())
                         } else {
                             "Unknown".to_string()
                         };

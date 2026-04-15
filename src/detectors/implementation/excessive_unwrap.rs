@@ -37,7 +37,9 @@ impl Detector for ExcessiveUnwrapDetector {
                         },
                         format!(
                             "Function `{}` has {} unwrap/expect calls (threshold: {})",
-                            fn_item.sig.ident, visitor.unwrap_count, thresholds.r#impl.control_flow.excessive_unwrap
+                            fn_item.sig.ident,
+                            visitor.unwrap_count,
+                            thresholds.r#impl.control_flow.excessive_unwrap
                         ),
                         "Use proper error handling with ?, map_err, or match instead of unwrap().",
                     ));

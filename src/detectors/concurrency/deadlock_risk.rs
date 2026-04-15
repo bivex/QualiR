@@ -71,7 +71,8 @@ impl<'ast> Visit<'ast> for LockCallVisitor {
         if method == "lock" || method == "write" || method == "read" || method == "try_lock" {
             let receiver_str = expr_to_string(&node.receiver);
             let line = node.method.span().start().line;
-            self.lock_calls.push((format!("{}.{}()", receiver_str, method), line));
+            self.lock_calls
+                .push((format!("{}.{}()", receiver_str, method), line));
         }
         syn::visit::visit_expr_method_call(self, node);
     }
@@ -81,7 +82,8 @@ fn expr_to_string(expr: &syn::Expr) -> String {
     match expr {
         syn::Expr::Path(p) => {
             let last_seg = p.path.segments.last();
-            last_seg.map(|s| s.ident.to_string())
+            last_seg
+                .map(|s| s.ident.to_string())
                 .unwrap_or_else(|| "_".into())
         }
         syn::Expr::Field(f) => {

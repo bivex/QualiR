@@ -61,8 +61,7 @@ impl Detector for DerefAbuseDetector {
 
 fn is_smart_pointer_name(name: &str) -> bool {
     let ptr_patterns = [
-        "Box", "Rc", "Arc", "RefCell", "Mutex", "RwLock",
-        "Cell", "Pin", "Cow", "NonNull", "Unique",
+        "Box", "Rc", "Arc", "RefCell", "Mutex", "RwLock", "Cell", "Pin", "Cow", "NonNull", "Unique",
     ];
     ptr_patterns.iter().any(|p| name.contains(p))
         || name.ends_with("Ptr")

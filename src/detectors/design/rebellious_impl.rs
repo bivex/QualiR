@@ -44,10 +44,7 @@ impl Detector for RebelliousImplDetector {
 
                         let rebellion = detect_rebellion(&type_name, &methods);
                         if rebellion {
-                            let line = imp
-                                .self_ty
-                                .span()
-                                .start().line;
+                            let line = imp.self_ty.span().start().line;
                             let method_list: Vec<&str> =
                                 methods.iter().map(|m| m.as_str()).collect();
 
@@ -83,7 +80,10 @@ fn detect_rebellion(type_name: &str, methods: &[String]) -> bool {
     if type_name.contains("repo") || type_name.contains("database") || type_name.contains("store") {
         let io_methods = methods.iter().any(|m| {
             let m = m.to_lowercase();
-            m.contains("print") || m.contains("render") || m.contains("display") || m.contains("format")
+            m.contains("print")
+                || m.contains("render")
+                || m.contains("display")
+                || m.contains("format")
         });
         return io_methods;
     }
@@ -92,7 +92,10 @@ fn detect_rebellion(type_name: &str, methods: &[String]) -> bool {
     if type_name.contains("validator") || type_name.contains("checker") {
         let persist = methods.iter().any(|m| {
             let m = m.to_lowercase();
-            m.contains("save") || m.contains("delete") || m.contains("insert") || m.contains("update")
+            m.contains("save")
+                || m.contains("delete")
+                || m.contains("insert")
+                || m.contains("update")
         });
         return persist;
     }

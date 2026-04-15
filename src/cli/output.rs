@@ -230,7 +230,11 @@ fn print_smell_table(report: &AnalysisReport) {
             cat_cell,
             Cell::new(&smell.name),
             Cell::new(smell.location.to_string()),
-            Cell::new(format!("{}\n{}", smell.message.bold(), smell.suggestion.dimmed())),
+            Cell::new(format!(
+                "{}\n{}",
+                smell.message.bold(),
+                smell.suggestion.dimmed()
+            )),
         ]);
     }
 
@@ -281,7 +285,9 @@ fn category_cell(category: &SmellCategory) -> Cell {
 fn print_parse_errors(report: &AnalysisReport) {
     println!(
         "{}",
-        "Parse errors (files could not be analyzed):".yellow().bold()
+        "Parse errors (files could not be analyzed):"
+            .yellow()
+            .bold()
     );
     for error in &report.parse_errors {
         println!("  {} {error}", "✗".red());
@@ -296,9 +302,7 @@ fn print_footer(report: &AnalysisReport) {
         let total = report.total_smells();
         let critical = report.count_by_severity(Severity::Critical);
         if critical > 0 {
-            println!(
-                "  Found {total} smell(s), {critical} critical — consider refactoring.",
-            );
+            println!("  Found {total} smell(s), {critical} critical — consider refactoring.",);
         } else {
             println!("  Found {total} smell(s). Review warnings above.");
         }
@@ -313,8 +317,45 @@ pub fn print_detector_list() {
     println!("{}", "━".repeat(40).dimmed());
 
     let detectors = [
-        ("Architecture", vec!["God Module", "Public API Explosion", "Feature Concentration", "Cyclic Crate Dependency", "Layer Violation", "Unstable Dependency", "Leaky Error Abstraction", "Hidden Global State", "Public API Leak", "Test-only Dependency in Production", "Duplicate Dependency Versions", "Feature Flag Sprawl", "Circular Module Dependency"]),
-        ("Design", vec!["Large Trait", "Excessive Generics", "Anemic Struct", "Wide Hierarchy", "Trait Impl Leakage", "Feature Envy", "Broken Constructor", "Rebellious Impl", "Fat Impl", "Primitive Obsession", "Data Clumps", "Multiple Impl Blocks", "God Struct", "Boolean Flag Argument", "Stringly Typed Domain", "Large Error Enum"]),
+        (
+            "Architecture",
+            vec![
+                "God Module",
+                "Public API Explosion",
+                "Feature Concentration",
+                "Cyclic Crate Dependency",
+                "Layer Violation",
+                "Unstable Dependency",
+                "Leaky Error Abstraction",
+                "Hidden Global State",
+                "Public API Leak",
+                "Test-only Dependency in Production",
+                "Duplicate Dependency Versions",
+                "Feature Flag Sprawl",
+                "Circular Module Dependency",
+            ],
+        ),
+        (
+            "Design",
+            vec![
+                "Large Trait",
+                "Excessive Generics",
+                "Anemic Struct",
+                "Wide Hierarchy",
+                "Trait Impl Leakage",
+                "Feature Envy",
+                "Broken Constructor",
+                "Rebellious Impl",
+                "Fat Impl",
+                "Primitive Obsession",
+                "Data Clumps",
+                "Multiple Impl Blocks",
+                "God Struct",
+                "Boolean Flag Argument",
+                "Stringly Typed Domain",
+                "Large Error Enum",
+            ],
+        ),
         (
             "Implementation",
             vec![
@@ -365,8 +406,35 @@ pub fn print_detector_list() {
                 "Derivable Impl",
             ],
         ),
-        ("Concurrency", vec!["Blocking in Async", "Deadlock Risk", "Spawn Without Join", "Missing Send Bound", "Sync Drop Blocking", "Std Mutex in Async", "Blocking Channel in Async", "Holding Lock Across Await", "Dropped JoinHandle"]),
-        ("Unsafe", vec!["Unsafe Without Comment", "Transmute Usage", "Raw Pointer Arithmetic", "Multi Mut Ref Unsafe", "FFI Without Wrapper", "Inline Assembly", "Unsafe Fn Missing Safety Docs", "Unsafe Impl Missing Safety Docs", "Large Unsafe Block", "FFI Type Not repr(C)"]),
+        (
+            "Concurrency",
+            vec![
+                "Blocking in Async",
+                "Deadlock Risk",
+                "Spawn Without Join",
+                "Missing Send Bound",
+                "Sync Drop Blocking",
+                "Std Mutex in Async",
+                "Blocking Channel in Async",
+                "Holding Lock Across Await",
+                "Dropped JoinHandle",
+            ],
+        ),
+        (
+            "Unsafe",
+            vec![
+                "Unsafe Without Comment",
+                "Transmute Usage",
+                "Raw Pointer Arithmetic",
+                "Multi Mut Ref Unsafe",
+                "FFI Without Wrapper",
+                "Inline Assembly",
+                "Unsafe Fn Missing Safety Docs",
+                "Unsafe Impl Missing Safety Docs",
+                "Large Unsafe Block",
+                "FFI Type Not repr(C)",
+            ],
+        ),
     ];
 
     for (category, names) in &detectors {
