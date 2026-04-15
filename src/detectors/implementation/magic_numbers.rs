@@ -1,6 +1,7 @@
 use syn::visit::{Visit, visit_expr};
 
 use crate::analysis::detector::Detector;
+use crate::detectors::policy::is_test_path;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
 
@@ -17,6 +18,10 @@ impl Detector for MagicNumbersDetector {
 
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let mut smells = Vec::new();
+
+        if is_test_path(&file.path) {
+            return smells;
+        }
 
         for item in &file.ast.items {
             if let syn::Item::Fn(fn_item) = item {

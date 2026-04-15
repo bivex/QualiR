@@ -1,4 +1,5 @@
 use crate::analysis::detector::Detector;
+use crate::detectors::policy::{is_dto_template_or_config_struct, is_test_path};
 use crate::domain::config::Thresholds;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
@@ -18,10 +19,16 @@ impl Detector for PrimitiveObsessionDetector {
         let thresholds = Thresholds::default();
         let mut smells = Vec::new();
 
+        if is_test_path(&file.path) {
+            return smells;
+        }
+
         for item in &file.ast.items {
             if let syn::Item::Struct(s) = item {
                 // Ignore configuration structures which are naturally composed of primitives
-                if s.ident.to_string().ends_with("Thresholds") {
+                if s.ident.to_string().ends_with("Thresholds")
+                    || is_dto_template_or_config_struct(s)
+                {
                     continue;
                 }
 

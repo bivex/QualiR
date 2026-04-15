@@ -107,7 +107,7 @@ fn risky() {
     let _ = Some(4).unwrap();
 }
 "#;
-    std::fs::write(dir.path().join("test.rs"), code).expect("write test.rs");
+    std::fs::write(dir.path().join("prod.rs"), code).expect("write prod.rs");
 
     // With min_severity = Warning, should still find excessive unwrap (Warning)
     let mut config = Config::default();
@@ -127,6 +127,44 @@ fn risky() {
         report2.total_smells(),
         0,
         "Should find nothing at Critical severity"
+    );
+}
+
+#[test]
+fn policy_skip_tests_controls_test_file_analysis() {
+    let dir = tempfile::tempdir().expect("create temp dir");
+    let tests_dir = dir.path().join("tests");
+    std::fs::create_dir(&tests_dir).expect("create tests dir");
+    let code = r#"
+fn risky_test_helper() {
+    let _ = Some(1).unwrap();
+    let _ = Some(2).unwrap();
+    let _ = Some(3).unwrap();
+    let _ = Some(4).unwrap();
+}
+"#;
+    std::fs::write(tests_dir.join("risky.rs"), code).expect("write risky test file");
+
+    let mut engine = Engine::new(Config::default());
+    engine.register_defaults();
+    let skipped_report = engine.analyze(dir.path());
+    assert_eq!(
+        skipped_report.total_smells(),
+        0,
+        "default policy should skip test files"
+    );
+
+    let mut config = Config::default();
+    config.policy.skip_tests = false;
+    let mut engine = Engine::new(config);
+    engine.register_defaults();
+    let analyzed_report = engine.analyze(dir.path());
+    assert!(
+        analyzed_report
+            .smells
+            .iter()
+            .any(|smell| smell.name == "Excessive Unwrap"),
+        "disabling skip_tests should analyze test files"
     );
 }
 

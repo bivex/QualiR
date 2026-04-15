@@ -213,7 +213,54 @@ arc_mutex_overuse = 3
 
 [thresholds.unsafe]
 unsafe_without_comment = true
+
+[policy]
+skip_tests = true
+test_path_markers = ["tests", "test", "tests.rs", "_tests.rs"]
+skip_data_carrier_structs = true
+skip_template_structs = true
+data_carrier_struct_suffixes = [
+    "Activity",
+    "Command",
+    "Config",
+    "ConfigFile",
+    "Descriptor",
+    "Details",
+    "Dto",
+    "DTO",
+    "Entry",
+    "Event",
+    "Failure",
+    "Finding",
+    "FormData",
+    "Grant",
+    "Hit",
+    "Inspection",
+    "Item",
+    "Link",
+    "Metrics",
+    "Notification",
+    "Options",
+    "Outcome",
+    "Overview",
+    "Page",
+    "Query",
+    "Report",
+    "Request",
+    "Response",
+    "Result",
+    "Settings",
+    "SettingsFile",
+    "Snapshot",
+    "Stats",
+    "Summary",
+    "Template",
+    "View",
+    "Vulnerability",
+]
 ```
+
+Policy settings control broad false-positive suppression. Set `skip_tests = false` to analyze tests with the same rules as production code. Set `skip_data_carrier_structs = false` or edit `data_carrier_struct_suffixes` if DTO/config/view structs should be checked by design detectors.
 
 ## Severity Levels
 

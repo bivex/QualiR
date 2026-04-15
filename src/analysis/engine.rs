@@ -17,6 +17,7 @@ pub struct Engine {
 
 impl Engine {
     pub fn new(config: Config) -> Self {
+        crate::detectors::policy::configure(&config.policy);
         Self {
             detectors: Vec::new(),
             config,
@@ -284,6 +285,7 @@ impl Engine {
 
         let all_smells: Vec<Smell> = files
             .par_iter()
+            .filter(|file_path| !crate::detectors::policy::is_test_path(file_path))
             .flat_map(|file_path| match SourceFile::from_path(file_path.clone()) {
                 Ok(source) => {
                     let mut smells = Vec::new();

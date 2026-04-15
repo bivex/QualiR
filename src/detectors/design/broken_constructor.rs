@@ -1,4 +1,5 @@
 use crate::analysis::detector::Detector;
+use crate::detectors::policy::{is_dto_template_or_config_struct, is_test_path};
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
 
@@ -16,7 +17,7 @@ impl Detector for BrokenConstructorDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let mut smells = Vec::new();
 
-        if file.path.to_string_lossy().contains("tests") {
+        if is_test_path(&file.path) {
             return smells;
         }
 
@@ -27,6 +28,9 @@ impl Detector for BrokenConstructorDetector {
         for item in &file.ast.items {
             match item {
                 syn::Item::Struct(s) => {
+                    if is_dto_template_or_config_struct(s) {
+                        continue;
+                    }
                     let all_pub = match &s.fields {
                         syn::Fields::Named(named) => named
                             .named

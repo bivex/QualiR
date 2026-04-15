@@ -143,6 +143,19 @@ impl Point {
 ";
         assert_clean(&DETECTOR, code);
     }
+
+    #[test]
+    fn clean_template_struct() {
+        let code = r#"
+#[derive(Template)]
+#[template(path = "dashboard.html")]
+struct DashboardTemplate {
+    title: String,
+    count: usize,
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
 }
 
 // ─── Implementation ────────────────────────────────────────
@@ -212,6 +225,21 @@ fn risky() {
     fn clean_single_unwrap() {
         let code = "fn ok() { let x = Some(1).unwrap(); }";
         assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_test_file() {
+        let code = "\
+fn risky() {
+    let a = Some(1).unwrap();
+    let b = Some(2).unwrap();
+    let c = Some(3).unwrap();
+    let d = Some(4).unwrap();
+}
+";
+        let file =
+            SourceFile::from_source(PathBuf::from("src/tests.rs"), code.to_string()).unwrap();
+        assert!(DETECTOR.detect(&file).is_empty());
     }
 }
 
@@ -297,6 +325,14 @@ mod magic_numbers {
     fn clean_whitelisted_numbers() {
         let code = "fn calc() { let x = 0; let y = 1; let z = 100; }";
         assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_test_file() {
+        let code = "fn calc() { let x = 42; let y = 1337; }";
+        let file =
+            SourceFile::from_source(PathBuf::from("tests/magic.rs"), code.to_string()).unwrap();
+        assert!(DETECTOR.detect(&file).is_empty());
     }
 }
 
@@ -441,6 +477,15 @@ mod unused_result {
     fn clean_used_result() {
         let code = "fn ok() { let _x = std::fs::read_to_string(\"x\"); }";
         assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_test_file() {
+        let code = "fn discard() { let _ = std::fs::remove_file(\"x\"); }";
+        let file =
+            SourceFile::from_source(PathBuf::from("src/settings/tests.rs"), code.to_string())
+                .unwrap();
+        assert!(DETECTOR.detect(&file).is_empty());
     }
 }
 
@@ -1116,6 +1161,15 @@ struct DesignThresholds {
 ";
         assert_clean(&DETECTOR, code);
     }
+
+    #[test]
+    fn clean_config_and_template_structs() {
+        let code = "\
+struct Settings { a:i32,b:i32,c:i32,d:i32,e:i32,f:i32,g:i32,h:i32,i:i32,j:i32,k:i32,l:i32 }
+struct DashboardTemplate { a:i32,b:i32,c:i32,d:i32,e:i32,f:i32,g:i32,h:i32,i:i32,j:i32,k:i32,l:i32 }
+";
+        assert_clean(&DETECTOR, code);
+    }
 }
 
 mod broken_constructor {
@@ -1183,6 +1237,32 @@ pub struct Pair {
     pub b: i32,
 }
 ";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_dto_template_and_config_structs() {
+        let code = r#"
+pub struct CreateUserCommand {
+    pub name: String,
+    pub email: String,
+    pub age: i32,
+}
+
+#[derive(Template)]
+#[template(path = "user.html")]
+pub struct UserTemplate {
+    pub name: String,
+    pub email: String,
+    pub age: i32,
+}
+
+pub struct ServerConfig {
+    pub host: String,
+    pub port: u16,
+    pub tls: bool,
+}
+"#;
         assert_clean(&DETECTOR, code);
     }
 }
@@ -1737,6 +1817,15 @@ mod primitive_obsession {
     fn clean_thresholds_suffix() {
         // Structs ending in "Thresholds" are excluded
         let code = "struct MyThresholds { a: i32, b: i32, c: i32, d: i32, e: i32 }";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_config_and_view_carriers() {
+        let code = "\
+struct RateLimitConfig { a: i32, b: i32, c: i32, d: i32, e: i32 }
+struct DashboardView { a: String, b: String, c: String, d: String, e: String }
+";
         assert_clean(&DETECTOR, code);
     }
 

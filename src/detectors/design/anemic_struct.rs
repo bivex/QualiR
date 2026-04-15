@@ -1,4 +1,5 @@
 use crate::analysis::detector::Detector;
+use crate::detectors::policy::{is_dto_template_or_config_struct, is_test_path};
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
 
@@ -15,6 +16,10 @@ impl Detector for AnemicStructDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let mut smells = Vec::new();
 
+        if is_test_path(&file.path) {
+            return smells;
+        }
+
         // Collect struct names that have at least one field and no derive macros
         let structs_with_fields: Vec<&syn::ItemStruct> = file
             .ast
@@ -24,7 +29,7 @@ impl Detector for AnemicStructDetector {
                 syn::Item::Struct(s) => {
                     let has_fields = has_fields(s);
                     let has_derive = s.attrs.iter().any(|attr| attr.path().is_ident("derive"));
-                    (has_fields && !has_derive).then_some(s)
+                    (has_fields && !has_derive && !is_dto_template_or_config_struct(s)).then_some(s)
                 }
                 _ => None,
             })

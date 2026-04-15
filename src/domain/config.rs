@@ -66,6 +66,22 @@ pub struct UnsafeThresholds {
     pub unsafe_without_comment: bool,
 }
 
+/// Policy toggles for suppressing findings that are intentionally noisy in
+/// common Rust layouts.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PolicyConfig {
+    #[serde(default = "default_true")]
+    pub skip_tests: bool,
+    #[serde(default = "default_test_path_markers")]
+    pub test_path_markers: Vec<String>,
+    #[serde(default = "default_true")]
+    pub skip_data_carrier_structs: bool,
+    #[serde(default = "default_true")]
+    pub skip_template_structs: bool,
+    #[serde(default = "default_data_carrier_struct_suffixes")]
+    pub data_carrier_struct_suffixes: Vec<String>,
+}
+
 /// Thresholds that control when a smell is reported.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Thresholds {
@@ -120,6 +136,18 @@ mod tests {
         assert_eq!(config.thresholds.design.primitive_obsession_fields, 4);
         assert_eq!(config.thresholds.design.data_clumps_args, 3);
         assert_eq!(config.thresholds.design.data_clumps_occurrences, 3);
+
+        // Policy
+        assert!(config.policy.skip_tests);
+        assert!(config.policy.skip_data_carrier_structs);
+        assert!(config.policy.skip_template_structs);
+        assert!(
+            config
+                .policy
+                .data_carrier_struct_suffixes
+                .iter()
+                .any(|suffix| suffix == "Command")
+        );
     }
 
     #[test]
@@ -131,6 +159,29 @@ mod tests {
         assert_eq!(config.min_severity, crate::domain::smell::Severity::Info);
         assert_eq!(config.thresholds.arch.god_module_loc, 1000);
         assert!(config.exclude_paths.iter().any(|path| path == "target"));
+        assert!(toml.contains("[policy]"));
+        assert!(toml.contains("skip_tests = true"));
+    }
+
+    #[test]
+    fn policy_config_accepts_partial_toml() {
+        let config: Config = toml::from_str(
+            r#"
+[policy]
+skip_tests = false
+"#,
+        )
+        .expect("parse partial policy config");
+
+        assert!(!config.policy.skip_tests);
+        assert!(config.policy.skip_data_carrier_structs);
+        assert!(
+            config
+                .policy
+                .test_path_markers
+                .iter()
+                .any(|marker| marker == "tests")
+        );
     }
 
     #[test]
@@ -228,8 +279,13 @@ impl Default for Thresholds {
 /// Root configuration loaded from qualirs.toml or defaults.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Config {
+    #[serde(default)]
     pub thresholds: Thresholds,
+    #[serde(default)]
+    pub policy: PolicyConfig,
+    #[serde(default = "default_exclude_paths")]
     pub exclude_paths: Vec<String>,
+    #[serde(default = "default_min_severity")]
     pub min_severity: crate::domain::smell::Severity,
 }
 
@@ -237,10 +293,86 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             thresholds: Thresholds::default(),
-            exclude_paths: vec!["target".into(), ".git".into(), "node_modules".into()],
-            min_severity: crate::domain::smell::Severity::Info,
+            policy: PolicyConfig::default(),
+            exclude_paths: default_exclude_paths(),
+            min_severity: default_min_severity(),
         }
     }
+}
+
+fn default_exclude_paths() -> Vec<String> {
+    vec!["target".into(), ".git".into(), "node_modules".into()]
+}
+
+fn default_min_severity() -> crate::domain::smell::Severity {
+    crate::domain::smell::Severity::Info
+}
+
+impl Default for PolicyConfig {
+    fn default() -> Self {
+        Self {
+            skip_tests: true,
+            test_path_markers: default_test_path_markers(),
+            skip_data_carrier_structs: true,
+            skip_template_structs: true,
+            data_carrier_struct_suffixes: default_data_carrier_struct_suffixes(),
+        }
+    }
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_test_path_markers() -> Vec<String> {
+    vec![
+        "tests".into(),
+        "test".into(),
+        "tests.rs".into(),
+        "_tests.rs".into(),
+    ]
+}
+
+fn default_data_carrier_struct_suffixes() -> Vec<String> {
+    vec![
+        "Activity".into(),
+        "Command".into(),
+        "Config".into(),
+        "ConfigFile".into(),
+        "Descriptor".into(),
+        "Details".into(),
+        "Dto".into(),
+        "DTO".into(),
+        "Entry".into(),
+        "Event".into(),
+        "Failure".into(),
+        "Finding".into(),
+        "FormData".into(),
+        "Grant".into(),
+        "Hit".into(),
+        "Inspection".into(),
+        "Item".into(),
+        "Link".into(),
+        "Metrics".into(),
+        "Notification".into(),
+        "Options".into(),
+        "Outcome".into(),
+        "Overview".into(),
+        "Page".into(),
+        "Query".into(),
+        "Report".into(),
+        "Request".into(),
+        "Response".into(),
+        "Result".into(),
+        "Settings".into(),
+        "SettingsFile".into(),
+        "Snapshot".into(),
+        "Stats".into(),
+        "Summary".into(),
+        "Template".into(),
+        "View".into(),
+        "Vulnerability".into(),
+    ]
 }
 
 impl Config {

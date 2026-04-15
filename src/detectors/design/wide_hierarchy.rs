@@ -1,4 +1,5 @@
 use crate::analysis::detector::Detector;
+use crate::detectors::policy::{is_dto_template_or_config_struct, is_test_path};
 use crate::domain::config::Thresholds;
 use crate::domain::smell::{Severity, Smell, SmellCategory, SourceLocation};
 use crate::domain::source::SourceFile;
@@ -14,6 +15,10 @@ impl Detector for WideHierarchyDetector {
     fn detect(&self, file: &SourceFile) -> Vec<Smell> {
         let thresholds = Thresholds::default();
         let mut smells = Vec::new();
+
+        if is_test_path(&file.path) {
+            return smells;
+        }
 
         for item in &file.ast.items {
             match item {
@@ -31,7 +36,7 @@ impl Detector for WideHierarchyDetector {
                     }
                 }
                 syn::Item::Struct(s) => {
-                    if is_threshold_config_struct(&s.ident) {
+                    if is_threshold_config_struct(&s.ident) || is_dto_template_or_config_struct(s) {
                         continue;
                     }
                     if let syn::Fields::Named(named) = &s.fields {
