@@ -202,6 +202,25 @@ mod too_many_arguments {
     }
 }
 
+mod large_value_passed_by_value {
+    use super::*;
+    use qualirs::detectors::implementation::large_value_passed_by_value::LargeValuePassedByValueDetector;
+
+    static DETECTOR: LargeValuePassedByValueDetector = LargeValuePassedByValueDetector;
+
+    #[test]
+    fn detects_large_inline_array() {
+        let code = "fn process(bytes: [u8; 64]) {}";
+        assert_smell_count(&DETECTOR, code, "Large Value Passed By Value", 1);
+    }
+
+    #[test]
+    fn clean_owned_heap_containers_are_cheap_to_move() {
+        let code = "fn process(name: String, bytes: Vec<u8>, lookup: HashMap<String, String>) {}";
+        assert_clean(&DETECTOR, code);
+    }
+}
+
 mod excessive_unwrap {
     use super::*;
     use qualirs::detectors::implementation::excessive_unwrap::ExcessiveUnwrapDetector;
@@ -487,6 +506,45 @@ mod unused_result {
                 .unwrap();
         assert!(DETECTOR.detect(&file).is_empty());
     }
+
+    #[test]
+    fn clean_string_buffer_write_result() {
+        let code = r#"
+fn render() -> String {
+    let mut out = String::new();
+    let _ = writeln!(out, "hello");
+    out
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_string_param_write_result() {
+        let code = r#"
+fn render(out: &mut String) {
+    let _ = write!(out, "hello");
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn detects_unknown_writer_discard() {
+        let code = r#"
+struct Writer;
+fn render(writer: Writer) {
+    let _ = writeln!(writer, "hello");
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Unused Result Ignored", 1);
+    }
+
+    #[test]
+    fn clean_channel_sender_discard() {
+        let code = "fn notify(sender: Sender) { let _ = sender.send(1); }";
+        assert_clean(&DETECTOR, code);
+    }
 }
 
 mod repeated_regex_construction {
@@ -534,6 +592,167 @@ fn validate(value: &str) -> bool {
     VALID
         .get_or_init(|| Regex::new(r"^[a-z]+$").expect("valid regex"))
         .is_match(value)
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod inline_candidate {
+    use super::*;
+    use qualirs::detectors::implementation::inline_candidate::InlineCandidateDetector;
+
+    static DETECTOR: InlineCandidateDetector = InlineCandidateDetector;
+
+    #[test]
+    fn detects_tiny_repeated_function() {
+        let code = r#"
+fn score(value: u32) -> u32 {
+    value + 1
+}
+
+fn total() -> u32 {
+    score(1) + score(2) + score(3)
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Inline Candidate", 1);
+    }
+
+    #[test]
+    fn detects_tiny_repeated_method() {
+        let code = r#"
+struct Price(u32);
+
+impl Price {
+    fn cents(&self) -> u32 {
+        self.0
+    }
+}
+
+fn total(a: Price, b: Price, c: Price) -> u32 {
+    a.cents() + b.cents() + c.cents()
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Inline Candidate", 1);
+    }
+
+    #[test]
+    fn clean_existing_inline_hint() {
+        let code = r#"
+#[inline]
+fn score(value: u32) -> u32 {
+    value + 1
+}
+
+fn total() -> u32 {
+    score(1) + score(2) + score(3)
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_low_call_count() {
+        let code = r#"
+fn score(value: u32) -> u32 {
+    value + 1
+}
+
+fn total() -> u32 {
+    score(1)
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_complex_small_function() {
+        let code = r#"
+fn score(value: u32) -> u32 {
+    if value > 10 { value } else { 10 }
+}
+
+fn total() -> u32 {
+    score(1) + score(2) + score(3)
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_cfg_test_helpers() {
+        let code = r#"
+#[cfg(test)]
+mod tests {
+    fn fixture(value: u32) -> u32 {
+        value + 1
+    }
+
+    fn smoke() -> u32 {
+        fixture(1) + fixture(2) + fixture(3)
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+}
+
+mod manual_option_result_mapping {
+    use super::*;
+    use qualirs::detectors::implementation::manual_option_result_mapping::ManualOptionResultMappingDetector;
+
+    static DETECTOR: ManualOptionResultMappingDetector = ManualOptionResultMappingDetector;
+
+    #[test]
+    fn detects_simple_option_map() {
+        let code = r#"
+fn map_value(value: Option<i32>) -> Option<i32> {
+    match value {
+        Some(value) => Some(value + 1),
+        None => None,
+    }
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Manual Option/Result Mapping", 1);
+    }
+
+    #[test]
+    fn detects_simple_result_map() {
+        let code = r#"
+fn map_value(value: Result<i32, Error>) -> Result<i32, Error> {
+    match value {
+        Ok(value) => Ok(value + 1),
+        Err(error) => Err(error),
+    }
+}
+"#;
+        assert_smell_count(&DETECTOR, code, "Manual Option/Result Mapping", 1);
+    }
+
+    #[test]
+    fn clean_destructuring_match_that_builds_many_options() {
+        let code = r#"
+fn columns(identity: Option<Identity>) -> (Option<String>, Option<String>) {
+    match identity {
+        Some(identity) => (Some(identity.issuer), Some(identity.subject)),
+        None => (None, None),
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_result_match_with_nested_result_handling() {
+        let code = r#"
+fn scanner(result: Result<Compiled, Error>) -> Scanner {
+    match result {
+        Ok(compiled) => Scanner::loaded(compiled),
+        Err(error) => match fallback() {
+            Ok(compiled) => Scanner::loaded(compiled),
+            Err(fallback_error) => Scanner::unavailable(error, fallback_error),
+        },
+    }
 }
 "#;
         assert_clean(&DETECTOR, code);
@@ -2146,6 +2365,28 @@ pub struct Handler;
 ";
         assert_clean(&DETECTOR, code);
     }
+
+    #[test]
+    fn clean_dyn_compatible_port_trait() {
+        let code = "\
+#[async_trait]
+pub trait Handler: Send + Sync {
+    async fn handle(&self);
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_async_trait_impl_duplicate() {
+        let code = "\
+#[async_trait]
+impl Handler for Service {
+    async fn handle(&self) {}
+}
+";
+        assert_clean(&DETECTOR, code);
+    }
 }
 
 mod unnecessary_allocation_in_loop {
@@ -2187,6 +2428,63 @@ fn report(items: &[i32]) {
 fn report(items: &[i32]) {
     for item in items {
         consume(&format!("item: {item}"));
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_error_formatting_inside_loop() {
+        let code = r#"
+fn validate(items: &[Item]) -> Result<(), ApplicationError> {
+    for item in items {
+        if item.is_invalid() {
+            return Err(ApplicationError::Conflict(format!("invalid item {}", item.id)));
+        }
+        item.check().map_err(|error| format!("invalid item: {error}"))?;
+    }
+    Ok(())
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_diagnostic_evidence_collection() {
+        let code = r#"
+fn scan(items: &[Rule]) {
+    for item in items {
+        let mut evidence = vec![format!("rule={}", item.name)];
+        evidence.push(format!("tags={}", item.tags));
+        evidence.extend(item.meta.iter().map(|meta| format!("meta={meta}")));
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_inline_cfg_test_module() {
+        let code = r#"
+#[cfg(test)]
+mod tests {
+    fn fixture() {
+        for index in 0..10 {
+            let name = format!("fixture_{index}");
+        }
+    }
+}
+"#;
+        assert_clean(&DETECTOR, code);
+    }
+
+    #[test]
+    fn clean_owned_origin_metadata_inside_loop() {
+        let code = r#"
+fn compile(files: &[RuleFile]) {
+    for file in files {
+        compiler.add_source(SourceCode::from(file.contents).with_origin(format!("bundled:{}", file.path)));
     }
 }
 "#;

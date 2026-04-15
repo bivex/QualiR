@@ -83,6 +83,7 @@ const DETECTOR_GROUPS: &[DetectorGroup] = &[
             "Repeated Regex Construction",
             "Clone on Copy",
             "Large Value Passed By Value",
+            "Inline Candidate",
         ],
     ),
     DetectorGroup::new(

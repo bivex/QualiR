@@ -10,6 +10,7 @@ pub mod derivable_impl;
 pub mod duplicate_match_arms;
 pub mod excessive_clone;
 pub mod excessive_unwrap;
+pub mod inline_candidate;
 pub mod interior_mutability_abuse;
 pub mod large_enum;
 pub mod large_value_passed_by_value;
