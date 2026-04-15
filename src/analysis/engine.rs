@@ -321,17 +321,22 @@ impl Engine {
 
         let walker = RustFileWalker::new(path, &self.config.exclude_paths);
         let files = walker.collect_files();
+        let ignored_findings = self.ignored_findings();
 
         let (all_smells, errors) = files
             .par_iter()
-            .filter(|file_path| !crate::detectors::policy::is_test_path(file_path))
+            .filter(|file_path| {
+                !crate::detectors::policy::is_test_path_with_policy(file_path, &self.config.policy)
+            })
             .map(|file_path| match SourceFile::from_path(file_path.clone()) {
                 Ok(source) => {
                     let mut smells = Vec::new();
                     for detector in &self.detectors {
                         smells.extend(detector.detect(&source));
                     }
-                    smells.retain(|smell| smell.severity >= self.config.min_severity);
+                    smells.retain(|smell| {
+                        should_report_smell(&self.config, &ignored_findings, smell)
+                    });
                     (smells, Vec::new())
                 }
                 Err(e) => (Vec::new(), vec![e]),
@@ -349,6 +354,19 @@ impl Engine {
 
         AnalysisReport::new(all_smells, total_files, errors)
     }
+
+    fn ignored_findings(&self) -> Vec<String> {
+        self.config
+            .ignore_findings
+            .iter()
+            .map(|code| code.to_ascii_uppercase())
+            .collect()
+    }
+}
+
+fn should_report_smell(config: &Config, ignored_findings: &[String], smell: &Smell) -> bool {
+    smell.severity >= config.min_severity
+        && !ignored_findings.iter().any(|code| code == &smell.code)
 }
 
 /// Result of analyzing a codebase.
@@ -409,5 +427,32 @@ impl AnalysisReport {
             .iter()
             .filter(|s| s.severity == severity)
             .count()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use crate::domain::smell::{SmellCategory, SourceLocation};
+
+    use super::*;
+
+    #[test]
+    fn ignored_findings_filter_by_rule_code_case_insensitively() {
+        let mut config = Config::default();
+        config.ignore_findings = vec!["q0001".into()];
+        let engine = Engine::new(config.clone());
+        let ignored_findings = engine.ignored_findings();
+        let smell = Smell::new(
+            SmellCategory::Architecture,
+            "God Module (items)",
+            Severity::Warning,
+            SourceLocation::new(PathBuf::from("src/lib.rs"), 1, 1, None),
+            "message",
+            "suggestion",
+        );
+
+        assert!(!should_report_smell(&config, &ignored_findings, &smell));
     }
 }

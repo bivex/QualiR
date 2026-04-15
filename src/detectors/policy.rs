@@ -12,6 +12,10 @@ pub(crate) fn configure(policy: &PolicyConfig) {
 
 pub(crate) fn is_test_path(path: &Path) -> bool {
     let policy = POLICY.read().expect("policy lock poisoned");
+    is_test_path_with_policy(path, &policy)
+}
+
+pub(crate) fn is_test_path_with_policy(path: &Path, policy: &PolicyConfig) -> bool {
     if !policy.skip_tests {
         return false;
     }
