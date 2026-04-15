@@ -279,7 +279,7 @@ fn empty_collection_kind(expr: &syn::Expr) -> Option<CollectionKind> {
     let syn::Expr::Path(path) = &*call.func else {
         return None;
     };
-    if call.args.len() != 0 {
+    if !call.args.is_empty() {
         return None;
     }
 

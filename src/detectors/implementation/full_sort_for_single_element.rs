@@ -58,10 +58,9 @@ impl<'ast> Visit<'ast> for FullSortVisitor {
                 self.sorted
                     .insert(receiver, node.method.span().start().line);
             } else if method == "get"
-                && !node
+                && node
                     .args
-                    .first()
-                    .is_some_and(|arg| int_lit_value(arg) == Some(0))
+                    .first().is_none_or(|arg| int_lit_value(arg) != Some(0))
                 && self.sorted.remove(&receiver).is_some()
             {
                 self.findings
