@@ -319,6 +319,18 @@ impl Engine {
 
     /// Analyze all Rust files under `path` and return detected smells.
     pub fn analyze(&self, path: &Path) -> AnalysisReport {
+        if self.config.threads > 0 {
+            return rayon::ThreadPoolBuilder::new()
+                .num_threads(self.config.threads)
+                .build()
+                .expect("analysis thread pool should be valid")
+                .install(|| self.analyze_with_current_pool(path));
+        }
+
+        self.analyze_with_current_pool(path)
+    }
+
+    fn analyze_with_current_pool(&self, path: &Path) -> AnalysisReport {
         let _config_guard = ANALYSIS_CONFIG_LOCK
             .get_or_init(|| Mutex::new(()))
             .lock()
@@ -440,6 +452,10 @@ impl AnalysisReport {
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
 
     use crate::domain::smell::{SmellCategory, SourceLocation};
 
@@ -542,5 +558,41 @@ mod tests {
 
         let report = engine.analyze(dir.path());
         assert_eq!(report.total_smells(), 0);
+    }
+
+    #[test]
+    fn configured_threads_are_used_by_analysis_pool() {
+        struct ThreadCountDetector {
+            observed: Arc<AtomicUsize>,
+        }
+
+        impl Detector for ThreadCountDetector {
+            fn name(&self) -> &str {
+                "Thread Count"
+            }
+
+            fn detect(&self, _file: &SourceFile) -> Vec<Smell> {
+                self.observed
+                    .store(rayon::current_num_threads(), Ordering::SeqCst);
+                Vec::new()
+            }
+        }
+
+        let dir = tempfile::tempdir().expect("create temp dir");
+        std::fs::write(dir.path().join("lib.rs"), "fn f() {}\n").expect("write source");
+
+        let observed = Arc::new(AtomicUsize::new(0));
+        let mut engine = Engine::new(Config {
+            threads: 2,
+            ..Config::default()
+        });
+        engine.register(Box::new(ThreadCountDetector {
+            observed: Arc::clone(&observed),
+        }));
+
+        let report = engine.analyze(dir.path());
+
+        assert_eq!(report.total_files, 1);
+        assert_eq!(observed.load(Ordering::SeqCst), 2);
     }
 }

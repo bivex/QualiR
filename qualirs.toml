@@ -5,6 +5,7 @@ exclude_paths = [
 ]
 ignore_findings = []
 min_severity = "info"
+threads = 0
 
 [thresholds.arch]
 god_module_loc = 1000

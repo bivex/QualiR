@@ -7,6 +7,7 @@ use qualirs::domain::config::{Config, PolicyConfig};
 use qualirs::domain::smell::{RULES, rule_code_for};
 
 const CASES_DIR: &str = "tests/cases";
+const FIXTURE_MANIFEST_FILE: &str = "Cargo.fixture.toml";
 const EXPECT_PREFIX: &str = "// EXPECT: ";
 
 #[test]
@@ -103,7 +104,15 @@ fn copy_dir(source: &Path, destination: &Path) {
     {
         let entry = entry.expect("read directory entry");
         let entry_source = entry.path();
-        let entry_destination = destination.join(entry.file_name());
+        let file_name = entry.file_name();
+        if file_name == "target" {
+            continue;
+        }
+        let entry_destination = if file_name == FIXTURE_MANIFEST_FILE {
+            destination.join("Cargo.toml")
+        } else {
+            destination.join(file_name)
+        };
 
         if entry_source.is_dir() {
             copy_dir(&entry_source, &entry_destination);

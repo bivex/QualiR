@@ -7,7 +7,7 @@ mod infrastructure;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use analysis::engine::Engine;
+use analysis::engine::{AnalysisReport, Engine};
 use cli::args::{Args, Command, OutputFormat};
 use domain::config::Config;
 use domain::smell::{Severity, SmellCategory};
@@ -40,30 +40,10 @@ fn run() -> anyhow::Result<ExitCode> {
     let engine = setup_engine(config);
     let mut report = engine.analyze(source.path());
 
-    if let Some(category) = &args.filters.category {
-        let category = category
-            .parse::<SmellCategory>()
-            .map_err(anyhow::Error::msg)?;
-        report.smells.retain(|smell| smell.category == category);
-    }
+    apply_category_filter(&mut report, args.filters.category.as_deref())?;
+    emit_report(&report, &args.output_options)?;
 
-    if args.output_options.quiet {
-        print_summary(&report);
-    } else if args.output_options.format == Some(OutputFormat::Json) {
-        cli::json_output::emit_json_report(&report, args.output_options.output_path.as_deref())?;
-    } else if args.output_options.llm {
-        cli::output::print_llm_report(&report);
-    } else if args.output_options.table {
-        cli::output::print_report(&report);
-    } else {
-        cli::output::print_compact_report(&report);
-    }
-
-    if report.count_by_severity(Severity::Critical) > 0 {
-        return Ok(ExitCode::FAILURE);
-    }
-
-    Ok(ExitCode::SUCCESS)
+    Ok(exit_code_for_report(&report))
 }
 
 fn run_command(command: &Command) -> anyhow::Result<()> {
@@ -137,6 +117,10 @@ fn get_config(args: &Args, analysis_path: &Path) -> anyhow::Result<Config> {
         };
     }
 
+    if let Some(threads) = filters.threads {
+        config.threads = threads;
+    }
+
     Ok(config)
 }
 
@@ -146,7 +130,63 @@ fn setup_engine(config: Config) -> Engine {
     engine
 }
 
-fn print_summary(report: &analysis::engine::AnalysisReport) {
+fn apply_category_filter(
+    report: &mut AnalysisReport,
+    category: Option<&str>,
+) -> anyhow::Result<()> {
+    let Some(category) = category else {
+        return Ok(());
+    };
+    let category = category
+        .parse::<SmellCategory>()
+        .map_err(anyhow::Error::msg)?;
+
+    report.smells.retain(|smell| smell.category == category);
+    Ok(())
+}
+
+fn emit_report(
+    report: &AnalysisReport,
+    output_options: &cli::args::OutputOptions,
+) -> anyhow::Result<()> {
+    if output_options.quiet {
+        print_summary(report);
+        return Ok(());
+    }
+
+    if output_options.format == Some(OutputFormat::Json) {
+        cli::json_output::emit_json_report(report, output_options.output_path.as_deref())?;
+        return Ok(());
+    }
+
+    if output_options.llm {
+        cli::output::print_llm_report(report);
+        return Ok(());
+    }
+
+    if output_options.how_fix {
+        cli::output::print_how_fix_report(report);
+        return Ok(());
+    }
+
+    if output_options.table {
+        cli::output::print_report(report);
+        return Ok(());
+    }
+
+    cli::output::print_compact_report(report);
+    Ok(())
+}
+
+fn exit_code_for_report(report: &AnalysisReport) -> ExitCode {
+    if report.count_by_severity(Severity::Critical) > 0 {
+        ExitCode::FAILURE
+    } else {
+        ExitCode::SUCCESS
+    }
+}
+
+fn print_summary(report: &AnalysisReport) {
     println!(
         "Files: {} | Smells: {} (Critical: {}, Warning: {}, Info: {})",
         report.total_files,
@@ -177,6 +217,7 @@ mod tests {
             },
             filters: FilterOptions {
                 config: Some(config),
+                threads: None,
                 min_severity,
                 category: None,
             },
@@ -185,6 +226,7 @@ mod tests {
                 compact: false,
                 table: false,
                 llm: false,
+                how_fix: false,
                 format: None,
                 output_path: None,
             },
@@ -217,5 +259,18 @@ mod tests {
         .expect("load config");
 
         assert_eq!(config.min_severity, Severity::Warning);
+    }
+
+    #[test]
+    fn cli_threads_overrides_config_value() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let config_path = dir.path().join("qualirs.toml");
+        std::fs::write(&config_path, "threads = 2\n").expect("write config");
+        let mut args = args_with_config(config_path, None);
+        args.filters.threads = Some(4);
+
+        let config = get_config(&args, dir.path()).expect("load config");
+
+        assert_eq!(config.threads, 4);
     }
 }

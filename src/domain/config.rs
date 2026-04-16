@@ -160,6 +160,7 @@ mod tests {
         assert!(config.policy.skip_tests);
         assert!(config.policy.skip_data_carrier_structs);
         assert!(config.policy.skip_template_structs);
+        assert_eq!(config.threads, 0);
         assert!(
             config
                 .policy
@@ -182,7 +183,9 @@ mod tests {
         let config: Config = toml::from_str(&toml).expect("parse default config");
 
         assert!(toml.contains("min_severity = \"info\""));
+        assert!(toml.contains("threads = 0"));
         assert_eq!(config.min_severity, crate::domain::smell::Severity::Info);
+        assert_eq!(config.threads, 0);
         assert_eq!(config.thresholds.arch.god_module_loc, 1000);
         assert!(config.exclude_paths.iter().any(|path| path == "target"));
         assert!(config.ignore_findings.is_empty());
@@ -239,6 +242,19 @@ ignore_findings = ["Q0001", "q0068"]
         .expect("parse ignored finding codes");
 
         assert_eq!(config.ignore_findings, ["Q0001", "q0068"]);
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn config_accepts_thread_count() {
+        let config: Config = toml::from_str(
+            r#"
+threads = 4
+"#,
+        )
+        .expect("parse thread count");
+
+        assert_eq!(config.threads, 4);
         assert!(config.validate().is_ok());
     }
 
@@ -340,6 +356,10 @@ impl Default for Thresholds {
 /// Root configuration loaded from qualirs.toml or defaults.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Config {
+    /// Number of Rayon worker threads to use for analysis. A value of 0 uses
+    /// Rayon's default, which is typically all logical CPUs.
+    #[serde(default)]
+    pub threads: usize,
     #[serde(default)]
     pub thresholds: Thresholds,
     #[serde(default)]
@@ -355,6 +375,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            threads: 0,
             thresholds: Thresholds::default(),
             policy: PolicyConfig::default(),
             exclude_paths: default_exclude_paths(),

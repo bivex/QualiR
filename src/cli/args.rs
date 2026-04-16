@@ -79,6 +79,10 @@ pub(crate) struct FilterOptions {
     #[arg(short, long)]
     pub(crate) config: Option<PathBuf>,
 
+    /// Number of analysis threads to use (0 = all logical CPUs)
+    #[arg(long)]
+    pub(crate) threads: Option<usize>,
+
     /// Minimum severity to report: info, warning, critical
     #[arg(short = 'm', long)]
     pub(crate) min_severity: Option<String>,
@@ -103,14 +107,21 @@ pub(crate) struct OutputOptions {
     pub(crate) table: bool,
 
     /// LLM mode: show compact Markdown with fenced finding blocks for coding assistants
-    #[arg(long, conflicts_with_all = ["quiet", "compact"])]
+    #[arg(long, conflicts_with_all = ["quiet", "compact", "how_fix"])]
     pub(crate) llm: bool,
+
+    /// How-fix mode: explain each finding with the current source code and improvement guidance
+    #[arg(
+        long,
+        conflicts_with_all = ["quiet", "compact", "table", "llm", "format", "list_detectors"]
+    )]
+    pub(crate) how_fix: bool,
 
     /// Output format
     #[arg(
         long,
         value_enum,
-        conflicts_with_all = ["quiet", "compact", "table", "llm", "list_detectors"]
+        conflicts_with_all = ["quiet", "compact", "table", "llm", "how_fix", "list_detectors"]
     )]
     pub(crate) format: Option<OutputFormat>,
 

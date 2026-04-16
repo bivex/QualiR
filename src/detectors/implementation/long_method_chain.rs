@@ -32,7 +32,9 @@ impl Detector for LongMethodChainDetector {
                 visitor.visit_block(&fn_item.block);
 
                 // Deduplicate: keep only the longest chain per line
-                visitor.candidates.sort_by(|a, b| b.0.cmp(&a.0));
+                visitor
+                    .candidates
+                    .sort_by_key(|candidate| std::cmp::Reverse(candidate.0));
                 let mut seen_lines = std::collections::HashSet::new();
                 for (depth, line) in visitor.candidates {
                     if seen_lines.insert(line) {
