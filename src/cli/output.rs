@@ -269,41 +269,61 @@ fn print_how_fix_smells(report: &AnalysisReport) {
             compact_category_label(&category).bold()
         );
 
-        for smell in smells {
-            print_how_fix_smell(smell);
+        let total = smells.len();
+        for (index, smell) in smells.into_iter().enumerate() {
+            print_how_fix_smell(smell, index + 1, total);
         }
 
         println!();
     }
 }
 
-fn print_how_fix_smell(smell: &Smell) {
+fn print_how_fix_smell(smell: &Smell, index: usize, total: usize) {
     println!(
-        "  {} {} {}",
+        "  {} {} {} {} {}",
+        "╭─".dimmed(),
+        format!("Finding {index}/{total}").bold(),
         compact_severity_label(&smell.severity),
-        smell.code.cyan().bold(),
+        smell.code.bright_cyan().bold(),
         smell.name.bold()
     );
-    println!("    Location: {}", smell.location.to_string().dimmed());
-    println!("    Problem: {}", smell.message);
-    println!("    How to improve:");
-    println!("      {}", smell.suggestion);
-    println!("      {}", enhancement_explanation(smell));
+    println!(
+        "  {} {} {}",
+        "│".dimmed(),
+        "Location".bright_black().bold(),
+        smell.location.to_string().dimmed()
+    );
+    println!("  {}", "│".dimmed());
 
-    println!("    Current code:");
+    print_how_fix_section("Problem", &smell.message);
+    print_how_fix_section("Fix", &smell.suggestion);
+    print_how_fix_section("Why", enhancement_explanation(smell));
+
+    println!(
+        "  {} {}",
+        "│".dimmed(),
+        "Current code".bright_black().bold()
+    );
     if let Some(snippet) = source_snippet_with_context(&smell.location, 2) {
-        print_indented_fenced_code("text", &snippet, 6);
+        print_source_excerpt(&snippet);
     } else {
         println!(
-            "      {}",
+            "  {}   {}",
+            "│".dimmed(),
             "source snippet unavailable; the file may have moved or been deleted".dimmed()
         );
     }
 
     if let Some(suggestion) = suggested_code(smell) {
-        println!("    Suggested code:");
-        print_indented_fenced_code("rust", &suggestion, 6);
+        println!(
+            "  {} {}",
+            "│".dimmed(),
+            "Suggested code".bright_black().bold()
+        );
+        print_code_candidate(&suggestion);
     }
+
+    println!("  {}", "╰─".dimmed());
 }
 
 fn enhancement_explanation(smell: &Smell) -> &'static str {
@@ -332,14 +352,69 @@ fn enhancement_explanation(smell: &Smell) -> &'static str {
     }
 }
 
-fn print_indented_fenced_code(language: &str, code: &str, indent: usize) {
-    let padding = " ".repeat(indent);
-    let fence = if code.contains("```") { "````" } else { "```" };
-    println!("{padding}{fence}{language}");
-    for line in code.lines() {
-        println!("{padding}{line}");
+fn print_how_fix_section(label: &str, text: &str) {
+    println!("  {} {}", "│".dimmed(), label.bright_black().bold());
+    for line in text.lines() {
+        println!("  {}   {}", "│".dimmed(), line);
     }
-    println!("{padding}{fence}");
+    println!("  {}", "│".dimmed());
+}
+
+fn print_source_excerpt(snippet: &str) {
+    for line in snippet.lines() {
+        let (selected, rest) = if let Some(rest) = line.strip_prefix("> ") {
+            (true, rest)
+        } else if let Some(rest) = line.strip_prefix("  ") {
+            (false, rest)
+        } else {
+            (false, line)
+        };
+
+        let marker = if selected {
+            "▶".yellow().bold()
+        } else {
+            " ".normal()
+        };
+        let Some((gutter, source)) = rest.split_once('|') else {
+            println!("  {}   {} {}", "│".dimmed(), marker, rest);
+            continue;
+        };
+
+        let source = source.strip_prefix(' ').unwrap_or(source);
+
+        if selected {
+            println!(
+                "  {}   {} {}{}{}",
+                "│".dimmed(),
+                marker,
+                gutter.trim_end().yellow().bold(),
+                " │ ".yellow().bold(),
+                source.bold()
+            );
+        } else {
+            println!(
+                "  {}   {} {}{}{}",
+                "│".dimmed(),
+                marker,
+                gutter.trim_end().dimmed(),
+                " │ ".dimmed(),
+                source
+            );
+        }
+    }
+    println!("  {}", "│".dimmed());
+}
+
+fn print_code_candidate(code: &str) {
+    for line in code.lines() {
+        println!(
+            "  {}   {} {}",
+            "│".dimmed(),
+            "+".green().bold(),
+            line.green()
+        );
+    }
+    println!("  {}", "│".dimmed());
 }
 
 fn print_smell_table(report: &AnalysisReport) {

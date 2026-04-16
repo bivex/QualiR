@@ -79,25 +79,22 @@ fn collect_copy_types(ast: &syn::File) -> Vec<TypeInfo<'_>> {
 
     for item in &ast.items {
         match item {
-            syn::Item::Struct(s)
-                if has_derive_copy(&s.attrs) => {
-                    copy_types.push(TypeInfo {
-                        name: &s.ident,
-                        line: s.struct_token.span.start().line,
-                    });
-                }
-            syn::Item::Enum(e)
-                if has_derive_copy(&e.attrs) => {
-                    copy_types.push(TypeInfo {
-                        name: &e.ident,
-                        line: e.enum_token.span.start().line,
-                    });
-                }
-            syn::Item::Impl(imp)
-                if imp.trait_.is_none() => {
-                    // Check for manual Copy impl within the inherent impl block
-                    // This is actually done via trait impl, not inherent, so skip
-                }
+            syn::Item::Struct(s) if has_derive_copy(&s.attrs) => {
+                copy_types.push(TypeInfo {
+                    name: &s.ident,
+                    line: s.struct_token.span.start().line,
+                });
+            }
+            syn::Item::Enum(e) if has_derive_copy(&e.attrs) => {
+                copy_types.push(TypeInfo {
+                    name: &e.ident,
+                    line: e.enum_token.span.start().line,
+                });
+            }
+            syn::Item::Impl(imp) if imp.trait_.is_none() => {
+                // Check for manual Copy impl within the inherent impl block
+                // This is actually done via trait impl, not inherent, so skip
+            }
             _ => {}
         }
     }
