@@ -354,7 +354,7 @@ fn print_smell_table(report: &AnalysisReport) {
     ]);
 
     let mut smells = report.smells.clone();
-    smells.sort_by(|a, b| b.severity.cmp(&a.severity));
+    smells.sort_by_key(|smell| std::cmp::Reverse(smell.severity));
 
     for smell in &smells {
         let sev_cell = severity_cell(&smell.severity);

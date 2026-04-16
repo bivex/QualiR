@@ -32,12 +32,11 @@ impl Detector for FfiWithoutWrapperDetector {
                         }
                     }
                 }
-                syn::Item::Fn(fn_item) => {
+                syn::Item::Fn(fn_item)
                     // A safe wrapper is a non-extern pub fn
-                    if fn_item.sig.unsafety.is_none() {
+                    if fn_item.sig.unsafety.is_none() => {
                         safe_wrappers.insert(fn_item.sig.ident.to_string());
                     }
-                }
                 _ => {}
             }
         }
