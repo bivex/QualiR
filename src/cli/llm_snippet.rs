@@ -1,5 +1,7 @@
 use crate::domain::smell::SourceLocation;
 
+const MAX_CONTEXT_SNIPPET_LINES: usize = 32;
+
 pub(crate) fn source_snippet(location: &SourceLocation) -> Option<String> {
     let source = std::fs::read_to_string(&location.file).ok()?;
     let start = location.line_start.max(1);
@@ -27,65 +29,99 @@ pub(crate) fn source_snippet_with_context(
     location: &SourceLocation,
     context_lines: usize,
 ) -> Option<String> {
-    use std::fmt::Write as _;
-
-    const MAX_CONTEXT_SNIPPET_LINES: usize = 32;
-
     let source = std::fs::read_to_string(&location.file).ok()?;
     let lines: Vec<_> = source.lines().collect();
-    if lines.is_empty() || location.line_start == 0 || location.line_start > lines.len() {
-        return None;
-    }
-
-    let finding_start = location.line_start;
-    let finding_end = location.line_end.max(finding_start).min(lines.len());
-    let snippet_start = finding_start.saturating_sub(context_lines).max(1);
-    let snippet_end = finding_end.saturating_add(context_lines).min(lines.len());
-    let line_number_width = snippet_end.to_string().len();
+    let range = ContextSnippetRange::new(location, lines.len(), context_lines)?;
     let mut snippet = String::new();
-    let total_snippet_lines = snippet_end - snippet_start + 1;
 
-    if total_snippet_lines <= MAX_CONTEXT_SNIPPET_LINES {
-        for line_number in snippet_start..=snippet_end {
-            write_context_line(
-                &mut snippet,
-                &lines,
-                line_number,
-                line_number_width,
-                finding_start,
-                finding_end,
-            )?;
-        }
+    if range.total_lines() <= MAX_CONTEXT_SNIPPET_LINES {
+        write_context_lines(
+            &mut snippet,
+            &lines,
+            range.snippet_start..=range.snippet_end,
+            range,
+        )?;
     } else {
-        let leading_lines = MAX_CONTEXT_SNIPPET_LINES / 2;
-        let trailing_lines = MAX_CONTEXT_SNIPPET_LINES - leading_lines;
-        let leading_end = snippet_start + leading_lines - 1;
-        let trailing_start = snippet_end - trailing_lines + 1;
-
-        for line_number in snippet_start..=leading_end {
-            write_context_line(
-                &mut snippet,
-                &lines,
-                line_number,
-                line_number_width,
-                finding_start,
-                finding_end,
-            )?;
-        }
-        writeln!(snippet, "  {:>line_number_width$} | ...", "...").ok()?;
-        for line_number in trailing_start..=snippet_end {
-            write_context_line(
-                &mut snippet,
-                &lines,
-                line_number,
-                line_number_width,
-                finding_start,
-                finding_end,
-            )?;
-        }
+        write_elided_context_snippet(&mut snippet, &lines, range)?;
     }
 
     Some(snippet)
+}
+
+#[derive(Clone, Copy)]
+struct ContextSnippetRange {
+    finding_start: usize,
+    finding_end: usize,
+    snippet_start: usize,
+    snippet_end: usize,
+}
+
+impl ContextSnippetRange {
+    fn new(location: &SourceLocation, line_count: usize, context_lines: usize) -> Option<Self> {
+        if line_count == 0 || location.line_start == 0 || location.line_start > line_count {
+            return None;
+        }
+
+        let finding_start = location.line_start;
+        let finding_end = location.line_end.max(finding_start).min(line_count);
+        let snippet_start = finding_start.saturating_sub(context_lines).max(1);
+        let snippet_end = finding_end.saturating_add(context_lines).min(line_count);
+
+        Some(Self {
+            finding_start,
+            finding_end,
+            snippet_start,
+            snippet_end,
+        })
+    }
+
+    fn total_lines(self) -> usize {
+        self.snippet_end - self.snippet_start + 1
+    }
+
+    fn line_number_width(self) -> usize {
+        self.snippet_end.to_string().len()
+    }
+}
+
+fn write_elided_context_snippet(
+    snippet: &mut String,
+    lines: &[&str],
+    range: ContextSnippetRange,
+) -> Option<()> {
+    use std::fmt::Write as _;
+
+    let leading_lines = MAX_CONTEXT_SNIPPET_LINES / 2;
+    let trailing_lines = MAX_CONTEXT_SNIPPET_LINES - leading_lines;
+    let leading_end = range.snippet_start + leading_lines - 1;
+    let trailing_start = range.snippet_end - trailing_lines + 1;
+    let line_number_width = range.line_number_width();
+
+    write_context_lines(snippet, lines, range.snippet_start..=leading_end, range)?;
+    writeln!(snippet, "  {:>line_number_width$} | ...", "...").ok()?;
+    write_context_lines(snippet, lines, trailing_start..=range.snippet_end, range)
+}
+
+fn write_context_lines(
+    snippet: &mut String,
+    lines: &[&str],
+    line_numbers: std::ops::RangeInclusive<usize>,
+    range: ContextSnippetRange,
+) -> Option<()> {
+    let line_number_width = range.line_number_width();
+
+    for line_number in line_numbers {
+        write_context_line(
+            snippet,
+            lines,
+            line_number,
+            line_number_width,
+            range.finding_start,
+            range.finding_end,
+        )?;
+    }
+
+    Some(())
 }
 
 fn write_context_line(
