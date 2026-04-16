@@ -79,6 +79,10 @@ pub(crate) struct FilterOptions {
     #[arg(short, long)]
     pub(crate) config: Option<PathBuf>,
 
+    /// Number of analysis threads to use (0 = all logical CPUs)
+    #[arg(long)]
+    pub(crate) threads: Option<usize>,
+
     /// Minimum severity to report: info, warning, critical
     #[arg(short = 'm', long)]
     pub(crate) min_severity: Option<String>,

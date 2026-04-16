@@ -7,7 +7,7 @@ QualiRS parses your Rust source code with AST analysis and detects structural co
 ## Features
 
 - 96 built-in smell detectors across 7 categories
-- Parallel analysis via rayon (all CPU cores)
+- Parallel analysis via rayon, with configurable thread count
 - Configurable thresholds via `qualirs.toml`
 - Stable `Q0001`-style finding codes with config-based ignores
 - False-positive policy controls for tests, DTOs, templates, and config structs
@@ -56,6 +56,9 @@ qualirs init-config
 # Only show warnings and critical
 qualirs --min-severity warning .
 
+# Use four analysis threads
+qualirs --threads 4 .
+
 # Quiet mode (summary only, great for CI)
 qualirs --quiet .
 
@@ -84,6 +87,7 @@ Options:
       --temp-dir <DIR>               Directory to create temporary git and crate analysis folders in
       --keep-temp                    Preserve temporary git and crate analysis folders after the run
   -c, --config <CONFIG>              Configuration file path (default: qualirs.toml in project root)
+      --threads <THREADS>            Number of analysis threads to use (0 = all logical CPUs)
   -m, --min-severity <MIN_SEVERITY>  Minimum severity to report: info, warning, critical
   -t, --category <CATEGORY>          Show only smells of a specific category
   -q, --quiet                        Quiet mode: only show summary counts
@@ -144,6 +148,7 @@ exclude_paths = [
     "node_modules",
 ]
 min_severity = "info"
+threads = 0
 ignore_findings = [
     # "Q0001", # God Module
 ]

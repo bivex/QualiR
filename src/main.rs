@@ -117,6 +117,10 @@ fn get_config(args: &Args, analysis_path: &Path) -> anyhow::Result<Config> {
         };
     }
 
+    if let Some(threads) = filters.threads {
+        config.threads = threads;
+    }
+
     Ok(config)
 }
 
@@ -213,6 +217,7 @@ mod tests {
             },
             filters: FilterOptions {
                 config: Some(config),
+                threads: None,
                 min_severity,
                 category: None,
             },
@@ -254,5 +259,18 @@ mod tests {
         .expect("load config");
 
         assert_eq!(config.min_severity, Severity::Warning);
+    }
+
+    #[test]
+    fn cli_threads_overrides_config_value() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let config_path = dir.path().join("qualirs.toml");
+        std::fs::write(&config_path, "threads = 2\n").expect("write config");
+        let mut args = args_with_config(config_path, None);
+        args.filters.threads = Some(4);
+
+        let config = get_config(&args, dir.path()).expect("load config");
+
+        assert_eq!(config.threads, 4);
     }
 }
