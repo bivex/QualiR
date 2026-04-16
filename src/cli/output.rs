@@ -3,6 +3,7 @@ use comfy_table::{Cell, Color as TableColor, Table, presets::UTF8_FULL};
 
 use crate::analysis::engine::AnalysisReport;
 use crate::cli::llm_snippet::{print_fenced_code, source_snippet, source_snippet_with_context};
+use crate::cli::suggested_code::suggested_code;
 use crate::domain::smell::{Severity, Smell, SmellCategory};
 
 /// Print the full analysis report to stdout.
@@ -297,6 +298,11 @@ fn print_how_fix_smell(smell: &Smell) {
             "      {}",
             "source snippet unavailable; the file may have moved or been deleted".dimmed()
         );
+    }
+
+    if let Some(suggestion) = suggested_code(smell) {
+        println!("    Suggested code:");
+        print_indented_fenced_code("rust", &suggestion, 6);
     }
 }
 
