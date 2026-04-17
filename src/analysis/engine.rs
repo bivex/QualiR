@@ -354,7 +354,7 @@ impl Engine {
                         smells.extend(detector.detect(&source));
                     }
                     smells.retain(|smell| {
-                        should_report_smell(&self.config, &ignored_findings, smell)
+                        should_report_smell(&self.config, &ignored_findings, &source, smell)
                     });
                     (smells, Vec::new())
                 }
@@ -383,9 +383,75 @@ impl Engine {
     }
 }
 
-fn should_report_smell(config: &Config, ignored_findings: &[String], smell: &Smell) -> bool {
+fn should_report_smell(
+    config: &Config,
+    ignored_findings: &[String],
+    source: &SourceFile,
+    smell: &Smell,
+) -> bool {
     smell.severity >= config.min_severity
         && !ignored_findings.iter().any(|code| code == &smell.code)
+        && !has_pre_line_ignore(source, smell)
+}
+
+fn has_pre_line_ignore(source: &SourceFile, smell: &Smell) -> bool {
+    if smell.location.line_start <= 1 {
+        return false;
+    }
+
+    let previous_line_number = smell.location.line_start - 1;
+
+    source
+        .code
+        .lines()
+        .nth(previous_line_number.saturating_sub(1))
+        .is_some_and(|line| pre_line_ignore_matches(line, &smell.code))
+}
+
+fn pre_line_ignore_matches(line: &str, smell_code: &str) -> bool {
+    let Some(comment) = comment_text(line) else {
+        return false;
+    };
+
+    let Some(directive) = ignore_directive(comment) else {
+        return false;
+    };
+
+    let ignored_codes: Vec<&str> = directive
+        .split(|ch: char| ch == ',' || ch.is_whitespace())
+        .filter(|part| !part.is_empty())
+        .collect();
+
+    ignored_codes.is_empty()
+        || ignored_codes
+            .iter()
+            .any(|code| code.eq_ignore_ascii_case(smell_code))
+}
+
+fn comment_text(line: &str) -> Option<&str> {
+    let trimmed = line.trim_start();
+    if let Some(comment) = trimmed.strip_prefix("//") {
+        Some(comment.trim_start())
+    } else {
+        trimmed
+            .strip_prefix("/*")
+            .map(|comment| comment.trim_end_matches("*/").trim())
+    }
+}
+
+fn ignore_directive(comment: &str) -> Option<&str> {
+    let trimmed = comment.trim_start();
+    let lower = trimmed.to_ascii_lowercase();
+
+    if lower.starts_with("qualirs:ignore") {
+        Some(trimmed["qualirs:ignore".len()..].trim())
+    } else if lower.starts_with("qualirs: ignore") {
+        Some(trimmed["qualirs: ignore".len()..].trim())
+    } else if lower.starts_with("qualirs-ignore") {
+        Some(trimmed["qualirs-ignore".len()..].trim())
+    } else {
+        None
+    }
 }
 
 /// Result of analyzing a codebase.
@@ -478,7 +544,118 @@ mod tests {
             "suggestion",
         );
 
-        assert!(!should_report_smell(&config, &ignored_findings, &smell));
+        let source =
+            SourceFile::from_source(PathBuf::from("src/lib.rs"), String::from("fn main() {}\n"))
+                .expect("parse source");
+
+        assert!(!should_report_smell(
+            &config,
+            &ignored_findings,
+            &source,
+            &smell
+        ));
+    }
+
+    #[test]
+    fn pre_line_ignore_filters_matching_rule_code() {
+        let config = Config::default();
+        let ignored_findings = Vec::new();
+        let source = SourceFile::from_source(
+            PathBuf::from("src/lib.rs"),
+            String::from("// qualirs:ignore q0031\nfn f(a: i32, b: i32, c: i32) {}\n"),
+        )
+        .expect("parse source");
+        let smell = Smell::new(
+            SmellCategory::Implementation,
+            "Too Many Arguments",
+            Severity::Warning,
+            SourceLocation::new(PathBuf::from("src/lib.rs"), 2, 2, None),
+            "message",
+            "suggestion",
+        );
+
+        assert!(!should_report_smell(
+            &config,
+            &ignored_findings,
+            &source,
+            &smell
+        ));
+    }
+
+    #[test]
+    fn pre_line_ignore_without_code_filters_any_rule_on_next_line() {
+        let source = SourceFile::from_source(
+            PathBuf::from("src/lib.rs"),
+            String::from("// qualirs-ignore\nfn f(a: i32, b: i32, c: i32) {}\n"),
+        )
+        .expect("parse source");
+        let smell = Smell::new(
+            SmellCategory::Implementation,
+            "Too Many Arguments",
+            Severity::Warning,
+            SourceLocation::new(PathBuf::from("src/lib.rs"), 2, 2, None),
+            "message",
+            "suggestion",
+        );
+
+        assert!(has_pre_line_ignore(&source, &smell));
+    }
+
+    #[test]
+    fn pre_line_ignore_does_not_filter_other_rule_codes() {
+        let config = Config::default();
+        let ignored_findings = Vec::new();
+        let source = SourceFile::from_source(
+            PathBuf::from("src/lib.rs"),
+            String::from("// qualirs:ignore Q0001\nfn f(a: i32, b: i32, c: i32) {}\n"),
+        )
+        .expect("parse source");
+        let smell = Smell::new(
+            SmellCategory::Implementation,
+            "Too Many Arguments",
+            Severity::Warning,
+            SourceLocation::new(PathBuf::from("src/lib.rs"), 2, 2, None),
+            "message",
+            "suggestion",
+        );
+
+        assert!(should_report_smell(
+            &config,
+            &ignored_findings,
+            &source,
+            &smell
+        ));
+    }
+
+    #[test]
+    fn engine_applies_pre_line_ignores_after_detection() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        std::fs::write(
+            dir.path().join("args.rs"),
+            "// qualirs:ignore Q0031\nfn many_args(a: i32, b: i32, c: i32) -> i32 { a + b + c }\n",
+        )
+        .expect("write source");
+
+        let strict_config = Config {
+            thresholds: crate::domain::config::Thresholds {
+                r#impl: crate::domain::config::ImplThresholds {
+                    control_flow: crate::domain::config::ControlFlowThresholds {
+                        too_many_arguments: 2,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Config::default()
+        };
+        let mut engine = Engine::new(strict_config);
+        engine.register(Box::new(
+            crate::detectors::implementation::too_many_arguments::TooManyArgumentsDetector,
+        ));
+
+        let report = engine.analyze(dir.path());
+        assert_eq!(report.total_smells(), 0);
     }
 
     #[test]

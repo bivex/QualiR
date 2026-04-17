@@ -5,3 +5,5 @@
 /vscode/out
 /vscode/*.vsix
 vscode/bin/linux-x64/qualirs
+
+.vscode

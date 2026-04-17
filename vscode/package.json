@@ -1,10 +1,11 @@
 {
   "name": "qualirs",
-  "displayName": "QualiRS",
-  "description": "Run QualiRS structural Rust code-smell analysis from VS Code.",
-  "version": "0.3.0",
+  "displayName": "qualirs",
+  "description": "Run qualirs structural Rust code-smell analysis from VS Code.",
+  "version": "0.3.1",
   "publisher": "rustedbytes",
   "license": "MIT",
+  "icon": "images/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/bivex/QualiR.git"
@@ -24,34 +25,50 @@
   ],
   "activationEvents": [
     "onLanguage:rust",
+    "workspaceContains:Cargo.toml",
     "workspaceContains:qualirs.toml",
     "onCommand:qualirs.checkActiveFile",
     "onCommand:qualirs.checkWorkspace",
     "onCommand:qualirs.initConfig",
-    "onCommand:qualirs.showOutput"
+    "onCommand:qualirs.showOutput",
+    "onCommand:qualirs.pause",
+    "onCommand:qualirs.resume",
+    "onCommand:qualirs.togglePause"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "qualirs.checkActiveFile",
-        "title": "QualiRS: Check Active Rust File"
+        "title": "qualirs: Check Active Rust File"
       },
       {
         "command": "qualirs.checkWorkspace",
-        "title": "QualiRS: Check Workspace"
+        "title": "qualirs: Check Workspace"
       },
       {
         "command": "qualirs.initConfig",
-        "title": "QualiRS: Create qualirs.toml"
+        "title": "qualirs: Create qualirs.toml"
       },
       {
         "command": "qualirs.showOutput",
-        "title": "QualiRS: Show Output"
+        "title": "qualirs: Show Output"
+      },
+      {
+        "command": "qualirs.pause",
+        "title": "qualirs: Pause"
+      },
+      {
+        "command": "qualirs.resume",
+        "title": "qualirs: Resume"
+      },
+      {
+        "command": "qualirs.togglePause",
+        "title": "qualirs: Toggle Pause"
       }
     ],
     "configuration": {
-      "title": "QualiRS",
+      "title": "qualirs",
       "properties": {
         "qualirs.executablePath": {
           "type": "string",
@@ -66,12 +83,22 @@
         "qualirs.runOnOpen": {
           "type": "boolean",
           "default": true,
-          "description": "Run QualiRS when a Rust file is opened."
+          "description": "Run qualirs when a Rust file is opened."
         },
         "qualirs.runOnSave": {
           "type": "boolean",
           "default": true,
-          "description": "Run QualiRS when a Rust file is saved."
+          "description": "Run qualirs when a Rust file is saved."
+        },
+        "qualirs.runOnWorkspaceOpen": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run qualirs when a Rust repository is opened."
+        },
+        "qualirs.paused": {
+          "type": "boolean",
+          "default": false,
+          "description": "Pause qualirs analysis. When paused, automatic and manual checks do not run."
         },
         "qualirs.minSeverity": {
           "type": "string",
@@ -82,7 +109,7 @@
             "warning",
             "critical"
           ],
-          "description": "Minimum severity to report. Empty uses qualirs.toml or the QualiRS default."
+          "description": "Minimum severity to report. Empty uses qualirs.toml or the qualirs default."
         },
         "qualirs.category": {
           "type": "string",
@@ -103,27 +130,28 @@
           "type": "number",
           "default": 0,
           "minimum": 0,
-          "description": "Number of analysis threads. 0 uses QualiRS/Rayon defaults."
+          "description": "Number of analysis threads. 0 uses qualirs/Rayon defaults."
         },
         "qualirs.statusBarItem": {
           "type": "boolean",
           "default": true,
-          "description": "Show a QualiRS status bar item with the current finding count."
+          "description": "Show a qualirs status bar item with the current finding count."
         }
       }
     }
   },
   "scripts": {
+    "sync:version": "node ./scripts/sync-version.js",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "build:binary": "node ./scripts/build-binary.js",
-    "package:vsix": "npm run build:binary && npm run compile && vsce package",
-    "vscode:prepublish": "npm run compile"
+    "package:vsix": "npm run sync:version && npm run build:binary && vsce package",
+    "vscode:prepublish": "npm run sync:version && npm run compile"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",
     "@types/vscode": "^1.85.0",
-    "@vscode/vsce": "2.15.0",
+    "@vscode/vsce": "^2.32.0",
     "typescript": "^5.4.5"
   },
   "overrides": {

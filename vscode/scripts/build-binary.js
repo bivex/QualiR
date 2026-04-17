@@ -25,7 +25,7 @@ const platform = platformMap[process.platform];
 const arch = archMap[process.arch];
 
 if (!platform || !arch) {
-  throw new Error(`Unsupported platform for bundled QualiRS binary: ${process.platform}-${process.arch}`);
+  throw new Error(`Unsupported platform for bundled qualirs binary: ${process.platform}-${process.arch}`);
 }
 
 const result = spawnSync("cargo", ["build", "--release", "--bin", "qualirs"], {
