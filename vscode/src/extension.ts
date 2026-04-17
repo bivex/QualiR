@@ -5,6 +5,20 @@ import * as path from "path";
 import * as vscode from "vscode";
 
 type Severity = "critical" | "warning" | "info";
+type StatusState = "checking" | "error" | "paused" | undefined;
+
+interface QualirsConfig {
+    executablePath: string;
+    configPath: string;
+    runOnOpen: boolean;
+    runOnSave: boolean;
+    runOnWorkspaceOpen: boolean;
+    paused: boolean;
+    minSeverity: string;
+    category: string;
+    threads: number;
+    statusBarItem: boolean;
+}
 
 interface QualirsReport {
     summary?: {
@@ -43,10 +57,12 @@ interface RunResult {
 }
 
 const diagnosticSource = "qualirs";
+const debounceDelayMs = 250;
 const diagnosticCollection = vscode.languages.createDiagnosticCollection("qualirs");
 let statusBarItem: vscode.StatusBarItem;
 let outputChannel: vscode.OutputChannel;
 const timers = new Map<string, NodeJS.Timeout>();
+let runSequence = 0;
 
 export function activate(context: vscode.ExtensionContext): void {
     outputChannel = vscode.window.createOutputChannel("qualirs", "log");
@@ -61,23 +77,34 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.commands.registerCommand("qualirs.initConfig", () => initConfig(context)),
         vscode.commands.registerCommand("qualirs.showOutput", () => outputChannel.show()),
         vscode.commands.registerCommand("qualirs.pause", () => setPaused(true)),
-        vscode.commands.registerCommand("qualirs.resume", () => setPaused(false)),
-        vscode.commands.registerCommand("qualirs.togglePause", () => setPaused(!isPaused())),
+        vscode.commands.registerCommand("qualirs.resume", async () => {
+            await setPaused(false);
+            await checkActiveFile(context, false);
+        }),
+        vscode.commands.registerCommand("qualirs.togglePause", async () => {
+            const shouldPause = !readConfig().paused;
+            await setPaused(shouldPause);
+            if (!shouldPause) {
+                await checkActiveFile(context, false);
+            }
+        }),
         vscode.workspace.onDidChangeWorkspaceFolders(() => {
             runOnOpenedRustRepository(context);
         }),
         vscode.workspace.onDidSaveTextDocument((document) => {
-            if (!isPaused() && isRustDocument(document) && getConfig().get<boolean>("runOnSave", true)) {
+            const config = readConfig();
+            if (!config.paused && isRustDocument(document) && config.runOnSave) {
                 scheduleCheck(context, document);
             }
         }),
         vscode.workspace.onDidOpenTextDocument((document) => {
-            if (!isPaused() && isRustDocument(document) && getConfig().get<boolean>("runOnOpen", true)) {
+            const config = readConfig();
+            if (!config.paused && isRustDocument(document) && config.runOnOpen) {
                 scheduleCheck(context, document);
             }
         }),
         vscode.window.onDidChangeActiveTextEditor((editor) => {
-            if (isPaused()) {
+            if (readConfig().paused) {
                 updateStatusText("paused");
                 return;
             }
@@ -94,7 +121,7 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.workspace.onDidChangeConfiguration((event) => {
             if (event.affectsConfiguration("qualirs")) {
                 updateStatusVisibility();
-                if (isPaused()) {
+                if (readConfig().paused) {
                     clearScheduledChecks();
                     diagnosticCollection.clear();
                     updateStatusText("paused");
@@ -106,7 +133,7 @@ export function activate(context: vscode.ExtensionContext): void {
     );
 
     updateStatusVisibility();
-    if (isPaused()) {
+    if (readConfig().paused) {
         updateStatusText("paused");
     } else if (runOnOpenedRustRepository(context)) {
         return;
@@ -118,11 +145,12 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 export function deactivate(): void {
+    clearScheduledChecks();
     diagnosticCollection.dispose();
 }
 
 async function checkActiveFile(context: vscode.ExtensionContext, revealOutputOnError: boolean): Promise<void> {
-    if (isPaused()) {
+    if (readConfig().paused) {
         updateStatusText("paused");
         if (revealOutputOnError) {
             void vscode.window.showInformationMessage("qualirs is paused. Run `qualirs: Resume` to enable analysis.");
@@ -149,7 +177,7 @@ async function checkActiveFile(context: vscode.ExtensionContext, revealOutputOnE
 }
 
 async function checkWorkspace(context: vscode.ExtensionContext, revealOutputOnError: boolean): Promise<void> {
-    if (isPaused()) {
+    if (readConfig().paused) {
         updateStatusText("paused");
         if (revealOutputOnError) {
             void vscode.window.showInformationMessage("qualirs is paused. Run `qualirs: Resume` to enable analysis.");
@@ -167,7 +195,8 @@ async function checkWorkspace(context: vscode.ExtensionContext, revealOutputOnEr
 }
 
 function runOnOpenedRustRepository(context: vscode.ExtensionContext): boolean {
-    if (isPaused() || !getConfig().get<boolean>("runOnWorkspaceOpen", true)) {
+    const config = readConfig();
+    if (config.paused || !config.runOnWorkspaceOpen) {
         return false;
     }
 
@@ -185,7 +214,7 @@ async function checkDocument(
     document: vscode.TextDocument,
     revealOutputOnError: boolean
 ): Promise<void> {
-    if (isPaused()) {
+    if (readConfig().paused) {
         updateStatusText("paused");
         return;
     }
@@ -209,7 +238,7 @@ async function checkDocument(
 }
 
 function scheduleCheck(context: vscode.ExtensionContext, document: vscode.TextDocument): void {
-    if (isPaused()) {
+    if (readConfig().paused) {
         updateStatusText("paused");
         return;
     }
@@ -230,7 +259,7 @@ function scheduleCheck(context: vscode.ExtensionContext, document: vscode.TextDo
         setTimeout(() => {
             timers.delete(key);
             void checkDocument(context, document, false);
-        }, 250)
+        }, debounceDelayMs)
     );
 }
 
@@ -241,11 +270,12 @@ async function runQualirs(
     revealOutputOnError: boolean,
     focusedDocument?: vscode.Uri
 ): Promise<void> {
-    if (isPaused()) {
+    if (readConfig().paused) {
         updateStatusText("paused");
         return;
     }
 
+    const runId = ++runSequence;
     updateStatusText("checking");
     const executable = resolveExecutable(context);
     if (!executable) {
@@ -265,12 +295,18 @@ async function runQualirs(
 
     try {
         const result = await execute(executable, args, cwd);
+        if (runId !== runSequence) {
+            outputChannel.appendLine("Ignored stale qualirs result.");
+            return;
+        }
+
         outputChannel.appendLine(`Exit code: ${result.exitCode ?? "signal"}`);
         if (result.stderr.trim()) {
             outputChannel.appendLine(result.stderr.trimEnd());
         }
+        appendParseErrors(result.report);
 
-        if (isPaused()) {
+        if (readConfig().paused) {
             diagnosticCollection.clear();
             updateStatusText("paused");
             return;
@@ -279,6 +315,10 @@ async function runQualirs(
         applyReport(result.report, focusedDocument, workspaceFolder);
         updateStatusFromReport(result.report);
     } catch (error) {
+        if (runId !== runSequence) {
+            return;
+        }
+
         const message = error instanceof Error ? error.message : String(error);
         outputChannel.appendLine(message);
         updateStatusText("error");
@@ -293,24 +333,21 @@ async function runQualirs(
 }
 
 function buildArgs(targetPath: string, workspaceFolder: vscode.WorkspaceFolder | undefined): string[] {
-    const config = getConfig();
+    const config = readConfig();
     const args = ["--format", "json"];
-    const configPath = resolveConfigPath(config.get<string>("configPath", ""), targetPath, workspaceFolder);
-    const minSeverity = config.get<string>("minSeverity", "");
-    const category = config.get<string>("category", "");
-    const threads = config.get<number>("threads", 0);
+    const configPath = resolveConfigPath(config.configPath, targetPath, workspaceFolder);
 
     if (configPath) {
         args.push("--config", configPath);
     }
-    if (minSeverity) {
-        args.push("--min-severity", minSeverity);
+    if (config.minSeverity) {
+        args.push("--min-severity", config.minSeverity);
     }
-    if (category) {
-        args.push("--category", category);
+    if (config.category) {
+        args.push("--category", config.category);
     }
-    if (threads && threads > 0) {
-        args.push("--threads", String(threads));
+    if (config.threads > 0) {
+        args.push("--threads", String(config.threads));
     }
 
     args.push(targetPath);
@@ -318,7 +355,7 @@ function buildArgs(targetPath: string, workspaceFolder: vscode.WorkspaceFolder |
 }
 
 function resolveExecutable(context: vscode.ExtensionContext): string | undefined {
-    const configured = getConfig().get<string>("executablePath", "").trim();
+    const configured = readConfig().executablePath.trim();
     if (configured) {
         const expanded = expandHome(configured);
         return fs.existsSync(expanded) ? expanded : configured;
@@ -399,7 +436,7 @@ function execute(executable: string, args: string[], cwd: string): Promise<RunRe
             }
 
             try {
-                const report = JSON.parse(jsonText) as QualirsReport;
+                const report = parseReport(jsonText);
                 resolve({ report, stdout, stderr, exitCode });
             } catch (error) {
                 const reason = error instanceof Error ? error.message : String(error);
@@ -407,6 +444,27 @@ function execute(executable: string, args: string[], cwd: string): Promise<RunRe
             }
         });
     });
+}
+
+function parseReport(jsonText: string): QualirsReport {
+    const value: unknown = JSON.parse(jsonText);
+    if (!isObject(value)) {
+        throw new Error("top-level JSON value is not an object");
+    }
+
+    return value as QualirsReport;
+}
+
+function appendParseErrors(report: QualirsReport): void {
+    const parseErrors = report.parse_errors ?? [];
+    if (parseErrors.length === 0) {
+        return;
+    }
+
+    outputChannel.appendLine(`qualirs reported ${parseErrors.length} parse error(s):`);
+    for (const parseError of parseErrors) {
+        outputChannel.appendLine(`- ${parseError.message ?? "unknown parse error"}`);
+    }
 }
 
 function applyReport(
@@ -538,7 +596,7 @@ function executeConfigInit(executable: string, target: string, cwd: string): Pro
 }
 
 function updateStatusFromReport(report: QualirsReport): void {
-    if (isPaused()) {
+    if (readConfig().paused) {
         updateStatusText("paused");
         return;
     }
@@ -554,7 +612,7 @@ function updateStatusFromReport(report: QualirsReport): void {
 }
 
 function updateStatusFromDiagnostics(uri: vscode.Uri): void {
-    if (isPaused()) {
+    if (readConfig().paused) {
         updateStatusText("paused");
         return;
     }
@@ -571,7 +629,7 @@ function updateStatusFromDiagnostics(uri: vscode.Uri): void {
     });
 }
 
-function updateStatusText(state: "checking" | "error" | "paused" | undefined): void {
+function updateStatusText(state: StatusState): void {
     if (state === "checking") {
         statusBarItem.text = "$(sync~spin) qualirs";
         statusBarItem.tooltip = "qualirs is checking this Rust file.";
@@ -588,7 +646,7 @@ function updateStatusText(state: "checking" | "error" | "paused" | undefined): v
 }
 
 function updateStatusVisibility(): void {
-    if (getConfig().get<boolean>("statusBarItem", true)) {
+    if (readConfig().statusBarItem) {
         statusBarItem.show();
     } else {
         statusBarItem.hide();
@@ -620,10 +678,6 @@ async function setPaused(paused: boolean): Promise<void> {
         outputChannel.appendLine("qualirs resumed.");
         void vscode.window.showInformationMessage("qualirs resumed.");
     }
-}
-
-function isPaused(): boolean {
-    return getConfig().get<boolean>("paused", false);
 }
 
 function configurationTargetForPause(): vscode.ConfigurationTarget {
@@ -659,6 +713,22 @@ function getConfig(): vscode.WorkspaceConfiguration {
     return vscode.workspace.getConfiguration("qualirs");
 }
 
+function readConfig(): QualirsConfig {
+    const config = getConfig();
+    return {
+        executablePath: config.get<string>("executablePath", ""),
+        configPath: config.get<string>("configPath", ""),
+        runOnOpen: config.get<boolean>("runOnOpen", true),
+        runOnSave: config.get<boolean>("runOnSave", true),
+        runOnWorkspaceOpen: config.get<boolean>("runOnWorkspaceOpen", true),
+        paused: config.get<boolean>("paused", false),
+        minSeverity: config.get<string>("minSeverity", ""),
+        category: config.get<string>("category", ""),
+        threads: Math.max(config.get<number>("threads", 0), 0),
+        statusBarItem: config.get<boolean>("statusBarItem", true)
+    };
+}
+
 function expandHome(value: string): string {
     if (value === "~") {
         return os.homedir();
@@ -671,4 +741,8 @@ function expandHome(value: string): string {
 
 function quote(value: string): string {
     return /\s/.test(value) ? `"${value.replace(/"/g, '\\"')}"` : value;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
 }
