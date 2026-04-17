@@ -1,3 +1,4 @@
+use quote::ToTokens;
 use syn::visit::Visit;
 
 use crate::analysis::detector::Detector;
@@ -99,5 +100,5 @@ fn expr_to_string(expr: &syn::Expr) -> String {
 }
 
 fn type_to_string(ty: &syn::Type) -> String {
-    format!("{:?}", ty).to_lowercase()
+    ty.to_token_stream().to_string().to_lowercase()
 }
