@@ -2,7 +2,7 @@
   "name": "qualirs",
   "displayName": "qualirs",
   "description": "Run qualirs structural Rust code-smell analysis from VS Code.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "rustedbytes",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -141,11 +141,12 @@
     }
   },
   "scripts": {
+    "sync:version": "node ./scripts/sync-version.js",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "build:binary": "node ./scripts/build-binary.js",
-    "package:vsix": "npm run build:binary && npm run compile && vsce package",
-    "vscode:prepublish": "npm run compile"
+    "package:vsix": "npm run sync:version && npm run build:binary && vsce package",
+    "vscode:prepublish": "npm run sync:version && npm run compile"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",
